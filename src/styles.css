@@ -8,6 +8,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow: hidden;
   background:
     radial-gradient(circle at top right, rgba(255, 145, 77, 0.12), transparent 24%),
     radial-gradient(circle at left center, rgba(89, 179, 155, 0.12), transparent 28%),
@@ -16,12 +17,16 @@ body {
 
 #root {
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .admin-home {
   position: relative;
   display: flex;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   transition: padding-left 0.52s cubic-bezier(0.16, 1, 0.3, 1);
   background:
     radial-gradient(circle at top right, rgba(255, 145, 77, 0.12), transparent 24%),
@@ -316,6 +321,8 @@ body {
   padding: 88px 18px 22px;
   background: #1f252c;
   border-right: 1px solid #2f3841;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .admin-home__sidebar-top {
@@ -467,8 +474,11 @@ body {
 
 .admin-home__content {
   flex: 1;
+  min-width: 0;
   padding: 44px 52px 44px 40px;
   border-bottom: 1px solid #2f3841;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .admin-home__content_wide {
@@ -3354,7 +3364,11 @@ body {
 }
 
 .calculator-page {
+  box-sizing: border-box;
+  height: 100vh;
   min-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 28px;
   background:
     radial-gradient(circle at top right, rgba(255, 145, 77, 0.12), transparent 22%),
