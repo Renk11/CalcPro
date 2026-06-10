@@ -25,6 +25,12 @@ import {
   upsertFolder,
   upsertTemplate,
 } from './shared/storage/localStorage';
+import {
+  buildNextPaidUntil,
+  createDefaultSubscriptionSettings,
+  isSubscriptionActive,
+  PENDING_YOOKASSA_PAYMENT_KEY,
+} from './shared/subscription';
 import type {
   CalculatorPublicationStatus,
   CalculatorAdminSettings,
@@ -72,9 +78,14 @@ const getPublicCalculatorUrl = (publicId: string) => {
   url.searchParams.set('calculator', publicId);
   return url.toString();
 };
-
-const hasActiveSubscription = true;
 const BASIC_TEMPLATE_LIMIT = 1;
+
+type PaymentStatusTone = 'neutral' | 'success' | 'error';
+
+type PaymentStatus = {
+  tone: PaymentStatusTone;
+  message: string;
+};
 
 const App = () => {
   const [activeView, setActiveView] = useState<AppView>('home');
@@ -89,6 +100,12 @@ const App = () => {
   const [adminProfile, setAdminProfile] = useState<AdminProfile>(FALLBACK_PROFILE);
   const [isAdminNavOpen, setIsAdminNavOpen] = useState(false);
   const [homeSection, setHomeSection] = useState<AdminSection>('calculators');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
+  const hasActiveSubscription = useMemo(
+    () => isSubscriptionActive(adminSettings.subscription),
+    [adminSettings.subscription],
+  );
   const canCreateMoreTemplates = hasActiveSubscription || templates.length < BASIC_TEMPLATE_LIMIT;
 
   useEffect(() => {
@@ -105,6 +122,34 @@ const App = () => {
       .catch(() => {
         setAdminProfile(FALLBACK_PROFILE);
       });
+  }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const syncAdminSettings = async () => {
+      try {
+        const response = await fetch('/api/admin-settings');
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; data?: CalculatorAdminSettings }
+          | null;
+
+        if (!response.ok || !payload?.ok || !payload.data || isCancelled) {
+          return;
+        }
+
+        saveAdminSettings(payload.data);
+        setAdminSettings(payload.data);
+      } catch {
+        // Keep local settings as a fallback when API is unavailable.
+      }
+    };
+
+    syncAdminSettings();
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   const sortedTemplates = useMemo(
@@ -209,9 +254,193 @@ const App = () => {
   };
 
   const handleSaveAdminSettings = (settings: CalculatorAdminSettings) => {
+    persistAdminSettings(settings);
+
+    fetch('/api/admin-settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(settings),
+    }).catch(() => {
+      // Local settings remain saved even if the API request fails.
+    });
+  };
+
+  const persistAdminSettings = (settings: CalculatorAdminSettings) => {
     saveAdminSettings(settings);
     setAdminSettings(settings);
   };
+
+  const clearPaymentIdFromUrl = () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('paymentId')) {
+      return;
+    }
+
+    url.searchParams.delete('paymentId');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  };
+
+  const startSubscriptionPayment = async () => {
+    if (typeof window === 'undefined' || isProcessingPayment) {
+      return;
+    }
+
+    setHomeSection('payments');
+    setPaymentStatus({ tone: 'neutral', message: 'Создаём платёж YooKassa...' });
+    setIsProcessingPayment(true);
+
+    try {
+      const response = await fetch('/api/yookassa?action=create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan: adminSettings.subscription.plan,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            ok?: boolean;
+            data?: {
+              payment?: {
+                id: string;
+                confirmationUrl: string;
+              };
+            };
+            error?: string;
+          }
+        | null;
+
+      if (!response.ok || !payload?.ok || !payload.data?.payment?.confirmationUrl) {
+        throw new Error(payload?.error || 'Не удалось создать платёж YooKassa');
+      }
+
+      window.localStorage.setItem(
+        PENDING_YOOKASSA_PAYMENT_KEY,
+        JSON.stringify({
+          paymentId: payload.data.payment.id,
+        }),
+      );
+
+      window.location.href = payload.data.payment.confirmationUrl;
+    } catch (error) {
+      setPaymentStatus({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Не удалось создать платёж YooKassa',
+      });
+      setIsProcessingPayment(false);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const paymentIdFromUrl = searchParams.get('paymentId');
+    const pendingRaw = window.localStorage.getItem(PENDING_YOOKASSA_PAYMENT_KEY);
+    const pendingPayment = pendingRaw
+      ? (JSON.parse(pendingRaw) as { paymentId?: string })
+      : null;
+    const paymentId =
+      paymentIdFromUrl && paymentIdFromUrl !== 'return'
+        ? paymentIdFromUrl
+        : pendingPayment?.paymentId;
+
+    if (!paymentId) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const verifyPayment = async () => {
+      setActiveView('home');
+      setHomeSection('payments');
+      setIsProcessingPayment(true);
+      setPaymentStatus({ tone: 'neutral', message: 'Проверяем статус оплаты YooKassa...' });
+
+      try {
+        const response = await fetch('/api/yookassa?action=check', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            paymentId,
+            plan: adminSettings.subscription.plan,
+          }),
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | {
+              ok?: boolean;
+              data?: {
+                activated?: boolean;
+                subscription?: CalculatorAdminSettings['subscription'];
+              };
+              error?: string;
+            }
+          | null;
+
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error || 'Не удалось проверить платёж YooKassa');
+        }
+
+        if (isCancelled) {
+          return;
+        }
+
+        if (payload.data?.activated && payload.data.subscription) {
+          const nextSettings: CalculatorAdminSettings = {
+            ...adminSettings,
+            subscription: {
+              ...createDefaultSubscriptionSettings(),
+              ...payload.data.subscription,
+            },
+          };
+          persistAdminSettings(nextSettings);
+          window.localStorage.removeItem(PENDING_YOOKASSA_PAYMENT_KEY);
+          setPaymentStatus({
+            tone: 'success',
+            message: `Оплата прошла. Доступ активирован до ${new Date(
+              payload.data.subscription.paidUntil || buildNextPaidUntil(),
+            ).toLocaleDateString('ru-RU')}.`,
+          });
+        } else {
+          setPaymentStatus({
+            tone: 'neutral',
+            message: 'Платёж ещё не подтверждён. Попробуйте обновить страницу через минуту.',
+          });
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setPaymentStatus({
+            tone: 'error',
+            message:
+              error instanceof Error ? error.message : 'Не удалось проверить платёж YooKassa',
+          });
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsProcessingPayment(false);
+          clearPaymentIdFromUrl();
+        }
+      }
+    };
+
+    verifyPayment();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   const handleSaveTemplate = (template: CalculatorTemplate) => {
     const normalizedTemplate = normalizeTemplateRecord({
@@ -419,6 +648,9 @@ const App = () => {
               hasActiveSubscription={hasActiveSubscription}
               canCreateMoreTemplates={canCreateMoreTemplates}
               templateLimit={BASIC_TEMPLATE_LIMIT}
+              onStartPayment={startSubscriptionPayment}
+              isProcessingPayment={isProcessingPayment}
+              paymentStatus={paymentStatus}
             />
           </Panel>
           <Panel id="builder">

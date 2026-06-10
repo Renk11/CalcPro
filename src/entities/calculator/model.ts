@@ -86,6 +86,10 @@ const isFormulaField = (field: CalculatorField) =>
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const SAFE_FORMULA_CHARS_PATTERN = /^[\d\s+\-*/().,_a-zA-Z]+$/;
+const SAFE_FORMULA_TOKEN_PATTERN =
+  /(basePrice|globalCoefficient|field_\d+|\d+(?:[.,]\d+)?|[()+\-*/])/g;
+
 const normalizeFormula = (formula: string, fields: CalculatorField[]) => {
   let nextFormula = formula;
 
@@ -105,6 +109,17 @@ const normalizeFormula = (formula: string, fields: CalculatorField[]) => {
     .replace(/Общий коэффициент/g, 'globalCoefficient');
 
   return nextFormula;
+};
+
+const isSafeFormulaExpression = (formula: string) => {
+  const normalizedFormula = formula.replace(/,/g, '.').trim();
+  if (!normalizedFormula || !SAFE_FORMULA_CHARS_PATTERN.test(normalizedFormula)) {
+    return false;
+  }
+
+  const compactFormula = normalizedFormula.replace(/\s+/g, '');
+  const matchedFormula = (normalizedFormula.match(SAFE_FORMULA_TOKEN_PATTERN) || []).join('');
+  return compactFormula === matchedFormula.replace(/\s+/g, '');
 };
 
 const formatValueLabel = (field: CalculatorField, value: CalculatorFieldValue) => {
@@ -158,9 +173,14 @@ const getFieldAmount = (field: CalculatorField, value: CalculatorFieldValue) => 
 const compileCustomFormula = (formula: string, context: Record<string, number>) => {
   const keys = Object.keys(context);
   const values = Object.values(context);
+  const normalizedFormula = formula.replace(/,/g, '.');
+
+  if (!isSafeFormulaExpression(normalizedFormula)) {
+    return 0;
+  }
 
   try {
-    const evaluate = new Function(...keys, `return ${formula};`);
+    const evaluate = new Function(...keys, `return (${normalizedFormula});`);
     const result = Number(evaluate(...values));
     return Number.isFinite(result) ? result : 0;
   } catch {
@@ -221,6 +241,10 @@ export const evaluateFormulaExpression = (
   const context = buildFormulaContext(template, values);
   const keys = Object.keys(context);
   const args = Object.values(context);
+
+  if (!isSafeFormulaExpression(normalizedExpression)) {
+    return { value: 0, error: 'Формула содержит недопустимые символы' };
+  }
 
   try {
     const evaluate = new Function(...keys, `return (${normalizedExpression});`);

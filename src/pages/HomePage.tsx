@@ -26,6 +26,7 @@ import {
 } from '../entities/calculator/templateCatalog';
 import { clampFolderName, MAX_FOLDER_NAME_LENGTH } from '../entities/calculator/model';
 import { addSupportTicket, getSupportTickets } from '../shared/storage/localStorage';
+import { formatSubscriptionDate } from '../shared/subscription';
 import type {
   CalculatorAdminSettings,
   CalculatorFolder,
@@ -68,6 +69,12 @@ interface HomePageProps {
   hasActiveSubscription: boolean;
   canCreateMoreTemplates: boolean;
   templateLimit: number;
+  onStartPayment: () => void;
+  isProcessingPayment: boolean;
+  paymentStatus: {
+    tone: 'neutral' | 'success' | 'error';
+    message: string;
+  } | null;
 }
 
 type AnalyticsRange = 7 | 30 | 90 | 365;
@@ -690,6 +697,9 @@ export const HomePage = ({
   hasActiveSubscription,
   canCreateMoreTemplates,
   templateLimit,
+  onStartPayment,
+  isProcessingPayment,
+  paymentStatus,
 }: HomePageProps) => {
   const isSectionLocked = (section: AdminSection) =>
     !hasActiveSubscription && (section === 'analytics' || section === 'integrations');
@@ -766,6 +776,7 @@ export const HomePage = ({
     () => faqTopics.find((topic) => topic.id === selectedFaqTopicId) ?? faqTopics[0],
     [selectedFaqTopicId],
   );
+  const subscriptionPaidUntilLabel = formatSubscriptionDate(adminSettings.subscription.paidUntil);
 
   const filteredCatalog = useMemo(() => {
     const normalizedQuery = templateSearch.trim().toLowerCase();
@@ -1479,9 +1490,23 @@ export const HomePage = ({
             <div className="payments-price-card__label">К оплате</div>
             <div className="payments-price-card__value">{formatCurrency(monthlyServicePrice)}</div>
             <div className="payments-price-card__caption">1 месяц доступа</div>
-            <button className="payments-price-card__button" type="button">
-              Оплатить
+            <button
+              className="payments-price-card__button"
+              type="button"
+              onClick={onStartPayment}
+              disabled={isProcessingPayment}
+            >
+              {isProcessingPayment
+                ? 'Переходим к оплате...'
+                : hasActiveSubscription
+                  ? 'Продлить на 30 дней'
+                  : 'Оплатить'}
             </button>
+            {paymentStatus ? (
+              <div className={`payments-price-card__status payments-price-card__status_${paymentStatus.tone}`}>
+                {paymentStatus.message}
+              </div>
+            ) : null}
           </div>
         </article>
 
@@ -1491,7 +1516,7 @@ export const HomePage = ({
             <h3 className="payments-card__title">{hasActiveSubscription ? 'Про' : 'Базовый'}</h3>
             <p className="payments-card__text">
               {hasActiveSubscription
-                ? `Активная подписка на сервис с ежемесячным списанием ${formatCurrency(monthlyServicePrice)}.`
+                ? `Подписка активна. Доступ к CalcPro открыт на оплаченный период ${formatCurrency(monthlyServicePrice)} за 30 дней.`
                 : (
                   <>
                     Подписка пока не активна.
@@ -1503,7 +1528,11 @@ export const HomePage = ({
                 )}
             </p>
             {hasActiveSubscription ? (
-              <div className="payments-card__meta">Следующий платеж: 12.06.2026</div>
+              <div className="payments-card__meta">
+                {subscriptionPaidUntilLabel
+                  ? `Оплачено до: ${subscriptionPaidUntilLabel}`
+                  : 'Доступ активен.'}
+              </div>
             ) : (
               <div className="payments-card__meta">После оплаты доступ откроется сразу.</div>
             )}
@@ -1594,7 +1623,12 @@ export const HomePage = ({
           <button
             className="settings-form__button"
             type="button"
-            onClick={() => onSaveAdminSettings({ managerVkId: managerVkId.trim() })}
+            onClick={() =>
+              onSaveAdminSettings({
+                ...adminSettings,
+                managerVkId: managerVkId.trim(),
+              })
+            }
           >
             Сохранить
           </button>

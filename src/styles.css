@@ -822,6 +822,14 @@ body,
   box-shadow: 0 12px 24px rgba(255, 151, 71, 0.18);
 }
 
+.payments-price-card__button:disabled {
+  cursor: wait;
+  filter: saturate(0.82);
+  opacity: 0.78;
+  transform: none;
+  box-shadow: 0 12px 24px rgba(255, 151, 71, 0.12);
+}
+
 .payments-price-card__button:hover {
   transform: translateY(-1px);
   filter: brightness(1.02);
@@ -835,6 +843,30 @@ body,
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 22px;
+}
+
+.payments-price-card__status {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.payments-price-card__status_neutral {
+  background: rgba(157, 109, 57, 0.1);
+  color: #8b643c;
+}
+
+.payments-price-card__status_success {
+  background: rgba(73, 149, 98, 0.12);
+  color: #2f7a4d;
+}
+
+.payments-price-card__status_error {
+  background: rgba(194, 84, 59, 0.12);
+  color: #a04730;
 }
 
 .payments-card__list {

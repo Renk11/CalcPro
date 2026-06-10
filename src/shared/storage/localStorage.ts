@@ -7,6 +7,7 @@ import type {
 } from '../types/calculator';
 import { sanitizeHtml } from '../html/sanitizeHtml';
 import { createDefaultRequestFormSettings, createTemplatePublicId } from '../../entities/calculator/model';
+import { createDefaultSubscriptionSettings } from '../subscription';
 
 const TEMPLATES_KEY = 'vk-community-calculator/templates';
 const FOLDERS_KEY = 'vk-community-calculator/folders';
@@ -37,7 +38,13 @@ const ensureSeeded = () => {
   localStorage.setItem(FOLDERS_KEY, JSON.stringify([]));
   localStorage.setItem(REQUESTS_KEY, JSON.stringify([]));
   localStorage.setItem(SUPPORT_TICKETS_KEY, JSON.stringify([]));
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ managerVkId: '' }));
+  localStorage.setItem(
+    SETTINGS_KEY,
+    JSON.stringify({
+      managerVkId: '',
+      subscription: createDefaultSubscriptionSettings(),
+    }),
+  );
   localStorage.setItem(SEEDED_KEY, '1');
 };
 
@@ -141,9 +148,21 @@ export const addRequest = (request: CalculatorRequest) => {
 export const getAdminSettings = (): CalculatorAdminSettings => {
   ensureSeeded();
   const settings = parseJson<Partial<CalculatorAdminSettings>>(localStorage.getItem(SETTINGS_KEY), {});
+  const defaultSubscription = createDefaultSubscriptionSettings();
 
   return {
     managerVkId: settings.managerVkId ?? '',
+    subscription: {
+      ...defaultSubscription,
+      ...(settings.subscription ?? {}),
+      priceRub: Number(settings.subscription?.priceRub) || defaultSubscription.priceRub,
+      plan: settings.subscription?.plan ?? defaultSubscription.plan,
+      status: settings.subscription?.status ?? defaultSubscription.status,
+      paidUntil: settings.subscription?.paidUntil ?? defaultSubscription.paidUntil,
+      provider: settings.subscription?.provider ?? defaultSubscription.provider,
+      externalPaymentId:
+        settings.subscription?.externalPaymentId ?? defaultSubscription.externalPaymentId,
+    },
   };
 };
 

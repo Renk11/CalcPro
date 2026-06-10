@@ -43,6 +43,7 @@ export type FormulaMode = 'simple' | 'custom';
 export type ResultFieldFormat = 'plain' | 'space';
 export type ResultDisplayMode = 'auto' | 'after_button';
 export type CalculatorPublicationStatus = 'draft' | 'published' | 'hidden' | 'archived';
+export type CalculatorSubscriptionStatus = 'inactive' | 'active';
 
 export type CalculatorOptionValue = string | number;
 
@@ -197,6 +198,14 @@ export interface CalculatorFolder {
 
 export interface CalculatorAdminSettings {
   managerVkId: string;
+  subscription: {
+    plan: string;
+    priceRub: number;
+    status: CalculatorSubscriptionStatus;
+    paidUntil?: string;
+    provider?: string;
+    externalPaymentId?: string;
+  };
 }
 
 export type CalculatorSupportTicketType = 'message' | 'bug' | 'suggestion';
