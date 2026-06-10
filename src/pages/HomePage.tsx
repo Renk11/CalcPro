@@ -75,6 +75,7 @@ interface HomePageProps {
     tone: 'neutral' | 'success' | 'error';
     message: string;
   } | null;
+  isDesktopClient: boolean;
 }
 
 type AnalyticsRange = 7 | 30 | 90 | 365;
@@ -700,6 +701,7 @@ export const HomePage = ({
   onStartPayment,
   isProcessingPayment,
   paymentStatus,
+  isDesktopClient,
 }: HomePageProps) => {
   const isSectionLocked = (section: AdminSection) =>
     !hasActiveSubscription && (section === 'analytics' || section === 'integrations');
@@ -1885,7 +1887,9 @@ export const HomePage = ({
         </div>
 
         <nav className="admin-nav__menu" aria-label="Разделы администратора">
-          {navItems.map((item) => {
+          {navItems
+            .filter((item) => isDesktopClient || item.key !== 'payments')
+            .map((item) => {
             const Icon = item.icon;
 
             return (
@@ -1920,16 +1924,22 @@ export const HomePage = ({
                 {hasActiveSubscription ? <Icon20CrownVerified /> : <Icon20WalletOutline />}
               </span>
             </div>
-            {hasActiveSubscription ? (
-              <div className="admin-nav__plan-meta">Активен до 12.05.2026</div>
+            {isDesktopClient ? (
+              hasActiveSubscription ? (
+                <div className="admin-nav__plan-meta">Активен до 12.05.2026</div>
+              ) : (
+                <button
+                  className="admin-nav__plan-button"
+                  type="button"
+                  onClick={() => handleSectionSelect('payments')}
+                >
+                  Перейти к оплате
+                </button>
+              )
             ) : (
-              <button
-                className="admin-nav__plan-button"
-                type="button"
-                onClick={() => handleSectionSelect('payments')}
-              >
-                Перейти к оплате
-              </button>
+              <div className="admin-nav__plan-meta">
+                {hasActiveSubscription ? 'Про' : 'Базовый'}
+              </div>
             )}
           </div>
 

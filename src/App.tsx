@@ -102,6 +102,7 @@ const App = () => {
   const [homeSection, setHomeSection] = useState<AdminSection>('calculators');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
+  const [isDesktopClient, setIsDesktopClient] = useState(true);
   const hasActiveSubscription = useMemo(
     () => isSubscriptionActive(adminSettings.subscription),
     [adminSettings.subscription],
@@ -122,6 +123,10 @@ const App = () => {
       .catch(() => {
         setAdminProfile(FALLBACK_PROFILE);
       });
+  }, []);
+
+  useEffect(() => {
+    setIsDesktopClient(!bridge.isWebView());
   }, []);
 
   useEffect(() => {
@@ -286,6 +291,15 @@ const App = () => {
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   };
 
+  const openExternalPaymentUrl = async (url: string) => {
+    try {
+      await bridge.send('VKWebAppOpenURL' as never, { url } as never);
+      return;
+    } catch {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   const startSubscriptionPayment = async () => {
     if (typeof window === 'undefined' || isProcessingPayment) {
       return;
@@ -329,7 +343,8 @@ const App = () => {
         }),
       );
 
-      window.location.href = payload.data.payment.confirmationUrl;
+      await openExternalPaymentUrl(payload.data.payment.confirmationUrl);
+      setIsProcessingPayment(false);
     } catch (error) {
       setPaymentStatus({
         tone: 'error',
@@ -651,6 +666,7 @@ const App = () => {
               onStartPayment={startSubscriptionPayment}
               isProcessingPayment={isProcessingPayment}
               paymentStatus={paymentStatus}
+              isDesktopClient={isDesktopClient}
             />
           </Panel>
           <Panel id="builder">

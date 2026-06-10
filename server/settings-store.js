@@ -31,26 +31,40 @@ export function normalizeAdminSettings(settings = {}) {
 }
 
 async function readSettingRow(key) {
-  const rows = await supabaseSelect('app_settings', {
-    select: 'value',
-    filter: { key: 'key', value: `eq.${key}` },
-    limit: 1,
-  });
+  try {
+    const rows = await supabaseSelect('app_settings', {
+      select: 'value',
+      filter: { key: 'key', value: `eq.${key}` },
+      limit: 1,
+    });
 
-  return rows?.[0]?.value ?? null;
+    return rows?.[0]?.value ?? null;
+  } catch (error) {
+    if (String(error?.message || '').includes('schema cache')) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 async function writeSettingRow(key, value) {
-  await supabaseUpsert(
-    'app_settings',
-    [
-      {
-        key,
-        value,
-      },
-    ],
-    { onConflict: 'key' },
-  );
+  try {
+    await supabaseUpsert(
+      'app_settings',
+      [
+        {
+          key,
+          value,
+        },
+      ],
+      { onConflict: 'key' },
+    );
+  } catch (error) {
+    if (!String(error?.message || '').includes('schema cache')) {
+      throw error;
+    }
+  }
 }
 
 export async function getServerAdminSettings() {
@@ -80,22 +94,28 @@ export async function updateServerSubscription(subscriptionPatch = {}) {
 
 export async function saveServerPayment(payment) {
   const now = new Date().toISOString();
-  await supabaseUpsert(
-    'payments',
-    [
-      {
-        id: payment.id,
-        status: payment.status || 'pending',
-        amount_rub: Number(payment.amountRub) || 0,
-        description: payment.description || null,
-        payment_url: payment.paymentUrl || null,
-        paid_at: payment.paidAt || null,
-        created_at: payment.createdAt || now,
-        updated_at: now,
-      },
-    ],
-    { onConflict: 'id' },
-  );
+  try {
+    await supabaseUpsert(
+      'payments',
+      [
+        {
+          id: payment.id,
+          status: payment.status || 'pending',
+          amount_rub: Number(payment.amountRub) || 0,
+          description: payment.description || null,
+          payment_url: payment.paymentUrl || null,
+          paid_at: payment.paidAt || null,
+          created_at: payment.createdAt || now,
+          updated_at: now,
+        },
+      ],
+      { onConflict: 'id' },
+    );
+  } catch (error) {
+    if (!String(error?.message || '').includes('schema cache')) {
+      throw error;
+    }
+  }
 
   return payment;
 }
