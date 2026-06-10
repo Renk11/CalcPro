@@ -42,8 +42,22 @@ export type InputFieldSubtype =
 export type FormulaMode = 'simple' | 'custom';
 export type ResultFieldFormat = 'plain' | 'space';
 export type ResultDisplayMode = 'auto' | 'after_button';
+export type CalculatorPublicationStatus = 'draft' | 'published' | 'hidden' | 'archived';
 
 export type CalculatorOptionValue = string | number;
+
+export interface CalculatorRequestFormSettings {
+  enabled: boolean;
+  title: string;
+  description: string;
+  nameLabel: string;
+  namePlaceholder: string;
+  phoneLabel: string;
+  phonePlaceholder: string;
+  commentLabel: string;
+  commentPlaceholder: string;
+  submitButtonText: string;
+}
 
 export interface CalculatorFieldOption {
   id: string;
@@ -149,6 +163,11 @@ export interface CalculatorTemplate {
   folderId?: string;
   title: string;
   description: string;
+  requestForm: CalculatorRequestFormSettings;
+  publicationStatus: CalculatorPublicationStatus;
+  publicId: string;
+  publishedAt?: string;
+  lastModifiedBy: string;
   type: CalculatorType;
   basePrice: number;
   discount: number;
@@ -156,6 +175,14 @@ export interface CalculatorTemplate {
   globalCoefficient: number;
   formulaMode: FormulaMode;
   customFormula: string;
+  resultCardTitle?: string;
+  resultCardShowTitle?: boolean;
+  resultSubtotalLabel?: string;
+  resultCardShowSubtotal?: boolean;
+  resultDiscountLabel?: string;
+  resultCardShowDiscount?: boolean;
+  resultMinPriceLabel?: string;
+  resultCardShowMinPrice?: boolean;
   fields: CalculatorField[];
   createdAt: string;
   updatedAt: string;
@@ -170,6 +197,17 @@ export interface CalculatorFolder {
 
 export interface CalculatorAdminSettings {
   managerVkId: string;
+}
+
+export type CalculatorSupportTicketType = 'message' | 'bug' | 'suggestion';
+
+export interface CalculatorSupportTicket {
+  id: string;
+  type: CalculatorSupportTicketType;
+  subject: string;
+  message: string;
+  createdAt: string;
+  authorLabel: string;
 }
 
 export interface CalculatorUploadedFile {

@@ -32,11 +32,13 @@ import type {
 } from '../shared/types/calculator';
 import { MAX_BUTTON_TEXT_LENGTH } from '../shared/types/calculator';
 import { sanitizeHtml } from '../shared/html/sanitizeHtml';
+import { normalizeTemplateRecord } from '../shared/storage/localStorage';
 
 interface BuilderPageProps {
   initialTemplate?: CalculatorTemplate;
   onBack: () => void;
   onSave: (template: CalculatorTemplate) => void;
+  canUseBooking?: boolean;
 }
 
 interface LocalizedBuilderDateTimeInputProps {
@@ -55,6 +57,10 @@ type BuilderLibraryItem = {
   accent: string;
   supported: boolean;
   createField?: () => CalculatorField;
+  onAdd?: (
+    template: CalculatorTemplate,
+    updateTemplate: (patch: Partial<CalculatorTemplate>) => void,
+  ) => void;
 };
 
 const LocalizedBuilderDateTimeInput = ({
@@ -505,24 +511,6 @@ const libraryItems: BuilderLibraryItem[] = [
   },
 ];
 
-const preparedLibraryItems = libraryItems.map((item) =>
-  item.id === 'flag'
-    ? {
-        ...item,
-        createField: () =>
-          createField('radio', '\u0424\u043b\u0430\u0436\u043e\u043a', 'flag', {
-            placeholder: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043e\u0434\u0438\u043d \u0432\u0430\u0440\u0438\u0430\u043d\u0442',
-            options: createRadioOptions(),
-            defaultValue: 1500,
-            optionLayout: 'vertical',
-            showOptionDescription: true,
-            showOptionPrice: true,
-            useValueInFormula: true,
-          }),
-      }
-    : item,
-);
-
 const fieldTypeLabels: Record<FieldType, string> = {
   input: '\u041f\u043e\u043b\u0435',
   radio: '\u0424\u043b\u0430\u0436\u043e\u043a',
@@ -578,6 +566,7 @@ const getCheckboxPriceLabel = (field: CalculatorField) => {
 };
 
 const getFormulaReference = (field: CalculatorField) => field.label.trim() || '\u0411\u0435\u0437 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f';
+const formulaOperatorChips = ['+', '-', '*', '/', '(', ')'] as const;
 
 const getFieldSpacingStyle = (field: CalculatorField) => ({
   marginTop: `${Math.max(0, field.marginTop ?? 0)}px`,
@@ -715,11 +704,40 @@ const normalizeFieldContent = (field: CalculatorField): CalculatorField => {
 };
 
 const normalizeTemplateContent = (template: CalculatorTemplate): CalculatorTemplate => ({
-  ...template,
+  ...normalizeTemplateRecord(template),
   fields: normalizeFieldLayouts(template.fields.map(normalizeFieldContent)),
 });
 
-export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProps) => {
+export const BuilderPage = ({
+  initialTemplate,
+  onBack,
+  onSave,
+  canUseBooking = true,
+}: BuilderPageProps) => {
+  const preparedLibraryItems = libraryItems.map((item) =>
+    item.id === 'flag'
+      ? {
+          ...item,
+          createField: () =>
+            createField('radio', '\u0424\u043b\u0430\u0436\u043e\u043a', 'flag', {
+              placeholder: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043e\u0434\u0438\u043d \u0432\u0430\u0440\u0438\u0430\u043d\u0442',
+              options: createRadioOptions(),
+              defaultValue: 1500,
+              optionLayout: 'vertical',
+              showOptionDescription: true,
+              showOptionPrice: true,
+              useValueInFormula: true,
+            }),
+        }
+      : item.id === 'booking'
+        ? {
+            ...item,
+            supported: canUseBooking,
+            label: canUseBooking ? item.label : 'Бронирование (Про)',
+          }
+        : item,
+  );
+
   const [template, setTemplate] = useState<CalculatorTemplate>(
     normalizeTemplateContent(initialTemplate ?? createEmptyTemplate()),
   );
@@ -758,6 +776,14 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
       return acc;
     }, {}),
   );
+  const [formulaDrafts, setFormulaDrafts] = useState(() => ({
+    basePrice: String((initialTemplate ?? createEmptyTemplate()).basePrice),
+    discount: String((initialTemplate ?? createEmptyTemplate()).discount),
+    minPrice: String((initialTemplate ?? createEmptyTemplate()).minPrice),
+    globalCoefficient: String((initialTemplate ?? createEmptyTemplate()).globalCoefficient),
+  }));
+  const canvasRef = useRef<HTMLElement | null>(null);
+  const customFormulaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const selectedField = useMemo(
     () => template.fields.find((field) => field.id === selectedFieldId) ?? null,
@@ -777,10 +803,41 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
   }, [template.fields]);
 
   useEffect(() => {
+    setFormulaDrafts({
+      basePrice: String(template.basePrice),
+      discount: String(template.discount),
+      minPrice: String(template.minPrice),
+      globalCoefficient: String(template.globalCoefficient),
+    });
+  }, [template.basePrice, template.discount, template.globalCoefficient, template.minPrice]);
+
+  useEffect(() => {
     if (selectedFieldId) {
       setIsSpacingOpen(false);
     }
   }, [selectedFieldId]);
+
+  useEffect(() => {
+    const canvasElement = canvasRef.current;
+    if (!canvasElement || mode === 'formula') {
+      return;
+    }
+
+    const targetSelector = selectedFieldId
+      ? `[data-builder-field-id="${selectedFieldId}"]`
+      : '[data-builder-request-form="true"]';
+    const targetElement = canvasElement.querySelector<HTMLElement>(targetSelector);
+
+    if (!targetElement) {
+      return;
+    }
+
+    targetElement.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'nearest',
+    });
+  }, [mode, selectedFieldId]);
 
   useEffect(() => {
     try {
@@ -848,12 +905,120 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
     }));
   };
 
+  const updateFormulaDraft = (
+    key: 'basePrice' | 'discount' | 'minPrice' | 'globalCoefficient',
+    rawValue: string,
+  ) => {
+    setFormulaDrafts((current) => ({
+      ...current,
+      [key]: rawValue,
+    }));
+
+    if (rawValue === '') {
+      return;
+    }
+
+    const numericValue = Number(rawValue);
+    if (!Number.isFinite(numericValue)) {
+      return;
+    }
+
+    updateTemplate({
+      [key]: key === 'globalCoefficient' ? numericValue || 1 : numericValue,
+    } as Partial<CalculatorTemplate>);
+  };
+
+  const commitFormulaDraft = (
+    key: 'basePrice' | 'discount' | 'minPrice' | 'globalCoefficient',
+    fallbackValue: number,
+  ) => {
+    const draftValue = formulaDrafts[key].trim();
+    const numericValue = draftValue === '' ? fallbackValue : Number(draftValue);
+    const nextValue = Number.isFinite(numericValue) ? numericValue : fallbackValue;
+
+    setFormulaDrafts((current) => ({
+      ...current,
+      [key]: String(nextValue),
+    }));
+
+    updateTemplate({
+      [key]: nextValue,
+    } as Partial<CalculatorTemplate>);
+  };
+
+  const insertIntoCustomFormula = (snippet: string) => {
+    const textarea = customFormulaRef.current;
+    const currentValue = template.customFormula ?? '';
+
+    if (!textarea) {
+      updateTemplate({ customFormula: `${currentValue}${snippet}` });
+      return;
+    }
+
+    const selectionStart = textarea.selectionStart ?? currentValue.length;
+    const selectionEnd = textarea.selectionEnd ?? currentValue.length;
+    const nextValue =
+      currentValue.slice(0, selectionStart) + snippet + currentValue.slice(selectionEnd);
+    const nextCursorPosition = selectionStart + snippet.length;
+
+    updateTemplate({ customFormula: nextValue });
+
+    window.requestAnimationFrame(() => {
+      const nextTextarea = customFormulaRef.current;
+      if (!nextTextarea) {
+        return;
+      }
+
+      nextTextarea.focus();
+      nextTextarea.setSelectionRange(nextCursorPosition, nextCursorPosition);
+    });
+  };
+
   const updateField = (fieldId: string, patch: Partial<CalculatorField>) => {
+    const sourceField = template.fields.find((field) => field.id === fieldId);
+    if (!sourceField) {
+      return;
+    }
+
+    const nextField = { ...sourceField, ...patch };
+    const sourcePreviewKey = sourceField.key;
+    const nextPreviewKey = nextField.key;
+    const shouldSyncPreviewValue =
+      patch.defaultValue !== undefined ||
+      patch.min !== undefined ||
+      patch.max !== undefined ||
+      patch.step !== undefined ||
+      patch.inputSubtype !== undefined ||
+      patch.type !== undefined;
+
     setTemplate((current) => ({
       ...current,
       fields: current.fields.map((field) => (field.id === fieldId ? { ...field, ...patch } : field)),
       updatedAt: new Date().toISOString(),
     }));
+
+    setPreviewValues((current) => {
+      const nextValues = { ...current };
+      const currentPreviewValue = current[sourcePreviewKey];
+      const sourceDefaultPreviewValue = getPreviewFieldValue(sourceField);
+
+      if (sourcePreviewKey !== nextPreviewKey) {
+        if (currentPreviewValue !== undefined) {
+          nextValues[nextPreviewKey] = currentPreviewValue;
+        }
+        delete nextValues[sourcePreviewKey];
+      }
+
+      if (
+        shouldSyncPreviewValue &&
+        (currentPreviewValue === undefined ||
+          String(currentPreviewValue) === String(sourceDefaultPreviewValue))
+      ) {
+        nextValues[nextPreviewKey] = getPreviewFieldValue(nextField);
+      }
+
+      return nextValues;
+    });
   };
 
   const handleImageUpload = (fieldId: string, file?: File) => {
@@ -934,7 +1099,20 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
   };
 
   const addField = (item: BuilderLibraryItem) => {
-    if (!item.supported || !item.createField) {
+    if (!item.supported) {
+      return;
+    }
+
+    if (item.onAdd) {
+      item.onAdd(template, updateTemplate);
+      setIsPreview(false);
+      setMode('design');
+      setIsInspectorOpen(true);
+      setSelectedFieldId(null);
+      return;
+    }
+
+    if (!item.createField) {
       return;
     }
 
@@ -1143,6 +1321,13 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
     </span>
   );
 
+  const openFormulaMode = () => {
+    setMode('formula');
+    setIsPreview(false);
+    setIsLibraryOpen(false);
+    setIsInspectorOpen(true);
+  };
+
   return (
     <div className="builder-shell builder-shell_editor">
       <header className="builder-editor__topbar">
@@ -1163,11 +1348,7 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
             <button
               className={`builder-editor__mode-button ${mode === 'formula' ? 'builder-editor__mode-button_active' : ''}`}
               type="button"
-              onClick={() => {
-                setMode('formula');
-                setIsLibraryOpen(false);
-                setIsInspectorOpen(true);
-              }}
+              onClick={openFormulaMode}
             >
               {'\u0424\u043e\u0440\u043c\u0443\u043b\u0430'}
             </button>
@@ -1211,15 +1392,24 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
           <div className="builder-library__list">
             {preparedLibraryItems.map((item) => {
               const Icon = item.icon;
+              const isRequestFormItem = item.id === 'request-form';
+              const isRequestFormEnabled = isRequestFormItem ? template.requestForm.enabled : false;
               return (
                 <div
                   key={item.id}
-                  className={`builder-library__item ${!item.supported ? 'builder-library__item_disabled' : ''}`}
+                  className={`builder-library__item ${!item.supported ? 'builder-library__item_disabled' : ''} ${isRequestFormEnabled ? 'builder-library__item_active' : ''}`}
                 >
                   <span className={`builder-library__icon ${item.accent}`}>
                     <Icon />
                   </span>
-                  <span className="builder-library__label">{item.label}</span>
+                  <span className="builder-library__label">
+                    {item.label}
+                    {isRequestFormItem ? (
+                      <span className="builder-library__meta">
+                        {isRequestFormEnabled ? 'Включен' : 'Выключен'}
+                      </span>
+                    ) : null}
+                  </span>
                   <button
                     className="builder-library__dots"
                     type="button"
@@ -1227,7 +1417,7 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
                     onClick={() => addField(item)}
                     disabled={!item.supported}
                   >
-                    +
+                    {isRequestFormItem ? (isRequestFormEnabled ? '-' : '+') : '+'}
                   </button>
                 </div>
               );
@@ -1246,7 +1436,10 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
         </button>
         ) : null}
 
-        <main className={`builder-canvas ${isInspectorOpen ? 'builder-canvas_compact' : 'builder-canvas_expanded'}`}>
+        <main
+          ref={canvasRef}
+          className={`builder-canvas ${isInspectorOpen ? 'builder-canvas_compact' : 'builder-canvas_expanded'}`}
+        >
           <div className={`builder-canvas__board ${isInspectorOpen ? 'builder-canvas__board_compact' : 'builder-canvas__board_expanded'}`}>
             {mode !== 'formula' ? (
               <button
@@ -1309,6 +1502,9 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
               <div className="builder-canvas__status-row">
                 <span className='builder-canvas__pill'>{template.fields.length} {'\u0431\u043b\u043e\u043a\u043e\u0432'}</span>
                 <span className="builder-canvas__pill builder-canvas__pill_soft">
+                  {template.requestForm.enabled ? 'Заявка включена' : 'Заявка выключена'}
+                </span>
+                <span className="builder-canvas__pill builder-canvas__pill_soft">
                   {mode === 'formula' ? '\u0420\u0435\u0436\u0438\u043c \u0444\u043e\u0440\u043c\u0443\u043b\u044b' : isPreview ? '\u041f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440' : '\u0420\u0435\u0436\u0438\u043c \u0434\u0438\u0437\u0430\u0439\u043d\u0430'}
                 </span>
                 <label className="builder-canvas__autosave">
@@ -1364,6 +1560,48 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
                         {'\u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u044d\u043b\u0435\u043c\u0435\u043d\u0442\u044b \u0438\u0437 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438, \u0447\u0442\u043e\u0431\u044b \u0443\u0432\u0438\u0434\u0435\u0442\u044c \u043f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440.'}
                       </div>
                     )}
+                    {template.requestForm.enabled ? (
+                      <div className="builder-preview__request-block">
+                        <div className="calculator-panel__head">
+                          <h2 className="calculator-panel__title">{template.requestForm.title}</h2>
+                          <div className="calculator-panel__caption">
+                            {template.requestForm.description}
+                          </div>
+                        </div>
+                        <div className="calculator-request">
+                          <label className="calc-field">
+                            <span className="calc-field__label">{template.requestForm.nameLabel}</span>
+                            <input
+                              className="calc-field__control"
+                              value=""
+                              placeholder={template.requestForm.namePlaceholder}
+                              readOnly
+                            />
+                          </label>
+                          <label className="calc-field">
+                            <span className="calc-field__label">{template.requestForm.phoneLabel}</span>
+                            <input
+                              className="calc-field__control"
+                              value=""
+                              placeholder={template.requestForm.phonePlaceholder}
+                              readOnly
+                            />
+                          </label>
+                          <label className="calc-field">
+                            <span className="calc-field__label">{template.requestForm.commentLabel}</span>
+                            <textarea
+                              className="calc-field__control calc-field__control_textarea"
+                              value=""
+                              placeholder={template.requestForm.commentPlaceholder}
+                              readOnly
+                            />
+                          </label>
+                          <button className="calculator-request__submit" type="button">
+                            {template.requestForm.submitButtonText}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                     </div>
                 </div>
               ) : mode === 'formula' ? (
@@ -1379,12 +1617,46 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
                     <div className="builder-formula__variables">
                       <span className='builder-formula__variables-title'>{'\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u043f\u0435\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0435'}</span>
                       <div className="builder-formula__chips">
-                        <span className='builder-formula__chip'>{'\u0411\u0430\u0437\u043e\u0432\u0430\u044f \u0446\u0435\u043d\u0430'}</span>
-                        <span className='builder-formula__chip'>{'\u041e\u0431\u0449\u0438\u0439 \u043a\u043e\u044d\u0444\u0444\u0438\u0446\u0438\u0435\u043d\u0442'}</span>
+                        <button
+                          className="builder-formula__chip"
+                          type="button"
+                          onClick={() => insertIntoCustomFormula('Базовая цена')}
+                        >
+                          {'Базовая цена'}
+                        </button>
+                        <button
+                          className="builder-formula__chip"
+                          type="button"
+                          onClick={() => insertIntoCustomFormula('Общий коэффициент')}
+                        >
+                          {'Общий коэффициент'}
+                        </button>
                         {template.fields.map((field) => (
-                          <span key={field.id} className="builder-formula__chip">
+                          <button
+                            key={field.id}
+                            className="builder-formula__chip"
+                            type="button"
+                            onClick={() => insertIntoCustomFormula(getFormulaReference(field))}
+                          >
                             {getFormulaReference(field)}
-                          </span>
+                          </button>
+                        ))}
+                      </div>
+                      <span className='builder-formula__variables-title'>Знаки</span>
+                      <div className="builder-formula__chips builder-formula__chips_symbols">
+                        {formulaOperatorChips.map((operator) => (
+                          <button
+                            key={operator}
+                            className="builder-formula__chip builder-formula__chip_symbol"
+                            type="button"
+                            onClick={() =>
+                              insertIntoCustomFormula(
+                                operator === '(' || operator === ')' ? operator : ` ${operator} `,
+                              )
+                            }
+                          >
+                            {operator}
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -1394,44 +1666,43 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
                     <label className="builder-formula__field">
                       <span>{'\u0411\u0430\u0437\u043e\u0432\u0430\u044f \u0446\u0435\u043d\u0430'}</span>
                       <input
-                        type="number"
-                        value={template.basePrice}
-                        onChange={(event) =>
-                          updateTemplate({ basePrice: Number(event.target.value) || 0 })
-                        }
+                        type="text"
+                        inputMode="decimal"
+                        value={formulaDrafts.basePrice}
+                        onChange={(event) => updateFormulaDraft('basePrice', event.target.value)}
+                        onBlur={() => commitFormulaDraft('basePrice', 0)}
                       />
                     </label>
                     <label className="builder-formula__field">
                       <span>{'\u0421\u043a\u0438\u0434\u043a\u0430, %'}</span>
                       <input
-                        type="number"
-                        value={template.discount}
-                        onChange={(event) =>
-                          updateTemplate({ discount: Number(event.target.value) || 0 })
-                        }
+                        type="text"
+                        inputMode="decimal"
+                        value={formulaDrafts.discount}
+                        onChange={(event) => updateFormulaDraft('discount', event.target.value)}
+                        onBlur={() => commitFormulaDraft('discount', 0)}
                       />
                     </label>
                     <label className="builder-formula__field">
                       <span>{'\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0446\u0435\u043d\u0430'}</span>
                       <input
-                        type="number"
-                        value={template.minPrice}
-                        onChange={(event) =>
-                          updateTemplate({ minPrice: Number(event.target.value) || 0 })
-                        }
+                        type="text"
+                        inputMode="decimal"
+                        value={formulaDrafts.minPrice}
+                        onChange={(event) => updateFormulaDraft('minPrice', event.target.value)}
+                        onBlur={() => commitFormulaDraft('minPrice', 0)}
                       />
                     </label>
                     <label className="builder-formula__field">
                       <span>{'\u041a\u043e\u044d\u0444\u0444\u0438\u0446\u0438\u0435\u043d\u0442'}</span>
                       <input
-                        type="number"
-                        step="0.1"
-                        value={template.globalCoefficient}
+                        type="text"
+                        inputMode="decimal"
+                        value={formulaDrafts.globalCoefficient}
                         onChange={(event) =>
-                          updateTemplate({
-                            globalCoefficient: Number(event.target.value) || 1,
-                          })
+                          updateFormulaDraft('globalCoefficient', event.target.value)
                         }
+                        onBlur={() => commitFormulaDraft('globalCoefficient', 1)}
                       />
                     </label>
                   </div>
@@ -1439,11 +1710,105 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
                   <label className="builder-formula__field builder-formula__field_full">
                     <span>{'Общая формула калькулятора'}</span>
                     <textarea
+                      ref={customFormulaRef}
                       value={template.customFormula}
                       onChange={(event) => updateTemplate({ customFormula: event.target.value })}
                       placeholder={'\u041d\u0430\u043f\u0440\u0438\u043c\u0435\u0440: (\u0411\u0430\u0437\u043e\u0432\u0430\u044f \u0446\u0435\u043d\u0430 + \u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e) * \u041e\u0431\u0449\u0438\u0439 \u043a\u043e\u044d\u0444\u0444\u0438\u0446\u0438\u0435\u043d\u0442'}
                     />
                   </label>
+
+                  <div className="builder-formula__result-card">
+                    <div className="builder-formula__result-settings">
+                      <div className="builder-formula__result-settings-title">Настройки карточки результата</div>
+                      <div className="builder-formula__result-row">
+                        <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
+                          <input
+                            type="checkbox"
+                            aria-label="Показывать заголовок"
+                            checked={template.resultCardShowTitle !== false}
+                            onChange={(event) =>
+                              updateTemplate({ resultCardShowTitle: event.target.checked })
+                            }
+                          />
+                        </label>
+                        <label className="builder-formula__field builder-formula__result-input">
+                          <span>Заголовок</span>
+                          <input
+                            value={template.resultCardTitle ?? 'Итог расчета'}
+                            onChange={(event) =>
+                              updateTemplate({ resultCardTitle: event.target.value })
+                            }
+                          />
+                        </label>
+                      </div>
+
+                      <div className="builder-formula__result-row">
+                        <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
+                          <input
+                            type="checkbox"
+                            aria-label="Показывать подытог"
+                            checked={template.resultCardShowSubtotal !== false}
+                            onChange={(event) =>
+                              updateTemplate({ resultCardShowSubtotal: event.target.checked })
+                            }
+                          />
+                        </label>
+                        <label className="builder-formula__field builder-formula__result-input">
+                          <span>Подытог</span>
+                          <input
+                            value={template.resultSubtotalLabel ?? 'Подытог'}
+                            onChange={(event) =>
+                              updateTemplate({ resultSubtotalLabel: event.target.value })
+                            }
+                          />
+                        </label>
+                      </div>
+
+                      <div className="builder-formula__result-row">
+                        <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
+                          <input
+                            type="checkbox"
+                            aria-label="Показывать скидку"
+                            checked={template.resultCardShowDiscount !== false}
+                            onChange={(event) =>
+                              updateTemplate({ resultCardShowDiscount: event.target.checked })
+                            }
+                          />
+                        </label>
+                        <label className="builder-formula__field builder-formula__result-input">
+                          <span>Скидка</span>
+                          <input
+                            value={template.resultDiscountLabel ?? 'Скидка'}
+                            onChange={(event) =>
+                              updateTemplate({ resultDiscountLabel: event.target.value })
+                            }
+                          />
+                        </label>
+                      </div>
+
+                      <div className="builder-formula__result-row">
+                        <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
+                          <input
+                            type="checkbox"
+                            aria-label="Показывать минимальную цену"
+                            checked={template.resultCardShowMinPrice !== false}
+                            onChange={(event) =>
+                              updateTemplate({ resultCardShowMinPrice: event.target.checked })
+                            }
+                          />
+                        </label>
+                        <label className="builder-formula__field builder-formula__result-input">
+                          <span>Минимальная цена</span>
+                          <input
+                            value={template.resultMinPriceLabel ?? 'Минимальная цена'}
+                            onChange={(event) =>
+                              updateTemplate({ resultMinPriceLabel: event.target.value })
+                            }
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
 
                   {template.fields.filter((field) => field.type === 'result').map((field) => (
                     <div key={field.id} className="builder-formula__result-card">
@@ -1499,13 +1864,20 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
                         <label className="builder-formula__field">
                           <span>Знаков после запятой</span>
                           <input
-                            type="number"
-                            min="0"
-                            max="6"
-                            value={field.resultDecimals ?? 0}
+                            type="text"
+                            inputMode="numeric"
+                            value={field.resultDecimals ?? ''}
                             onChange={(event) =>
                               updateField(field.id, {
-                                resultDecimals: Math.min(6, Math.max(0, Number(event.target.value) || 0)),
+                                resultDecimals:
+                                  event.target.value === ''
+                                    ? undefined
+                                    : Math.min(6, Math.max(0, Number(event.target.value) || 0)),
+                              })
+                            }
+                            onBlur={() =>
+                              updateField(field.id, {
+                                resultDecimals: field.resultDecimals ?? 0,
                               })
                             }
                           />
@@ -1544,27 +1916,16 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
                         </label>
                       </div>
 
-                      <label className="builder-formula__field builder-formula__field_full">
-                        <span>Условие видимости</span>
-                        <input
-                          value={field.resultVisibilityCondition ?? ''}
-                          placeholder="quantity"
-                          onChange={(event) =>
-                            updateField(field.id, {
-                              resultVisibilityCondition: event.target.value,
-                            })
-                          }
-                        />
-                      </label>
                     </div>
                   ))}
                 </div>
-              ) : template.fields.length > 0 ? (
+              ) : template.fields.length > 0 || template.requestForm.enabled ? (
                 <div className="builder-preview builder-preview_design">
                   <div className="builder-preview__fields">
                   {template.fields.map((field) => (
                     <div
                       key={field.id}
+                      data-builder-field-id={field.id}
                       className={`builder-preview__field builder-preview__field_editable builder-preview__field_${field.layout === 'half' ? 'half' : 'full'} ${selectedFieldId === field.id ? 'builder-preview__field_active' : ''} ${draggedFieldId === field.id ? 'builder-preview__field_dragging' : ''} ${dragOverFieldId === field.id ? `builder-preview__field_drop-target builder-preview__field_drop-${dragOverPlacement}` : ''} ${field.hidden ? 'builder-preview__field_hidden' : ''}`}
                       style={getFieldSpacingStyle(field)}
                       draggable
@@ -1668,10 +2029,86 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
                               : field.unitPrice + ' \u20bd'}
                         </span>
                         {field.hidden ? <span>{'Скрыт'}</span> : null}
-                        {field.visibilityCondition?.trim() ? <span>{'По условию'}</span> : null}
                       </div>
                     </div>
                   ))}
+                  <div
+                    data-builder-request-form="true"
+                    className={`builder-preview__field builder-preview__field_editable builder-preview__field_full builder-preview__request-card ${selectedFieldId === null ? 'builder-preview__field_active' : ''} ${template.requestForm.enabled ? '' : 'builder-preview__field_hidden'}`}
+                    onClick={() => {
+                      setSelectedFieldId(null);
+                      setIsInspectorOpen(true);
+                      setMode('design');
+                    }}
+                  >
+                    <div className="builder-preview__field-toolbar builder-preview__field-toolbar_main">
+                      <span className="builder-preview__field-badge">Блок заявки</span>
+                      <div className="builder-preview__field-actions">
+                        <button
+                          className="builder-preview__field-action"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            updateTemplate({
+                              requestForm: {
+                                ...template.requestForm,
+                                enabled: !template.requestForm.enabled,
+                              },
+                            });
+                          }}
+                        >
+                          {template.requestForm.enabled ? 'Скрыть' : 'Показать'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {template.requestForm.enabled ? (
+                      <div className="builder-preview__request-block">
+                        <div className="calculator-panel__head">
+                          <h2 className="calculator-panel__title">{template.requestForm.title}</h2>
+                          <div className="calculator-panel__caption">
+                            {template.requestForm.description}
+                          </div>
+                        </div>
+                        <div className="calculator-request">
+                          <label className="calc-field">
+                            <span className="calc-field__label">{template.requestForm.nameLabel}</span>
+                            <input
+                              className="calc-field__control"
+                              value=""
+                              placeholder={template.requestForm.namePlaceholder}
+                              readOnly
+                            />
+                          </label>
+                          <label className="calc-field">
+                            <span className="calc-field__label">{template.requestForm.phoneLabel}</span>
+                            <input
+                              className="calc-field__control"
+                              value=""
+                              placeholder={template.requestForm.phonePlaceholder}
+                              readOnly
+                            />
+                          </label>
+                          <label className="calc-field">
+                            <span className="calc-field__label">{template.requestForm.commentLabel}</span>
+                            <textarea
+                              className="calc-field__control calc-field__control_textarea"
+                              value=""
+                              placeholder={template.requestForm.commentPlaceholder}
+                              readOnly
+                            />
+                          </label>
+                          <button className="calculator-request__submit" type="button">
+                            {template.requestForm.submitButtonText}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="builder-preview__request-empty">
+                        Блок заявки выключен. Нажмите, чтобы открыть настройки справа.
+                      </div>
+                    )}
+                  </div>
                   </div>
                 </div>
               ) : (
@@ -1735,17 +2172,6 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
                   <input
                     value={selectedField.description ?? ''}
                     onChange={(event) => updateField(selectedField.id, { description: event.target.value })}
-                  />
-                </label>
-
-                <label className="builder-inspector__field">
-                  <span>{'Показывать если'}</span>
-                  <input
-                    value={selectedField.visibilityCondition ?? ''}
-                    placeholder="quantity"
-                    onChange={(event) =>
-                      updateField(selectedField.id, { visibilityCondition: event.target.value })
-                    }
                   />
                 </label>
 
@@ -2998,13 +3424,168 @@ export const BuilderPage = ({ initialTemplate, onBack, onSave }: BuilderPageProp
               </div>
             </>
           ) : (
-            <div className="builder-inspector__section">
-              <div className="builder-inspector__eyebrow">{'\u0418\u043d\u0441\u043f\u0435\u043a\u0442\u043e\u0440'}</div>
-              <h3 className="builder-inspector__title">{'\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u044d\u043b\u0435\u043c\u0435\u043d\u0442'}</h3>
-              <p className="builder-inspector__text">
-                {'\u041d\u0430\u0436\u043c\u0438\u0442\u0435 \u043d\u0430 \u0431\u043b\u043e\u043a \u043d\u0430 \u043f\u043e\u043b\u043e\u0442\u043d\u0435, \u0447\u0442\u043e\u0431\u044b \u043d\u0430\u0441\u0442\u0440\u043e\u0438\u0442\u044c \u0435\u0433\u043e.'}
-              </p>
-            </div>
+            <>
+              <div className="builder-inspector__section">
+                <div className="builder-inspector__eyebrow">Инспектор</div>
+                <h3 className="builder-inspector__title">Блок заявки</h3>
+                <p className="builder-inspector__text">
+                  Настройте тексты формы заявки или отключите ее для этого калькулятора.
+                </p>
+              </div>
+
+              <div className="builder-inspector__section">
+                <label className="builder-inspector__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={template.requestForm.enabled}
+                    onChange={(event) =>
+                      updateTemplate({
+                        requestForm: {
+                          ...template.requestForm,
+                          enabled: event.target.checked,
+                        },
+                      })
+                    }
+                  />
+                  <span>Показывать блок заявки</span>
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Заголовок</span>
+                  <input
+                    value={template.requestForm.title}
+                    onChange={(event) =>
+                      updateTemplate({
+                        requestForm: {
+                          ...template.requestForm,
+                          title: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Описание</span>
+                  <input
+                    value={template.requestForm.description}
+                    onChange={(event) =>
+                      updateTemplate({
+                        requestForm: {
+                          ...template.requestForm,
+                          description: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Подпись поля имени</span>
+                  <input
+                    value={template.requestForm.nameLabel}
+                    onChange={(event) =>
+                      updateTemplate({
+                        requestForm: {
+                          ...template.requestForm,
+                          nameLabel: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Плейсхолдер имени</span>
+                  <input
+                    value={template.requestForm.namePlaceholder}
+                    onChange={(event) =>
+                      updateTemplate({
+                        requestForm: {
+                          ...template.requestForm,
+                          namePlaceholder: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Подпись поля телефона</span>
+                  <input
+                    value={template.requestForm.phoneLabel}
+                    onChange={(event) =>
+                      updateTemplate({
+                        requestForm: {
+                          ...template.requestForm,
+                          phoneLabel: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Плейсхолдер телефона</span>
+                  <input
+                    value={template.requestForm.phonePlaceholder}
+                    onChange={(event) =>
+                      updateTemplate({
+                        requestForm: {
+                          ...template.requestForm,
+                          phonePlaceholder: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Подпись поля комментария</span>
+                  <input
+                    value={template.requestForm.commentLabel}
+                    onChange={(event) =>
+                      updateTemplate({
+                        requestForm: {
+                          ...template.requestForm,
+                          commentLabel: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Плейсхолдер комментария</span>
+                  <input
+                    value={template.requestForm.commentPlaceholder}
+                    onChange={(event) =>
+                      updateTemplate({
+                        requestForm: {
+                          ...template.requestForm,
+                          commentPlaceholder: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Текст кнопки</span>
+                  <input
+                    value={template.requestForm.submitButtonText}
+                    onChange={(event) =>
+                      updateTemplate({
+                        requestForm: {
+                          ...template.requestForm,
+                          submitButtonText: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+              </div>
+            </>
           )}
         </aside>
 

@@ -6,6 +6,7 @@ import {
   clampTemplateDescription,
   clampTemplateTitle,
   createEmptyTemplate,
+  createTemplatePublicId,
   MAX_TEMPLATE_TITLE_LENGTH,
 } from './entities/calculator/model';
 import { createTemplateFromPreset } from './entities/calculator/templateCatalog';
@@ -17,6 +18,7 @@ import {
   getFolders,
   getRequests,
   getTemplates,
+  normalizeTemplateRecord,
   saveAdminSettings,
   saveFolders,
   saveTemplates,
@@ -24,6 +26,7 @@ import {
   upsertTemplate,
 } from './shared/storage/localStorage';
 import type {
+  CalculatorPublicationStatus,
   CalculatorAdminSettings,
   CalculatorFolder,
   CalculatorRequest,
@@ -55,6 +58,24 @@ const FALLBACK_PROFILE: AdminProfile = {
   nickname: '@vk_calc_admin',
 };
 
+const getProfileLabel = (profile: AdminProfile) =>
+  [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim() ||
+  profile.nickname ||
+  'Администратор';
+
+const getPublicCalculatorUrl = (publicId: string) => {
+  if (typeof window === 'undefined') {
+    return `?calculator=${publicId}`;
+  }
+
+  const url = new URL(window.location.href);
+  url.searchParams.set('calculator', publicId);
+  return url.toString();
+};
+
+const hasActiveSubscription = true;
+const BASIC_TEMPLATE_LIMIT = 1;
+
 const App = () => {
   const [activeView, setActiveView] = useState<AppView>('home');
   const [templates, setTemplates] = useState<CalculatorTemplate[]>(() => getTemplates());
@@ -68,6 +89,7 @@ const App = () => {
   const [adminProfile, setAdminProfile] = useState<AdminProfile>(FALLBACK_PROFILE);
   const [isAdminNavOpen, setIsAdminNavOpen] = useState(false);
   const [homeSection, setHomeSection] = useState<AdminSection>('calculators');
+  const canCreateMoreTemplates = hasActiveSubscription || templates.length < BASIC_TEMPLATE_LIMIT;
 
   useEffect(() => {
     bridge
@@ -102,18 +124,57 @@ const App = () => {
     return sortedTemplates.filter((template) => template.folderId === activeFolderId);
   }, [activeFolderId, sortedTemplates]);
 
+  const currentAdminLabel = useMemo(() => getProfileLabel(adminProfile), [adminProfile]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const publicId = new URLSearchParams(window.location.search).get('calculator');
+    if (!publicId) {
+      return;
+    }
+
+    const publishedTemplate = templates.find(
+      (template) => template.publicId === publicId && template.publicationStatus === 'published',
+    );
+
+    if (!publishedTemplate) {
+      return;
+    }
+
+    setSelectedTemplate(publishedTemplate);
+    setActiveView('calculator');
+  }, [templates]);
+
   const openBuilder = (template?: CalculatorTemplate) => {
     setSelectedTemplate(template);
     setActiveView('builder');
   };
 
   const createTemplateInActiveFolder = () => {
-    const nextTemplate = createEmptyTemplate(activeFolderId === 'all' ? undefined : activeFolderId);
+    if (!canCreateMoreTemplates) {
+      setHomeSection('payments');
+      setActiveView('home');
+      return;
+    }
+
+    const nextTemplate = normalizeTemplateRecord({
+      ...createEmptyTemplate(activeFolderId === 'all' ? undefined : activeFolderId),
+      lastModifiedBy: currentAdminLabel,
+    });
     setSelectedTemplate(nextTemplate);
     setActiveView('builder');
   };
 
   const createTemplateFromCatalog = (presetId: string) => {
+    if (!canCreateMoreTemplates) {
+      setHomeSection('payments');
+      setActiveView('home');
+      return;
+    }
+
     const nextTemplate = createTemplateFromPreset(
       presetId,
       activeFolderId === 'all' ? undefined : activeFolderId,
@@ -124,11 +185,25 @@ const App = () => {
     }
 
     setHomeSection('templates');
-    setSelectedTemplate(nextTemplate);
+    setSelectedTemplate(
+      normalizeTemplateRecord({
+        ...nextTemplate,
+        lastModifiedBy: currentAdminLabel,
+      }),
+    );
     setActiveView('builder');
   };
 
   const openCalculator = (template: CalculatorTemplate) => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (template.publicationStatus === 'published') {
+        url.searchParams.set('calculator', template.publicId);
+      } else {
+        url.searchParams.delete('calculator');
+      }
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
     setSelectedTemplate(template);
     setActiveView('calculator');
   };
@@ -139,17 +214,24 @@ const App = () => {
   };
 
   const handleSaveTemplate = (template: CalculatorTemplate) => {
-    const normalizedTemplate = {
+    const normalizedTemplate = normalizeTemplateRecord({
       ...template,
       title: clampTemplateTitle(template.title),
       description: clampTemplateDescription(template.description),
-    };
+      lastModifiedBy: currentAdminLabel,
+    });
     const next = upsertTemplate(normalizedTemplate);
     setTemplates(next);
     setSelectedTemplate(normalizedTemplate);
   };
 
   const duplicateTemplate = (template: CalculatorTemplate) => {
+    if (!canCreateMoreTemplates) {
+      setHomeSection('payments');
+      setActiveView('home');
+      return;
+    }
+
     const now = new Date().toISOString();
     const normalizedBaseTitle = clampTemplateTitle(template.title).replace(
       /\s+\(копия(?:\s+\d+)?\)$/u,
@@ -178,6 +260,10 @@ const App = () => {
     const duplicate: CalculatorTemplate = {
       ...template,
       id: crypto.randomUUID(),
+      publicationStatus: 'draft',
+      publicId: createTemplatePublicId(),
+      publishedAt: undefined,
+      lastModifiedBy: currentAdminLabel,
       title: `${trimmedBaseTitle}${duplicateSuffix}`,
       description: clampTemplateDescription(template.description),
       createdAt: now,
@@ -204,6 +290,38 @@ const App = () => {
     if (selectedTemplate?.id === template.id) {
       setSelectedTemplate(undefined);
     }
+  };
+
+  const updateTemplatePublicationStatus = (
+    template: CalculatorTemplate,
+    publicationStatus: CalculatorPublicationStatus,
+  ) => {
+    const now = new Date().toISOString();
+    const nextTemplate = normalizeTemplateRecord({
+      ...template,
+      publicationStatus,
+      publishedAt:
+        publicationStatus === 'published'
+          ? template.publishedAt ?? now
+          : undefined,
+      updatedAt: now,
+      lastModifiedBy: currentAdminLabel,
+    });
+
+    const next = upsertTemplate(nextTemplate);
+    setTemplates(next);
+
+    if (selectedTemplate?.id === template.id) {
+      setSelectedTemplate(nextTemplate);
+    }
+  };
+
+  const handleCopyTemplateLink = async (template: CalculatorTemplate) => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(getPublicCalculatorUrl(template.publicId));
   };
 
   const moveTemplateToFolder = (template: CalculatorTemplate, folderId?: string) => {
@@ -296,6 +414,11 @@ const App = () => {
               onDuplicateTemplate={duplicateTemplate}
               onDeleteTemplate={deleteTemplate}
               onMoveTemplateToFolder={moveTemplateToFolder}
+              onUpdateTemplateStatus={updateTemplatePublicationStatus}
+              onCopyTemplateLink={handleCopyTemplateLink}
+              hasActiveSubscription={hasActiveSubscription}
+              canCreateMoreTemplates={canCreateMoreTemplates}
+              templateLimit={BASIC_TEMPLATE_LIMIT}
             />
           </Panel>
           <Panel id="builder">
@@ -303,13 +426,21 @@ const App = () => {
               initialTemplate={selectedTemplate}
               onBack={() => setActiveView('home')}
               onSave={handleSaveTemplate}
+              canUseBooking={hasActiveSubscription}
             />
           </Panel>
           <Panel id="calculator">
             {selectedTemplate ? (
               <CalculatorPage
                 template={selectedTemplate}
-                onBack={() => setActiveView('home')}
+                onBack={() => {
+                  if (typeof window !== 'undefined') {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('calculator');
+                    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+                  }
+                  setActiveView('home');
+                }}
                 onRequestCreated={(request) =>
                   setRequests((current) => [request, ...current.filter((item) => item.id !== request.id)])
                 }

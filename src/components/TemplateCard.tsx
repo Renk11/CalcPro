@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CalculatorFolder, CalculatorTemplate } from '../shared/types/calculator';
+import type {
+  CalculatorFolder,
+  CalculatorPublicationStatus,
+  CalculatorTemplate,
+} from '../shared/types/calculator';
 
 interface TemplateCardProps {
   template: CalculatorTemplate;
@@ -9,7 +13,25 @@ interface TemplateCardProps {
   onDuplicate: (template: CalculatorTemplate) => void;
   onDelete: (template: CalculatorTemplate) => void;
   onMoveToFolder: (template: CalculatorTemplate, folderId?: string) => void;
+  onUpdateStatus: (template: CalculatorTemplate, publicationStatus: CalculatorPublicationStatus) => void;
+  onCopyLink: (template: CalculatorTemplate) => Promise<void>;
 }
+
+const publicationStatusLabels: Record<CalculatorPublicationStatus, string> = {
+  draft: 'Черновик',
+  published: 'Опубликован',
+  hidden: 'Скрыт',
+  archived: 'Архив',
+};
+
+const formatTemplateDate = (value?: string) =>
+  value
+    ? new Date(value).toLocaleDateString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+    : 'Не опубликован';
 
 export const TemplateCard = ({
   template,
@@ -19,9 +41,12 @@ export const TemplateCard = ({
   onDuplicate,
   onDelete,
   onMoveToFolder,
+  onUpdateStatus,
+  onCopyLink,
 }: TemplateCardProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
+  const [copyStatus, setCopyStatus] = useState('');
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -40,12 +65,32 @@ export const TemplateCard = ({
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [isMenuOpen]);
 
+  useEffect(() => {
+    if (!copyStatus) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => setCopyStatus(''), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [copyStatus]);
+
+  const handleCopyLink = async () => {
+    await onCopyLink(template);
+    setCopyStatus('Ссылка скопирована');
+  };
+
   return (
     <article className="template-card">
       <div className="template-card__content">
         <div className="template-card__header">
           <div className="template-card__head-row">
-            <h3 className="template-card__title">{template.title}</h3>
+            <div className="template-card__head-copy">
+              <div className={`template-card__status template-card__status_${template.publicationStatus}`}>
+                {publicationStatusLabels[template.publicationStatus]}
+              </div>
+              <h3 className="template-card__title">{template.title}</h3>
+            </div>
+
             <div className="template-card__menu" ref={menuRef}>
               <button
                 className="template-card__menu-trigger"
@@ -56,11 +101,51 @@ export const TemplateCard = ({
                   setIsFolderPickerOpen(false);
                 }}
               >
-                ⋯
+                …
               </button>
 
               {isMenuOpen ? (
                 <div className="template-card__menu-popover">
+                  <button
+                    className="template-card__menu-action"
+                    type="button"
+                    onClick={() => {
+                      onUpdateStatus(template, 'published');
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    Опубликовать
+                  </button>
+                  <button
+                    className="template-card__menu-action"
+                    type="button"
+                    onClick={() => {
+                      onUpdateStatus(template, 'draft');
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    В черновик
+                  </button>
+                  <button
+                    className="template-card__menu-action"
+                    type="button"
+                    onClick={() => {
+                      onUpdateStatus(template, 'hidden');
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    Скрыть
+                  </button>
+                  <button
+                    className="template-card__menu-action"
+                    type="button"
+                    onClick={() => {
+                      onUpdateStatus(template, 'archived');
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    В архив
+                  </button>
                   <button
                     className="template-card__menu-action"
                     type="button"
@@ -110,6 +195,17 @@ export const TemplateCard = ({
                   ) : null}
 
                   <button
+                    className="template-card__menu-action"
+                    type="button"
+                    disabled={template.publicationStatus !== 'published'}
+                    onClick={async () => {
+                      await handleCopyLink();
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    Копировать ссылку
+                  </button>
+                  <button
                     className="template-card__menu-action template-card__menu-action_danger"
                     type="button"
                     onClick={() => {
@@ -123,7 +219,19 @@ export const TemplateCard = ({
               ) : null}
             </div>
           </div>
+
           <p className="template-card__description">{template.description}</p>
+
+          <div className="template-card__meta">
+            <span className="template-card__meta-item">ID: {template.publicId}</span>
+            <span className="template-card__meta-item">Ссылка: ?calculator={template.publicId}</span>
+            <span className="template-card__meta-item">
+              Публикация: {formatTemplateDate(template.publishedAt)}
+            </span>
+            <span className="template-card__meta-item">Изменил: {template.lastModifiedBy}</span>
+          </div>
+
+          {copyStatus ? <div className="template-card__copy-status">{copyStatus}</div> : null}
         </div>
 
         <div className="template-card__actions">
@@ -132,7 +240,7 @@ export const TemplateCard = ({
             type="button"
             onClick={() => onOpen(template)}
           >
-            Открыть
+            Быстрый просмотр
           </button>
           <button
             className="template-card__button template-card__button_secondary"
@@ -140,6 +248,14 @@ export const TemplateCard = ({
             onClick={() => onEdit(template)}
           >
             Редактировать
+          </button>
+          <button
+            className="template-card__button template-card__button_ghost"
+            type="button"
+            disabled={template.publicationStatus !== 'published'}
+            onClick={handleCopyLink}
+          >
+            Копировать ссылку
           </button>
         </div>
       </div>

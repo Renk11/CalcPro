@@ -417,41 +417,44 @@ export const CalculatorPage = ({ template, onBack, onRequestCreated }: Calculato
               </div>
             </div>
 
-            <div className="calculator-panel">
+            <div
+              className="calculator-panel"
+              style={template.requestForm.enabled ? undefined : { display: 'none' }}
+            >
               <div className="calculator-panel__head">
-                <h2 className="calculator-panel__title">Отправить заявку</h2>
+                <h2 className="calculator-panel__title">{template.requestForm.title}</h2>
                 <div className="calculator-panel__caption">
-                  Оставьте контакты, и мы свяжемся с вами
+                  {template.requestForm.description}
                 </div>
               </div>
 
               <div className="calculator-request">
                 <label className="calc-field">
-                  <span className="calc-field__label">Имя</span>
+                  <span className="calc-field__label">{template.requestForm.nameLabel}</span>
                   <input
                     className="calc-field__control"
                     value={name}
-                    placeholder="Как к вам обращаться"
+                    placeholder={template.requestForm.namePlaceholder}
                     onChange={(event) => setName(event.target.value)}
                   />
                 </label>
 
                 <label className="calc-field">
-                  <span className="calc-field__label">Телефон</span>
+                  <span className="calc-field__label">{template.requestForm.phoneLabel}</span>
                   <input
                     className="calc-field__control"
                     value={phone}
-                    placeholder="+7 (___) ___-__-__"
+                    placeholder={template.requestForm.phonePlaceholder}
                     onChange={(event) => setPhone(event.target.value)}
                   />
                 </label>
 
                 <label className="calc-field">
-                  <span className="calc-field__label">Комментарий</span>
+                  <span className="calc-field__label">{template.requestForm.commentLabel}</span>
                   <textarea
                     className="calc-field__control calc-field__control_textarea"
                     value={comment}
-                    placeholder="Уточнения по заявке"
+                    placeholder={template.requestForm.commentPlaceholder}
                     onChange={(event) => setComment(event.target.value)}
                   />
                 </label>
@@ -462,7 +465,7 @@ export const CalculatorPage = ({ template, onBack, onRequestCreated }: Calculato
                   onClick={handleSubmit}
                   disabled={!name || !phone || isSubmitting}
                 >
-                  Отправить заявку
+                  {template.requestForm.submitButtonText}
                 </button>
 
                 {status ? <div className="success-text">{status}</div> : null}
@@ -472,37 +475,30 @@ export const CalculatorPage = ({ template, onBack, onRequestCreated }: Calculato
 
           <aside className="calculator-layout__result">
             <div className="result-card">
-              <div className="result-card__eyebrow">Итог расчета</div>
+              <div className="result-card__eyebrow">{template.resultCardTitle ?? 'Итог расчета'}</div>
               <div className="result-card__amount">{result.total} ₽</div>
               <div className="result-card__list">
-                <div className="result-card__row">
-                  <span>Подытог</span>
-                  <strong>{result.subtotal} ₽</strong>
-                </div>
-                <div className="result-card__row">
-                  <span>Скидка</span>
-                  <strong>{result.discountAmount} ₽</strong>
-                </div>
-                <div className="result-card__row">
-                  <span>Минимальная цена</span>
-                  <strong>{template.minPrice} ₽</strong>
-                </div>
+                {template.resultCardShowSubtotal !== false ? (
+                  <div className="result-card__row">
+                    <span>{template.resultSubtotalLabel ?? 'Подытог'}</span>
+                    <strong>{result.subtotal} ₽</strong>
+                  </div>
+                ) : null}
+                {template.resultCardShowDiscount !== false ? (
+                  <div className="result-card__row">
+                    <span>{template.resultDiscountLabel ?? 'Скидка'}</span>
+                    <strong>{result.discountAmount} ₽</strong>
+                  </div>
+                ) : null}
+                {template.resultCardShowMinPrice !== false ? (
+                  <div className="result-card__row">
+                    <span>{template.resultMinPriceLabel ?? 'Минимальная цена'}</span>
+                    <strong>{template.minPrice} ₽</strong>
+                  </div>
+                ) : null}
               </div>
             </div>
 
-            <div className="result-card">
-              <div className="result-card__eyebrow">Детализация</div>
-              <div className="result-card__list">
-                {result.breakdown.map((item) => (
-                  <div key={item.fieldId} className="result-card__row result-card__row_detail">
-                    <span>
-                      {item.label}: {item.valueLabel || 'Не заполнено'}
-                    </span>
-                    <strong>{item.amount} ₽</strong>
-                  </div>
-                ))}
-              </div>
-            </div>
           </aside>
         </div>
       </div>

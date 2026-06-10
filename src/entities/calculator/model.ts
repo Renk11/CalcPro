@@ -4,6 +4,7 @@ import type {
   CalculatorField,
   CalculatorFieldValue,
   CalculatorFieldOption,
+  CalculatorRequestFormSettings,
   CalculatorTemplate,
   CalculatorValues,
 } from '../../shared/types/calculator';
@@ -22,6 +23,28 @@ export const clampTemplateDescription = (value: string) =>
   value.slice(0, MAX_TEMPLATE_DESCRIPTION_LENGTH);
 
 export const clampFolderName = (value: string) => value.slice(0, MAX_FOLDER_NAME_LENGTH);
+
+export const createTemplatePublicId = (seed?: string) => {
+  const normalizedSeed = (seed ?? crypto.randomUUID().slice(0, 8))
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return `calc-${normalizedSeed || crypto.randomUUID().slice(0, 8)}`;
+};
+
+export const createDefaultRequestFormSettings = (): CalculatorRequestFormSettings => ({
+  enabled: true,
+  title: 'Отправить заявку',
+  description: 'Оставьте контакты, и мы свяжемся с вами',
+  nameLabel: 'Имя',
+  namePlaceholder: 'Как к вам обращаться',
+  phoneLabel: 'Телефон',
+  phonePlaceholder: '+7 (___) ___-__-__',
+  commentLabel: 'Комментарий',
+  commentPlaceholder: 'Уточнения по заявке',
+  submitButtonText: 'Отправить заявку',
+});
 
 const getNumericOptionValue = (option?: CalculatorFieldOption) => {
   if (!option) {
@@ -53,6 +76,13 @@ const isNumericField = (field: CalculatorField) =>
   field.type === 'number' ||
   field.type === 'slider' ||
   (field.type === 'input' && field.inputSubtype === 'number');
+
+const isFormulaField = (field: CalculatorField) =>
+  isNumericField(field) ||
+  field.type === 'checkbox' ||
+  field.type === 'select' ||
+  field.type === 'radio' ||
+  field.type === 'booking';
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -162,7 +192,7 @@ export const buildFormulaContext = (
         nextValue = getNumericOptionValue(option);
       }
     } else if (field.type === 'booking') {
-      nextValue = isBookingValue(rawValue) ? rawValue.surcharge : 0;
+      nextValue = field.useValueInFormula === false ? 0 : isBookingValue(rawValue) ? rawValue.surcharge : 0;
     }
 
     acc[field.key] = nextValue;
@@ -224,17 +254,19 @@ export const calculateTemplate = (
   values: CalculatorValues,
 ): CalculationResult => {
   const breakdown: CalculationBreakdownItem[] = template.fields
-    .filter((field) => field.type !== 'button' && field.type !== 'result')
+    .filter((field) => isFormulaField(field) && field.useValueInFormula !== false)
     .map((field) => {
-    const rawValue = values[field.key] ?? '';
+      const rawValue = values[field.key] ?? '';
+      const amount = getFieldAmount(field, rawValue);
 
-    return {
-      fieldId: field.id,
-      label: field.label,
-      valueLabel: formatValueLabel(field, rawValue),
-      amount: getFieldAmount(field, rawValue),
-    };
-    });
+      return {
+        fieldId: field.id,
+        label: field.label,
+        valueLabel: formatValueLabel(field, rawValue),
+        amount,
+      };
+    })
+    .filter((item) => item.amount !== 0);
 
   const fieldSubtotal = breakdown.reduce((sum, item) => sum + item.amount, 0);
   const simpleSubtotal = (template.basePrice + fieldSubtotal) * template.globalCoefficient;
@@ -261,10 +293,16 @@ export const calculateTemplate = (
 
 export const createEmptyTemplate = (folderId?: string): CalculatorTemplate => {
   const now = new Date().toISOString();
+  const id = crypto.randomUUID();
 
   return {
-    id: crypto.randomUUID(),
+    id,
     folderId,
+    requestForm: createDefaultRequestFormSettings(),
+    publicationStatus: 'draft',
+    publicId: createTemplatePublicId(id.slice(0, 8)),
+    publishedAt: undefined,
+    lastModifiedBy: 'Администратор',
     title: 'Новый калькулятор',
     description: 'Кратко опишите назначение калькулятора.',
     type: 'services',

@@ -4,6 +4,7 @@ import type {
   CalculatorType,
   FormulaMode,
 } from '../../shared/types/calculator';
+import { createDefaultRequestFormSettings, createTemplatePublicId } from './model';
 
 export type TemplateCatalogCategory =
   | 'business'
@@ -216,12 +217,18 @@ export const createTemplateFromPreset = (
   }
 
   const now = new Date().toISOString();
+  const id = crypto.randomUUID();
 
   return {
-    id: crypto.randomUUID(),
+    id,
     folderId,
     title: preset.title,
     description: preset.description,
+    requestForm: createDefaultRequestFormSettings(),
+    publicationStatus: 'draft',
+    publicId: createTemplatePublicId(id.slice(0, 8)),
+    publishedAt: undefined,
+    lastModifiedBy: 'Администратор',
     type: preset.type,
     basePrice: preset.basePrice,
     discount: preset.discount,

@@ -2,13 +2,16 @@ import type {
   CalculatorAdminSettings,
   CalculatorFolder,
   CalculatorRequest,
+  CalculatorSupportTicket,
   CalculatorTemplate,
 } from '../types/calculator';
 import { sanitizeHtml } from '../html/sanitizeHtml';
+import { createDefaultRequestFormSettings, createTemplatePublicId } from '../../entities/calculator/model';
 
 const TEMPLATES_KEY = 'vk-community-calculator/templates';
 const FOLDERS_KEY = 'vk-community-calculator/folders';
 const REQUESTS_KEY = 'vk-community-calculator/requests';
+const SUPPORT_TICKETS_KEY = 'vk-community-calculator/support-tickets';
 const SETTINGS_KEY = 'vk-community-calculator/settings';
 const SEEDED_KEY = 'vk-community-calculator/seeded';
 const DEMO_TEMPLATE_IDS = ['manicure', 'delivery', 'apartment-repair', 'printing'];
@@ -33,6 +36,7 @@ const ensureSeeded = () => {
   localStorage.setItem(TEMPLATES_KEY, JSON.stringify([]));
   localStorage.setItem(FOLDERS_KEY, JSON.stringify([]));
   localStorage.setItem(REQUESTS_KEY, JSON.stringify([]));
+  localStorage.setItem(SUPPORT_TICKETS_KEY, JSON.stringify([]));
   localStorage.setItem(SETTINGS_KEY, JSON.stringify({ managerVkId: '' }));
   localStorage.setItem(SEEDED_KEY, '1');
 };
@@ -42,6 +46,17 @@ const sanitizeTemplates = (templates: CalculatorTemplate[]) => {
     .filter((template) => !DEMO_TEMPLATE_IDS.includes(template.id))
     .map((template) => ({
       ...template,
+      requestForm: {
+        ...createDefaultRequestFormSettings(),
+        ...template.requestForm,
+      },
+      publicationStatus: template.publicationStatus ?? 'draft',
+      publicId: template.publicId ?? createTemplatePublicId(template.id.slice(0, 8)),
+      publishedAt:
+        template.publicationStatus === 'published'
+          ? template.publishedAt ?? template.updatedAt
+          : undefined,
+      lastModifiedBy: template.lastModifiedBy ?? 'Администратор',
       fields: template.fields.map((field) =>
         field.type === 'html'
           ? {
@@ -49,9 +64,22 @@ const sanitizeTemplates = (templates: CalculatorTemplate[]) => {
               htmlContent: sanitizeHtml(field.htmlContent ?? ''),
             }
           : field,
-      ),
+        ),
     }));
 };
+
+export const normalizeTemplateRecord = (template: CalculatorTemplate): CalculatorTemplate =>
+  sanitizeTemplates([template])[0] ?? {
+    ...template,
+    requestForm: {
+      ...createDefaultRequestFormSettings(),
+      ...template.requestForm,
+    },
+    publicationStatus: 'draft',
+    publicId: createTemplatePublicId(template.id.slice(0, 8)),
+    publishedAt: undefined,
+    lastModifiedBy: 'Администратор',
+  };
 
 export const getTemplates = (): CalculatorTemplate[] => {
   ensureSeeded();
@@ -121,4 +149,16 @@ export const getAdminSettings = (): CalculatorAdminSettings => {
 
 export const saveAdminSettings = (settings: CalculatorAdminSettings) => {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+};
+
+export const getSupportTickets = (): CalculatorSupportTicket[] => {
+  ensureSeeded();
+  return parseJson<CalculatorSupportTicket[]>(localStorage.getItem(SUPPORT_TICKETS_KEY), []);
+};
+
+export const addSupportTicket = (ticket: CalculatorSupportTicket) => {
+  const tickets = getSupportTickets();
+  const next = [ticket, ...tickets];
+  localStorage.setItem(SUPPORT_TICKETS_KEY, JSON.stringify(next));
+  return next;
 };

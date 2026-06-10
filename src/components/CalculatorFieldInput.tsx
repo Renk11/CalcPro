@@ -630,7 +630,7 @@ export const CalculatorFieldInput = ({
             <img className="calc-image-block__img" src={imageUrl} alt={imageAlt} />
           </div>
         ) : (
-          <div className="calc-image-block__empty">�������� �����������</div>
+          <div className="calc-image-block__empty">Загрузите изображение</div>
         )}
         {field.imageCaption ? (
           <figcaption className="calc-image-block__caption">{field.imageCaption}</figcaption>

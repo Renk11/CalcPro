@@ -25,10 +25,14 @@ import {
   type TemplateCatalogPreset,
 } from '../entities/calculator/templateCatalog';
 import { clampFolderName, MAX_FOLDER_NAME_LENGTH } from '../entities/calculator/model';
+import { addSupportTicket, getSupportTickets } from '../shared/storage/localStorage';
 import type {
   CalculatorAdminSettings,
   CalculatorFolder,
+  CalculatorPublicationStatus,
   CalculatorRequest,
+  CalculatorSupportTicket,
+  CalculatorSupportTicketType,
   CalculatorTemplate,
 } from '../shared/types/calculator';
 
@@ -56,9 +60,453 @@ interface HomePageProps {
   onDuplicateTemplate: (template: CalculatorTemplate) => void;
   onDeleteTemplate: (template: CalculatorTemplate) => void;
   onMoveTemplateToFolder: (template: CalculatorTemplate, folderId?: string) => void;
+  onUpdateTemplateStatus: (
+    template: CalculatorTemplate,
+    publicationStatus: CalculatorPublicationStatus,
+  ) => void;
+  onCopyTemplateLink: (template: CalculatorTemplate) => Promise<void>;
+  hasActiveSubscription: boolean;
+  canCreateMoreTemplates: boolean;
+  templateLimit: number;
 }
 
 type AnalyticsRange = 7 | 30 | 90 | 365;
+type FaqTopicSection = {
+  title: string;
+  items: string[];
+};
+type FaqTopic = {
+  id: string;
+  title: string;
+  caption: string;
+  intro: string;
+  sections: FaqTopicSection[];
+};
+
+const supportTypeLabels: Record<CalculatorSupportTicketType, string> = {
+  message: 'Сообщение',
+  bug: 'Баг',
+  suggestion: 'Предложение',
+};
+
+const SUPPORT_SUBJECT_MAX_LENGTH = 60;
+const SUPPORT_MESSAGE_MAX_LENGTH = 500;
+
+const faqTopics: FaqTopic[] = [
+  {
+    id: 'start',
+    title: 'Быстрый старт',
+    caption: 'Начало работы',
+    intro:
+      'Раздел помогает быстро понять логику конструктора: где создается калькулятор, как открыть редактор и в каком порядке лучше собирать первый проект.',
+    sections: [
+      {
+        title: 'Первый запуск',
+        items: [
+          'Откройте раздел «Мои калькуляторы» и нажмите «Создать калькулятор».',
+          'Задайте название и краткое описание, чтобы проект было легко найти в списке.',
+          'Добавьте нужные блоки из библиотеки слева и соберите структуру калькулятора.',
+        ],
+      },
+      {
+        title: 'Базовый порядок сборки',
+        items: [
+          'Сначала соберите интерфейс в режиме «Дизайн».',
+          'Потом настройте логику расчета в режиме «Формула».',
+          'После этого проверьте все в предпросмотре и только затем публикуйте калькулятор.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'modes',
+    title: 'Режимы редактора',
+    caption: 'Дизайн, формула и предпросмотр',
+    intro:
+      'Редактор делится на несколько режимов. Каждый нужен для своей задачи: сборки интерфейса, описания математической логики и проверки итогового вида.',
+    sections: [
+      {
+        title: 'Режим «Дизайн»',
+        items: [
+          'Используется для добавления блоков, изменения порядка и настройки внешнего вида.',
+          'В этом режиме справа открываются настройки выбранного блока.',
+          'Именно здесь редактируются подписи, значения по умолчанию, варианты выбора, отступы и дополнительные параметры.',
+        ],
+      },
+      {
+        title: 'Режим «Формула»',
+        items: [
+          'Здесь настраиваются базовая цена, скидка, минимальная цена, общий коэффициент и общая формула калькулятора.',
+          'В верхней части показаны доступные переменные и знаки, которые можно вставлять в формулу кликом.',
+          'Также здесь настраиваются формулы отдельных блоков результата.',
+        ],
+      },
+      {
+        title: 'Предпросмотр',
+        items: [
+          'Позволяет посмотреть, как калькулятор будет выглядеть для пользователя.',
+          'Подходит для проверки текстов, порядка блоков и работы элементов.',
+          'При переходе в «Формулу» предпросмотр выключается автоматически, чтобы открыть расчетный режим.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'field-settings',
+    title: 'Настройки блоков',
+    caption: 'Правая панель редактора',
+    intro:
+      'После выбора блока открывается панель настроек. Набор параметров зависит от типа элемента, но логика везде одинаковая.',
+    sections: [
+      {
+        title: 'Общие параметры',
+        items: [
+          'Название: основной заголовок блока.',
+          'Описание: дополнительный текст под названием.',
+          'Скрыть блок: временно убирает элемент из интерфейса пользователя.',
+          'Отступы блока: позволяют отдельно управлять верхом, низом, левым и правым краем.',
+        ],
+      },
+      {
+        title: 'Значения и варианты',
+        items: [
+          'Значение по умолчанию задает стартовое состояние поля.',
+          'Для числовых блоков доступны минимум, максимум и шаг.',
+          'Для списков и флажков можно редактировать варианты, цены, описания и изображения.',
+        ],
+      },
+      {
+        title: 'Участие в расчете',
+        items: [
+          'Опция «Использовать значение в формуле» определяет, участвует ли блок в математике.',
+          'У чекбокса отдельно задаются значения при включении и выключении.',
+          'У ползунка и числовых полей можно настраивать единицы измерения и показ текущего значения.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'formula',
+    title: 'Формулы и переменные',
+    caption: 'Логика расчета',
+    intro:
+      'Формульный режим отвечает за весь расчет калькулятора. Здесь используются общие параметры и значения, которые приходят из блоков.',
+    sections: [
+      {
+        title: 'Основные параметры',
+        items: [
+          'Базовая цена: стартовая сумма расчета.',
+          'Скидка: процент, который применяется после расчета общей формулы.',
+          'Минимальная цена: нижняя граница итоговой суммы после всех вычислений.',
+          'Общий коэффициент: множитель для общего расчета.',
+        ],
+      },
+      {
+        title: 'Куда писать формулу',
+        items: [
+          'Перейдите в редактор калькулятора и откройте режим «Формула».',
+          'Главная логика вводится в поле «Общая формула калькулятора» под базовыми параметрами.',
+          'У каждого блока результата есть свое поле формулы: оно нужно, если вы хотите показать отдельный итог, доплату, скидку или промежуточную сумму.',
+          'Кликабельные переменные и знаки над полем помогают собирать выражение без ручного набора.',
+        ],
+      },
+      {
+        title: 'Что можно писать в формуле',
+        items: [
+          'Используйте стандартные операции: +, -, *, / и круглые скобки.',
+          'Можно использовать «Базовая цена», «Общий коэффициент» и названия блоков, которые участвуют в формуле.',
+          'Названия блоков в формуле должны полностью совпадать с названиями самих элементов.',
+          'Если у блока выключена опция «Использовать значение в формуле», его значение в расчете будет равно 0.',
+          'Скидка и минимальная цена задаются отдельными полями рядом, но внутрь самой формулы не подставляются как переменные.',
+        ],
+      },
+      {
+        title: 'Как писать правильно',
+        items: [
+          'Пишите формулу как обычное математическое выражение: например, (Базовая цена + Площадь) * Общий коэффициент.',
+          'Для надежности удобно вставлять переменные кнопками из списка, а не печатать вручную.',
+          'Если в названии блока есть пробелы, символы или длинный текст, оставляйте название в формуле ровно в том виде, как оно указано у элемента.',
+          'Для сложной логики удобнее сначала собрать общий расчет, а промежуточные значения выводить отдельными блоками результата.',
+        ],
+      },
+      {
+        title: 'Примеры формул',
+        items: [
+          'Пример 1. Простая цена из нескольких доплат: создайте блоки «Монтаж» и «Доставка», включите у них участие в формуле и в поле «Общая формула калькулятора» напишите: Базовая цена + Монтаж + Доставка.',
+          'Пример 2. Расчет по площади: создайте числовые блоки «Площадь» и «Цена за м²», затем вставьте формулу: Базовая цена + Площадь * Цена за м². Если площадь 20, цена за м² 500, а базовая цена 1000, итог до скидки будет 11000.',
+          'Пример 3. Расчет с коэффициентом: если нужен сезонный или срочный множитель, используйте формулу: (Базовая цена + Площадь * Цена за м²) * Общий коэффициент. Например, при коэффициенте 1.2 сумма 11000 превратится в 13200.',
+          'Пример 4. Фиксированная доплата за опцию: создайте чекбокс «Срочный монтаж», задайте значения, например выключено 0 и включено 3000, после чего используйте формулу: Базовая цена + Площадь * Цена за м² + Срочный монтаж.',
+          'Пример 5. Выбор варианта из списка: создайте select или radio «Тип потолка» с ценами у вариантов и добавьте его в формулу так: Базовая цена + Площадь * Цена за м² + Тип потолка. Тогда выбранный вариант будет автоматически прибавляться к расчету.',
+          'Пример 6. Отдельный блок результата для промежуточной суммы: в блоке результата можно написать формулу Площадь * Цена за м², чтобы отдельно показать стоимость только за материал, а в общей формуле оставить полный расчет со всеми доплатами.',
+          'Пример 7. Отдельный блок результата для доплаты: если нужно вывести клиенту только стоимость доставки, создайте результат с формулой Доставка. Это удобно, когда надо разложить итог на части.',
+          'Пример 8. Минимальная цена: если формула дает маленькую сумму, например Базовая цена + Монтаж, а в поле «Минимальная цена» указано 5000, итог не опустится ниже 5000 даже если расчет по формуле меньше.',
+          'Пример 9. Скидка после формулы: если формула дала 13200, а в поле «Скидка» указано 10, финальный итог станет 11880 до округления. Саму скидку в выражение писать не нужно, она применяется автоматически после расчета.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'result',
+    title: 'Блок результата',
+    caption: 'Вывод итогов',
+    intro:
+      'Блок результата нужен для отдельного показа вычислений. Он может выводить финальную стоимость, промежуточную сумму, скидку, доплату или любой другой расчет.',
+    sections: [
+      {
+        title: 'Формула результата',
+        items: [
+          'У каждого результата есть собственная формула.',
+          'Она использует те же переменные, что и общая формула калькулятора.',
+          'Это удобно, если нужно показать несколько разных итогов в одном проекте.',
+        ],
+      },
+      {
+        title: 'Оформление результата',
+        items: [
+          'Префикс и суффикс добавляют текст до или после числа.',
+          'Округление и число знаков после запятой управляют точностью.',
+          'Формат числа влияет на то, как именно будет показано значение пользователю.',
+        ],
+      },
+      {
+        title: 'Показ результата',
+        items: [
+          'Результат можно показывать сразу или только после нажатия кнопки.',
+          'Несколько блоков результата можно использовать одновременно.',
+          'Такой подход подходит для финальной цены, аванса, скидки и промежуточных расчетов.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'request',
+    title: 'Блок заявки и кнопки',
+    caption: 'Финальное действие',
+    intro:
+      'Заявка и кнопки завершают пользовательский сценарий. Через них можно отправить данные, выполнить расчет, перейти по ссылке или связаться с менеджером.',
+    sections: [
+      {
+        title: 'Блок заявки',
+        items: [
+          'Содержит заголовок, описание, поля имени, телефона и комментария.',
+          'Тексты и placeholders можно настраивать под конкретный сценарий.',
+          'Блок можно включать и выключать независимо от остальных элементов.',
+        ],
+      },
+      {
+        title: 'Кнопки',
+        items: [
+          'Кнопка может запускать расчет, отправлять заявку, вести по ссылке, выполнять VK-действие или копировать данные.',
+          'Доступны настройки цвета, размера, ширины, радиуса и текста.',
+          'При необходимости кнопку можно показывать только когда форма заполнена корректно.',
+        ],
+      },
+      {
+        title: 'Отправка менеджеру',
+        items: [
+          'Если для кнопки выбрано действие отправки заявки, используется ID менеджера из раздела «Настройки».',
+          'Перед публикацией проверьте, что ID заполнен правильно.',
+          'Лучше всегда тестировать отправку на реальном сценарии до запуска калькулятора.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'management',
+    title: 'Папки, шаблоны и публикация',
+    caption: 'Управление проектами',
+    intro:
+      'После сборки калькулятором нужно управлять: хранить его в папках, редактировать, дублировать, переносить и публиковать.',
+    sections: [
+      {
+        title: 'Папки и список проектов',
+        items: [
+          'Папки помогают держать калькуляторы в порядке.',
+          'Карточки можно переносить между папками, открывать и редактировать.',
+          'Так проще разделять проекты по услугам, направлениям или отделам.',
+        ],
+      },
+      {
+        title: 'Шаблоны и дублирование',
+        items: [
+          'Шаблоны позволяют быстро запускать новые калькуляторы на готовой основе.',
+          'Любой существующий калькулятор можно дублировать и доработать под новую задачу.',
+          'Это особенно удобно, если структура у проектов похожая, а различаются только тексты и цены.',
+        ],
+      },
+      {
+        title: 'Публикация',
+        items: [
+          'Черновик подходит для внутренней работы и тестов.',
+          'Опубликованный калькулятор доступен по ссылке для пользователя.',
+          'Перед публикацией стоит проверить формулы, кнопки, заявку и корректность отображения на превью.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'admin-sections',
+    title: 'Разделы админки',
+    caption: 'Навигация слева',
+    intro:
+      'Левая панель админки разделяет весь функционал по задачам. Ниже коротко описано, что делает каждый раздел и что в нем обычно настраивают.',
+    sections: [
+      {
+        title: 'Мои калькуляторы',
+        items: [
+          'Главный список всех проектов, созданных в сообществе.',
+          'Здесь создают новые калькуляторы, открывают редактор, сортируют по папкам, дублируют и удаляют проекты.',
+          'Это основной рабочий раздел для ежедневной работы с калькуляторами.',
+        ],
+      },
+      {
+        title: 'Шаблоны',
+        items: [
+          'Библиотека готовых стартовых решений.',
+          'Шаблоны удобно использовать, когда нужно быстро собрать типовой калькулятор на базе уже готовой структуры.',
+          'В этом разделе можно искать подходящий сценарий и брать его за основу без ручной сборки с нуля.',
+        ],
+      },
+      {
+        title: 'Аналитика',
+        items: [
+          'Показывает статистику по калькуляторам: просмотры, заполнения, конверсию, доход и динамику за период.',
+          'Помогает понимать, какие калькуляторы работают лучше, а где нужны доработки.',
+          'Полезна для оценки эффективности и контроля результата после публикации.',
+        ],
+      },
+      {
+        title: 'Интеграции',
+        items: [
+          'Раздел для подключения внешних сервисов и дополнительных сценариев обмена данными.',
+          'Здесь обычно настраивают связи с другими инструментами, если проекту нужна автоматизация.',
+          'Подходит для расширения функциональности после сборки базового калькулятора.',
+        ],
+      },
+      {
+        title: 'Платежи',
+        items: [
+          'Страница тарифов, оплаты и статуса подписки.',
+          'Здесь показывается, какой доступ активен, что входит в текущий план и как перейти на расширенные возможности.',
+          'Через этот раздел открываются возможности платных функций, если они нужны проекту.',
+        ],
+      },
+      {
+        title: 'FAQ',
+        items: [
+          'Встроенная справка по конструктору.',
+          'Здесь собраны описания режимов, блоков, настроек и основных правил работы с редактором.',
+          'Этот раздел помогает быстро найти подсказку, не выходя из админки.',
+        ],
+      },
+      {
+        title: 'Настройки',
+        items: [
+          'Технический раздел для служебных параметров проекта.',
+          'Сюда обычно относятся данные, которые нужны для отправки заявок и других системных действий.',
+          'Перед публикацией важно проверить значения именно здесь, если они используются в сценариях отправки.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'library',
+    title: 'Библиотека элементов',
+    caption: 'Описание и настройки блоков',
+    intro:
+      'Здесь собраны все элементы библиотеки конструктора. У каждого блока есть своя роль, своя логика и свой набор настроек в правой панели.',
+    sections: [
+      {
+        title: 'Список',
+        items: [
+          'Что делает: дает пользователю выбор одного варианта из выпадающего списка.',
+          'Основные настройки: название, описание, placeholder, значение по умолчанию, список вариантов.',
+          'Дополнительно: можно показывать цену рядом с вариантом и учитывать выбранное значение в формуле.',
+        ],
+      },
+      {
+        title: 'Ползунок',
+        items: [
+          'Что делает: позволяет выбрать число в заданном диапазоне.',
+          'Основные настройки: подсказка, минимум, максимум, шаг, значение по умолчанию, единица измерения.',
+          'Дополнительно: можно показывать текущее значение, шкалу, скрывать числа на шкале и разрешать ручной ввод.',
+        ],
+      },
+      {
+        title: 'Галочка',
+        items: [
+          'Что делает: включает или выключает опцию с ценой.',
+          'Основные настройки: название, описание, текст опции, значения при включении и выключении.',
+          'Дополнительно: можно показывать цену рядом с текстом и использовать значение в формуле.',
+        ],
+      },
+      {
+        title: 'Флажок',
+        items: [
+          'Что делает: еще один вариант опции выбора, который удобно использовать как отдельный сценарий.',
+          'Основные настройки: текст кнопки, значения on/off, значение по умолчанию, отображение цены.',
+          'Дополнительно: участвует в формуле только если включено использование значения.',
+        ],
+      },
+      {
+        title: 'Поле',
+        items: [
+          'Что делает: принимает текст, число, телефон, email, дату, время, многострочный текст или файл.',
+          'Основные настройки: название, описание, ключ, тип поля, placeholder, hint.',
+          'Дополнительно: для числового варианта доступны минимум, максимум, шаг и участие в формуле.',
+        ],
+      },
+      {
+        title: 'Текст',
+        items: [
+          'Что делает: выводит пояснения, заголовки, описания и заметки внутри калькулятора.',
+          'Основные настройки: контент, стиль текста, размер, жирность, цвет, выравнивание и ссылка.',
+          'Дополнительно: подходит для любого информационного блока без ввода данных.',
+        ],
+      },
+      {
+        title: 'Картинка',
+        items: [
+          'Что делает: показывает изображение с подписью или без нее.',
+          'Основные настройки: загрузка изображения, описание картинки, подпись, размер, радиус скругления.',
+          'Дополнительно: можно выбрать выравнивание, режим вписывания и текст alt для доступности.',
+        ],
+      },
+      {
+        title: 'Кнопка',
+        items: [
+          'Что делает: запускает действие пользователя в конце сценария.',
+          'Основные настройки: текст, действие кнопки, ссылка, цвет, размер, ширина и радиус.',
+          'Дополнительно: можно показывать кнопку только когда форма валидна и включать загрузочное состояние.',
+        ],
+      },
+      {
+        title: 'Бронирование',
+        items: [
+          'Что делает: позволяет выбрать дату и время записи.',
+          'Основные настройки: подсказка, рабочие дни, время начала и окончания, исключенные даты и диапазон дат.',
+          'Дополнительно: можно задать длительность слота, паузу между слотами, лимит заявок, срочную доплату и порог срочности.',
+        ],
+      },
+      {
+        title: 'Результат',
+        items: [
+          'Что делает: выводит отдельный итоговый расчет.',
+          'Основные настройки: формула блока, префикс, суффикс, округление, знаки после запятой, формат числа и режим показа.',
+          'Дополнительно: можно задать условие видимости и использовать несколько результатных блоков в одном проекте.',
+        ],
+      },
+      {
+        title: 'Разметка',
+        items: [
+          'Что делает: вставляет HTML-контент и помогает оформить дополнительный материал.',
+          'Основные настройки: HTML-код и его предварительный просмотр.',
+          'Дополнительно: подходит для нестандартных блоков, баннеров, подсказок и собственного оформления.',
+        ],
+      },
+    ],
+  },
+];
 
 const navItems: Array<{
   key: AdminSection;
@@ -109,7 +557,6 @@ const formatPercent = (value: number) => `${percentFormatter.format(value)}%`;
 const formatDayLabel = (date: Date) =>
   date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 const monthlyServicePrice = 490;
-const hasActiveSubscription = false;
 
 const describeTemplateType = (type: CalculatorTemplate['type']) => {
   switch (type) {
@@ -238,9 +685,18 @@ export const HomePage = ({
   onDuplicateTemplate,
   onDeleteTemplate,
   onMoveTemplateToFolder,
+  onUpdateTemplateStatus,
+  onCopyTemplateLink,
+  hasActiveSubscription,
+  canCreateMoreTemplates,
+  templateLimit,
 }: HomePageProps) => {
+  const isSectionLocked = (section: AdminSection) =>
+    !hasActiveSubscription && (section === 'analytics' || section === 'integrations');
+  const showCreateCalculatorLimitHint = !hasActiveSubscription && !canCreateMoreTemplates;
+
   const handleSectionSelect = (section: AdminSection) => {
-    onSectionChange(section);
+    onSectionChange(isSectionLocked(section) ? 'payments' : section);
     onToggleAdminNav();
   };
 
@@ -251,10 +707,31 @@ export const HomePage = ({
     null,
   );
   const [managerVkId, setManagerVkId] = useState(adminSettings.managerVkId);
+  const [supportTickets, setSupportTickets] = useState<CalculatorSupportTicket[]>(() =>
+    getSupportTickets(),
+  );
+  const [supportTicketsPage, setSupportTicketsPage] = useState(1);
+  const [expandedSupportTicketIds, setExpandedSupportTicketIds] = useState<string[]>([]);
+  const [supportType, setSupportType] = useState<CalculatorSupportTicketType>('message');
+  const [supportSubject, setSupportSubject] = useState('');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportStatus, setSupportStatus] = useState('');
   const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRange>(30);
   const [templateSearch, setTemplateSearch] = useState('');
   const [templateCategory, setTemplateCategory] = useState<'all' | TemplateCatalogCategory>('all');
+  const [selectedFaqTopicId, setSelectedFaqTopicId] = useState(faqTopics[0]?.id ?? 'start');
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const currentAdminLabel =
+    [adminProfile.firstName, adminProfile.lastName].filter(Boolean).join(' ').trim() ||
+    adminProfile.nickname ||
+    'Администратор';
+  const supportTicketsPerPage = 3;
+  const supportTicketsPageCount = Math.max(1, Math.ceil(supportTickets.length / supportTicketsPerPage));
+  const supportTicketsStart = (supportTicketsPage - 1) * supportTicketsPerPage;
+  const supportVisibleTickets = supportTickets.slice(
+    supportTicketsStart,
+    supportTicketsStart + supportTicketsPerPage,
+  );
 
   useEffect(() => {
     setManagerVkId(adminSettings.managerVkId);
@@ -269,6 +746,12 @@ export const HomePage = ({
   }, [activeFolderId, folders]);
 
   useEffect(() => {
+    if (currentSection === 'faq' && !faqTopics.some((topic) => topic.id === selectedFaqTopicId)) {
+      setSelectedFaqTopicId(faqTopics[0]?.id ?? 'start');
+    }
+  }, [currentSection, selectedFaqTopicId]);
+
+  useEffect(() => {
     if (editingFolderId && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
@@ -279,6 +762,10 @@ export const HomePage = ({
     activeFolderId === 'all'
       ? 'Все'
       : folders.find((folder) => folder.id === activeFolderId)?.name ?? 'Все';
+  const selectedFaqTopic = useMemo(
+    () => faqTopics.find((topic) => topic.id === selectedFaqTopicId) ?? faqTopics[0],
+    [selectedFaqTopicId],
+  );
 
   const filteredCatalog = useMemo(() => {
     const normalizedQuery = templateSearch.trim().toLowerCase();
@@ -514,6 +1001,9 @@ export const HomePage = ({
             <span className="folder-card__side">
               <span className="folder-card__count">{allTemplates.length}</span>
             </span>
+            {/*
+                Базовый план: до {templateLimit} калькулятора
+            */}
           </button>
 
           {folders.map((folder) => (
@@ -603,12 +1093,24 @@ export const HomePage = ({
         </div>
 
         <div className="admin-home__grid">
-          <button className="create-calculator-tile" type="button" onClick={onCreate}>
-            <span className="create-calculator-tile__plus">
-              <Icon20Add />
-            </span>
-            <span className="create-calculator-tile__label">Создать калькулятор</span>
-          </button>
+          <div className="create-calculator-tile-wrap">
+            <button
+              className={`create-calculator-tile ${!canCreateMoreTemplates ? 'create-calculator-tile_disabled' : ''}`}
+              type="button"
+              onClick={onCreate}
+              disabled={!canCreateMoreTemplates}
+            >
+              <span className="create-calculator-tile__plus">
+                <Icon20Add />
+              </span>
+              <span className="create-calculator-tile__label">Создать калькулятор</span>
+            </button>
+            {showCreateCalculatorLimitHint ? (
+              <div className="create-calculator-tile__tooltip">
+                Базовый план: до {templateLimit} калькулятора
+              </div>
+            ) : null}
+          </div>
 
           {templates.map((template) => (
             <TemplateCard
@@ -620,6 +1122,8 @@ export const HomePage = ({
               onDuplicate={onDuplicateTemplate}
               onDelete={setPendingDeleteTemplate}
               onMoveToFolder={onMoveTemplateToFolder}
+              onUpdateStatus={onUpdateTemplateStatus}
+              onCopyLink={onCopyTemplateLink}
             />
           ))}
         </div>
@@ -646,7 +1150,12 @@ export const HomePage = ({
               услуги.
             </p>
           </div>
-          <button className="templates-hub__ghost-action" type="button" onClick={onCreate}>
+          <button
+            className="templates-hub__ghost-action"
+            type="button"
+            onClick={onCreate}
+            disabled={!canCreateMoreTemplates}
+          >
             Создать с нуля
           </button>
         </div>
@@ -682,7 +1191,12 @@ export const HomePage = ({
             <TemplatePresetCard key={preset.id} preset={preset} onUse={onUsePreset} />
           ))}
 
-          <button className="template-preset template-preset_blank" type="button" onClick={onCreate}>
+          <button
+            className="template-preset template-preset_blank"
+            type="button"
+            onClick={onCreate}
+            disabled={!canCreateMoreTemplates}
+          >
             <div className="template-preset__blank-plus">+</div>
             <div className="template-preset__blank-title">Создать с нуля</div>
             <div className="template-preset__blank-text">Пустой калькулятор в нашей теме</div>
@@ -974,13 +1488,25 @@ export const HomePage = ({
         <div className="payments-grid">
           <article className="payments-card">
             <div className="payments-card__eyebrow">Текущий план</div>
-            <h3 className="payments-card__title">Про</h3>
+            <h3 className="payments-card__title">{hasActiveSubscription ? 'Про' : 'Базовый'}</h3>
             <p className="payments-card__text">
-              Активная подписка на сервис с ежемесячным списанием {formatCurrency(monthlyServicePrice)}.
+              {hasActiveSubscription
+                ? `Активная подписка на сервис с ежемесячным списанием ${formatCurrency(monthlyServicePrice)}.`
+                : (
+                  <>
+                    Подписка пока не активна.
+                    <br />
+                    Базовый план включает 1 калькулятор.
+                    <br />
+                    Подключите тариф Про за {formatCurrency(monthlyServicePrice)} в месяц.
+                  </>
+                )}
             </p>
             {hasActiveSubscription ? (
               <div className="payments-card__meta">Следующий платеж: 12.06.2026</div>
-            ) : null}
+            ) : (
+              <div className="payments-card__meta">После оплаты доступ откроется сразу.</div>
+            )}
           </article>
 
           <article className="payments-card">
@@ -996,6 +1522,41 @@ export const HomePage = ({
       </section>
     </main>
   );
+
+  const handleSupportSubmit = () => {
+    const subject = supportSubject.trim();
+    const message = supportMessage.trim();
+
+    if (!subject || !message) {
+      setSupportStatus('Заполните тему и сообщение.');
+      return;
+    }
+
+    const ticket: CalculatorSupportTicket = {
+      id: `support-${Date.now()}`,
+      type: supportType,
+      subject,
+      message,
+      createdAt: new Date().toISOString(),
+      authorLabel: currentAdminLabel,
+    };
+
+    const nextTickets = addSupportTicket(ticket);
+    setSupportTickets(nextTickets);
+    setSupportTicketsPage(1);
+    setSupportSubject('');
+    setSupportMessage('');
+    setSupportType('message');
+    setSupportStatus('Сообщение отправлено в саппорт.');
+  };
+
+  const toggleSupportTicketExpanded = (ticketId: string) => {
+    setExpandedSupportTicketIds((current) =>
+      current.includes(ticketId)
+        ? current.filter((id) => id !== ticketId)
+        : [...current, ticketId],
+    );
+  };
 
   const renderSettingsSection = () => (
     <main className="admin-home__content admin-home__content_wide">
@@ -1038,6 +1599,189 @@ export const HomePage = ({
             Сохранить
           </button>
         </article>
+
+        <article className="settings-card settings-card_support">
+          <div className="settings-card__eyebrow">Саппорт</div>
+          <h2 className="settings-card__title">Сообщения, баги и предложения</h2>
+          <p className="settings-card__text">
+            Отправляйте обращения прямо из настроек, чтобы не терять идеи, баги и вопросы по
+            конструктору.
+          </p>
+
+          <div className="settings-support__grid">
+            <div className="settings-support__panel">
+              <div className="settings-support__panel-title">Новое обращение</div>
+              <label className="settings-support__field">
+                <span className="settings-support__label">Тип</span>
+                <select
+                  className="settings-support__input"
+                  value={supportType}
+                  onChange={(event) => setSupportType(event.target.value as CalculatorSupportTicketType)}
+                >
+                  <option value="message">Сообщение</option>
+                  <option value="bug">Баг</option>
+                  <option value="suggestion">Предложение</option>
+                </select>
+              </label>
+              <label className="settings-support__field">
+                <span className="settings-support__label">Тема</span>
+                <input
+                  className="settings-support__input"
+                  type="text"
+                  placeholder="Коротко опишите вопрос"
+                  value={supportSubject}
+                  maxLength={SUPPORT_SUBJECT_MAX_LENGTH}
+                  onChange={(event) =>
+                    setSupportSubject(event.target.value.slice(0, SUPPORT_SUBJECT_MAX_LENGTH))
+                  }
+                />
+                <span className="settings-support__counter">
+                  {supportSubject.length}/{SUPPORT_SUBJECT_MAX_LENGTH}
+                </span>
+              </label>
+              <label className="settings-support__field">
+                <span className="settings-support__label">Сообщение</span>
+                <textarea
+                  className="settings-support__textarea"
+                  placeholder="Опишите баг, задайте вопрос или оставьте идею"
+                  value={supportMessage}
+                  maxLength={SUPPORT_MESSAGE_MAX_LENGTH}
+                  onChange={(event) =>
+                    setSupportMessage(event.target.value.slice(0, SUPPORT_MESSAGE_MAX_LENGTH))
+                  }
+                />
+                <span className="settings-support__counter">
+                  {supportMessage.length}/{SUPPORT_MESSAGE_MAX_LENGTH}
+                </span>
+              </label>
+              <button className="settings-support__button" type="button" onClick={handleSupportSubmit}>
+                Отправить в саппорт
+              </button>
+              <div className="settings-support__note">{supportStatus || 'Обращение сохранится локально в этом проекте.'}</div>
+            </div>
+
+            <div className="settings-support__actions">
+              <div className="settings-support__panel-title">Последние обращения</div>
+              <div className="settings-support__tickets">
+                {supportVisibleTickets.map((ticket) => {
+                  const isExpanded = expandedSupportTicketIds.includes(ticket.id);
+
+                  return (
+                  <div key={ticket.id} className="settings-support__ticket">
+                    <div className="settings-support__ticket-head">
+                      <strong>{supportTypeLabels[ticket.type]}</strong>
+                      <span>
+                        {new Date(ticket.createdAt).toLocaleDateString('ru-RU')}{' '}
+                        {new Date(ticket.createdAt).toLocaleTimeString('ru-RU', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                    <div
+                      className={`settings-support__ticket-subject ${isExpanded ? 'settings-support__ticket-subject_expanded' : ''}`}
+                    >
+                      {ticket.subject}
+                    </div>
+                    <div
+                      className={`settings-support__ticket-message ${isExpanded ? 'settings-support__ticket-message_expanded' : ''}`}
+                    >
+                      {ticket.message}
+                    </div>
+                    <button
+                      className="settings-support__ticket-toggle"
+                      type="button"
+                      onClick={() => toggleSupportTicketExpanded(ticket.id)}
+                    >
+                      {isExpanded ? 'Скрыть' : 'Подробнее'}
+                    </button>
+                  </div>
+                  );
+                })}
+                {!supportTickets.length ? <div className="settings-support__empty">Пока обращений нет.</div> : null}
+              </div>
+              {supportTickets.length > supportTicketsPerPage ? (
+                <div className="settings-support__pager">
+                  <button
+                    className="settings-support__pager-button"
+                    type="button"
+                    onClick={() => setSupportTicketsPage((page) => Math.max(1, page - 1))}
+                    disabled={supportTicketsPage === 1}
+                  >
+                    Назад
+                  </button>
+                  <span className="settings-support__pager-label">
+                    {supportTicketsPage} / {supportTicketsPageCount}
+                  </span>
+                  <button
+                    className="settings-support__pager-button"
+                    type="button"
+                    onClick={() =>
+                      setSupportTicketsPage((page) => Math.min(supportTicketsPageCount, page + 1))
+                    }
+                    disabled={supportTicketsPage === supportTicketsPageCount}
+                  >
+                    Далее
+                  </button>
+                </div>
+              ) : null}
+              <button className="settings-support__button settings-support__button_secondary" type="button" onClick={() => onSectionChange('faq')}>
+                Открыть FAQ
+              </button>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  );
+
+  const renderFaqSection = () => (
+    <main className="admin-home__content admin-home__content_wide">
+      <div className="admin-home__content-head">
+        <div className="admin-home__title-wrap">
+          <h1 className="admin-home__title">FAQ</h1>
+        </div>
+        <div className="admin-home__role-badge">СПРАВКА</div>
+      </div>
+
+      <section className="faq-layout">
+        <aside className="faq-nav">
+          <div className="faq-nav__title">Темы</div>
+          <div className="faq-nav__list">
+            {faqTopics.map((topic) => (
+              <button
+                key={topic.id}
+                className={`faq-nav__item ${selectedFaqTopic?.id === topic.id ? 'faq-nav__item_active' : ''}`}
+                type="button"
+                onClick={() => setSelectedFaqTopicId(topic.id)}
+              >
+                <span className="faq-nav__item-title">{topic.title}</span>
+                <span className="faq-nav__item-caption">{topic.caption}</span>
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <article className="faq-view">
+          <div className="faq-view__eyebrow">Подробнее</div>
+          <h2 className="faq-view__title">{selectedFaqTopic?.title}</h2>
+          <p className="faq-view__intro">{selectedFaqTopic?.intro}</p>
+
+          <div className="faq-view__sections">
+            {selectedFaqTopic?.sections.map((section) => (
+              <section key={section.title} className="faq-view__section">
+                <h3 className="faq-view__section-title">{section.title}</h3>
+                <ul className="faq-view__list">
+                  {section.items.map((item) => (
+                    <li key={item} className="faq-view__list-item">
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        </article>
       </section>
     </main>
   );
@@ -1066,6 +1810,29 @@ export const HomePage = ({
     );
   };
 
+  const renderPlanLockedSection = (title: string, feature: string) => (
+    <main className="admin-home__content admin-home__content_wide">
+      <div className="admin-home__content-head">
+        <div className="admin-home__title-wrap">
+          <h1 className="admin-home__title">{title}</h1>
+        </div>
+        <div className="admin-home__role-badge">PRO</div>
+      </div>
+
+      <section className="admin-placeholder">
+        <div className="admin-placeholder__eyebrow">Доступно на тарифе Про</div>
+        <h2 className="admin-placeholder__title">{feature} откроется после апгрейда</h2>
+        <p className="admin-placeholder__text">
+          Базовый тариф подходит для одного калькулятора. Перейдите на Про, чтобы получить
+          безлимитные калькуляторы, аналитику, интеграции и бронирование.
+        </p>
+        <button className="admin-nav__plan-button" type="button" onClick={() => onSectionChange('payments')}>
+          Перейти к оплате
+        </button>
+      </section>
+    </main>
+  );
+
   return (
     <div className={`admin-home ${isAdminNavOpen ? 'admin-home_nav-open' : ''}`}>
       <button
@@ -1090,14 +1857,17 @@ export const HomePage = ({
             return (
               <button
                 key={item.key}
-                className={`admin-nav__item ${currentSection === item.key ? 'admin-nav__item_active' : ''}`}
+                className={`admin-nav__item ${currentSection === item.key ? 'admin-nav__item_active' : ''} ${isSectionLocked(item.key) ? 'admin-nav__item_locked' : ''}`}
                 type="button"
                 onClick={() => handleSectionSelect(item.key)}
               >
                 <span className="admin-nav__item-icon">
                   <Icon />
                 </span>
-                <span className="admin-nav__item-label">{item.label}</span>
+                <span className="admin-nav__item-label">
+                  {item.label}
+                  {isSectionLocked(item.key) ? ' Pro' : ''}
+                </span>
               </button>
             );
           })}
@@ -1156,13 +1926,21 @@ export const HomePage = ({
       {currentSection === 'calculators'
         ? renderCalculatorsSection()
         : currentSection === 'analytics'
-          ? renderAnalyticsSection()
+          ? hasActiveSubscription
+            ? renderAnalyticsSection()
+            : renderPlanLockedSection('Аналитика', 'Аналитика')
+        : currentSection === 'integrations'
+          ? hasActiveSubscription
+            ? renderPlaceholderSection()
+            : renderPlanLockedSection('Интеграции', 'Интеграции')
         : currentSection === 'payments'
           ? renderPaymentsSection()
         : currentSection === 'settings'
           ? renderSettingsSection()
         : currentSection === 'templates'
           ? renderTemplatesSection()
+        : currentSection === 'faq'
+          ? renderFaqSection()
           : renderPlaceholderSection()}
 
       {pendingDeleteFolder ? (
