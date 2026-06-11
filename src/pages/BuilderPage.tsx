@@ -2955,14 +2955,6 @@ export const BuilderPage = ({
                             }}
                           >
                             <div className="builder-option-row__tools">
-                              <button
-                                className={`builder-option-row__drag ${draggedOptionId === option.id ? 'builder-option-row__drag_active' : ''}`}
-                                type="button"
-                                tabIndex={-1}
-                                aria-label={`\u041f\u0435\u0440\u0435\u0442\u0430\u0449\u0438\u0442\u044c ${option.label}`}
-                              >
-                                \u2261
-                              </button>
                               <label className="builder-option-row__default">
                                 <input
                                   type="checkbox"
@@ -2978,6 +2970,7 @@ export const BuilderPage = ({
                               </label>
                             </div>
                             <input
+                              className="builder-option-row__label-input"
                               value={option.label}
                               placeholder={'\u0422\u0435\u043a\u0441\u0442 \u0441\u0442\u0440\u043e\u043a\u0438'}
                               onChange={(event) =>
@@ -2987,6 +2980,7 @@ export const BuilderPage = ({
                               }
                             />
                             <input
+                              className="builder-option-row__value-input"
                               type="number"
                               value={option.value}
                               placeholder={'\u0417\u043d\u0430\u0447\u0435\u043d\u0438\u0435'}
@@ -2997,6 +2991,7 @@ export const BuilderPage = ({
                               }
                             />
                             <input
+                              className="builder-option-row__meta-input"
                               value={option.description ?? ''}
                               placeholder={'\u041f\u043e\u0434\u043f\u0438\u0441\u044c'}
                               onChange={(event) =>
