@@ -83,6 +83,8 @@ const getInitialFieldValue = (field: CalculatorField): CalculatorFieldValue => {
   return '';
 };
 
+const normalizeSummaryLabel = (value: string) => value.trim().toLowerCase();
+
 const validateFieldValue = (
   field: CalculatorField,
   value: CalculatorFieldValue,
@@ -288,6 +290,72 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
   }, []);
 
   const result = useMemo(() => calculateTemplate(template, values), [template, values]);
+
+  const missingRequestItems = useMemo(() => {
+    const items = template.fields
+      .filter((field) => field.type !== 'button' && field.type !== 'result')
+      .filter((field) =>
+        Boolean(
+          validateFieldValue(
+            field,
+            values[field.key] ?? getInitialFieldValue(field),
+            template.id,
+            requests,
+          ),
+        ),
+      )
+      .map((field) => normalizeSummaryLabel(field.label))
+      .filter(Boolean);
+
+    if (!name.trim()) {
+      items.push(normalizeSummaryLabel(template.requestForm.nameLabel));
+    }
+
+    if (!phone.trim() || phoneError) {
+      items.push(normalizeSummaryLabel(template.requestForm.phoneLabel));
+    }
+
+    if (!isConsentChecked) {
+      items.push('согласие');
+    }
+
+    return [...new Set(items)];
+  }, [
+    isConsentChecked,
+    name,
+    phone,
+    phoneError,
+    requests,
+    template.fields,
+    template.id,
+    template.requestForm.nameLabel,
+    template.requestForm.phoneLabel,
+    values,
+  ]);
+
+  const requestSummaryEyebrow =
+    template.requestForm.enabled && template.resultCardShowTitle !== false
+      ? 'Итог по заявке'
+      : template.resultCardTitle ?? 'Итог расчета';
+
+  const requestSummaryTitle = status
+    ? status
+    : missingRequestItems.length > 0
+      ? `Нужны ${missingRequestItems[0]}`
+      : template.resultCardShowTotal !== false
+        ? `${result.total} ₽`
+        : 'Можно отправить заявку';
+
+  const requestSummaryDescription = status
+    ? 'Проверьте статус заявки и при необходимости измените данные в форме.'
+    : missingRequestItems.length > 0
+      ? `Нужны ${missingRequestItems.join(', ')}`
+      : template.requestForm.enabled
+        ? 'Все данные заполнены, можно отправить заявку.'
+        : 'Результат расчета обновляется автоматически.';
+
+  const isRequestSubmitDisabled = !name || !phone || Boolean(phoneError) || isSubmitting;
+  const shouldShowResultDetails = !template.requestForm.enabled || missingRequestItems.length === 0;
 
   const validate = () => {
     const nextErrors: Record<string, string> = {};
@@ -581,49 +649,54 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
                   ) : null}
                 </label>
 
-                <button
-                  className="calculator-request__submit"
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={!name || !phone || Boolean(phoneError) || isSubmitting}
-                >
-                  {template.requestForm.submitButtonText}
-                </button>
-
-                {status ? <div className="success-text">{status}</div> : null}
               </div>
             </div>
           </section>
 
           {template.resultCardShow !== false ? (
             <aside className="calculator-layout__result">
-              <div className="result-card">
-              <div className="result-card__eyebrow">{template.resultCardTitle ?? 'Итог расчета'}</div>
-              {template.resultCardShowTotal !== false ? (
-                <div className="result-card__amount">{result.total} ₽</div>
-              ) : null}
-              <div className="result-card__list">
-                {template.resultCardShowSubtotal !== false ? (
-                  <div className="result-card__row">
-                    <span>{template.resultSubtotalLabel ?? 'Подытог'}</span>
-                    <strong>{result.subtotal} ₽</strong>
-                  </div>
-                ) : null}
-                {template.resultCardShowDiscount !== false ? (
-                  <div className="result-card__row">
-                    <span>{template.resultDiscountLabel ?? 'Скидка'}</span>
-                    <strong>{result.discountAmount} ₽</strong>
-                  </div>
-                ) : null}
-                {template.resultCardShowMinPrice !== false ? (
-                  <div className="result-card__row">
-                    <span>{template.resultMinPriceLabel ?? 'Минимальная цена'}</span>
-                    <strong>{template.minPrice} ₽</strong>
-                  </div>
+              <div className="result-card result-card_sticky">
+                <div className="result-card__content">
+                  {template.resultCardShowTitle !== false ? (
+                    <div className="result-card__eyebrow">{requestSummaryEyebrow}</div>
+                  ) : null}
+                  <div className="result-card__amount result-card__amount_compact">{requestSummaryTitle}</div>
+                  <div className="result-card__description">{requestSummaryDescription}</div>
+                  {shouldShowResultDetails ? (
+                    <div className="result-card__list result-card__list_compact">
+                      {template.resultCardShowSubtotal !== false ? (
+                        <div className="result-card__row">
+                          <span>{template.resultSubtotalLabel ?? 'Подытог'}</span>
+                          <strong>{result.subtotal} ₽</strong>
+                        </div>
+                      ) : null}
+                      {template.resultCardShowDiscount !== false ? (
+                        <div className="result-card__row">
+                          <span>{template.resultDiscountLabel ?? 'Скидка'}</span>
+                          <strong>{result.discountAmount} ₽</strong>
+                        </div>
+                      ) : null}
+                      {template.resultCardShowMinPrice !== false ? (
+                        <div className="result-card__row">
+                          <span>{template.resultMinPriceLabel ?? 'Минимальная цена'}</span>
+                          <strong>{template.minPrice} ₽</strong>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+                {template.requestForm.enabled ? (
+                  <button
+                    className="calculator-request__submit result-card__submit"
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={isRequestSubmitDisabled}
+                  >
+                    {template.requestForm.submitButtonText}
+                  </button>
                 ) : null}
               </div>
-            </div>
-          </aside>
+            </aside>
           ) : null}
         </div>
       </div>
