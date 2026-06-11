@@ -4820,6 +4820,10 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .calc-result-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 88px;
   padding: 16px 18px;
   border: 1px solid rgba(188, 154, 129, 0.22);
   border-radius: 18px;

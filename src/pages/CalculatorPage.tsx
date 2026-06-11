@@ -598,7 +598,9 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
           <aside className="calculator-layout__result">
             <div className="result-card">
               <div className="result-card__eyebrow">{template.resultCardTitle ?? 'Итог расчета'}</div>
-              <div className="result-card__amount">{result.total} ₽</div>
+              {template.resultCardShowTotal !== false ? (
+                <div className="result-card__amount">{result.total} ₽</div>
+              ) : null}
               <div className="result-card__list">
                 {template.resultCardShowSubtotal !== false ? (
                   <div className="result-card__row">

@@ -178,6 +178,7 @@ export interface CalculatorTemplate {
   customFormula: string;
   resultCardTitle?: string;
   resultCardShowTitle?: boolean;
+  resultCardShowTotal?: boolean;
   resultSubtotalLabel?: string;
   resultCardShowSubtotal?: boolean;
   resultDiscountLabel?: string;

@@ -1898,6 +1898,23 @@ export const BuilderPage = ({
                         <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
                           <input
                             type="checkbox"
+                            aria-label="Показывать итоговую сумму"
+                            checked={template.resultCardShowTotal !== false}
+                            onChange={(event) =>
+                              updateTemplate({ resultCardShowTotal: event.target.checked })
+                            }
+                          />
+                        </label>
+                        <label className="builder-formula__field builder-formula__result-input">
+                          <span>Итоговая сумма</span>
+                          <input value="Основное значение карточки" readOnly />
+                        </label>
+                      </div>
+
+                      <div className="builder-formula__result-row">
+                        <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
+                          <input
+                            type="checkbox"
                             aria-label="Показывать подытог"
                             checked={template.resultCardShowSubtotal !== false}
                             onChange={(event) =>
