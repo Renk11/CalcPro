@@ -941,29 +941,61 @@ export const CalculatorFieldInput = ({
     );
   }
 
+
   if (field.type === 'checkbox') {
     const rawPrice =
       typeof field.onValue === 'number' ? field.onValue : Number(field.onValue ?? Number.NaN);
-    const checkboxText = field.checkboxLabel || 'Включить опцию';
+    const checkboxText = field.checkboxLabel || '\u0412\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u043e\u043f\u0446\u0438\u044e';
     const checkboxPrice =
-      field.showPriceInline && Number.isFinite(rawPrice) ? ` (${rawPrice} ₽)` : '';
+      field.showPriceInline && Number.isFinite(rawPrice) ? ` (${rawPrice} \u20bd)` : '';
+    const hasExtraRows = (field.options?.length ?? 0) > 0;
+    const selectedIds = Array.isArray(value) ? value.map(String) : value ? ['__primary__'] : [];
+    const checkboxRows = [
+      {
+        id: '__primary__',
+        label: checkboxText,
+        price: checkboxPrice,
+      },
+      ...(field.options ?? []).map((option) => ({
+        id: option.id,
+        label: option.label,
+        price:
+          field.showPriceInline && typeof option.value === 'number' ? ` (${option.value} \u20bd)` : '',
+      })),
+    ];
 
     return (
-      <label className="calc-field calc-field_checkbox">
+      <div className="calc-field calc-field_checkbox">
         {renderFieldHead(field)}
         {field.description ? <span className="calc-field__description">{field.description}</span> : null}
         {field.placeholder ? <span className="calc-field__hint">{field.placeholder}</span> : null}
-        <span className="calc-field__checkbox-row">
-          <input
-            className="calc-field__checkbox"
-            type="checkbox"
-            checked={Boolean(value)}
-            onChange={(event) => onChange(event.target.checked)}
-          />
-          <span className="calc-field__checkbox-text">{`${checkboxText}${checkboxPrice}`}</span>
-        </span>
+        {checkboxRows.map((row) => {
+          const isChecked = hasExtraRows ? selectedIds.includes(row.id) : Boolean(value);
+
+          return (
+            <label key={row.id} className="calc-field__checkbox-row">
+              <input
+                className="calc-field__checkbox"
+                type="checkbox"
+                checked={isChecked}
+                onChange={(event) => {
+                  if (!hasExtraRows) {
+                    onChange(event.target.checked);
+                    return;
+                  }
+
+                  const nextSelectedIds = event.target.checked
+                    ? [...selectedIds, row.id]
+                    : selectedIds.filter((item) => item !== row.id);
+                  onChange(nextSelectedIds);
+                }}
+              />
+              <span className="calc-field__checkbox-text">{`${row.label}${row.price}`}</span>
+            </label>
+          );
+        })}
         {error ? <span className="calc-field__error">{error}</span> : null}
-      </label>
+      </div>
     );
   }
 

@@ -14,6 +14,7 @@ import type {
   CalculatorFieldValue,
   CalculatorRequest,
   CalculatorTemplate,
+  CalculatorUploadedFile,
   CalculatorValues,
 } from '../shared/types/calculator';
 
@@ -39,6 +40,17 @@ const getInputSubtype = (field: CalculatorField) => {
   return null;
 };
 
+const isUploadedFileArray = (value: CalculatorFieldValue): value is CalculatorUploadedFile[] =>
+  Array.isArray(value) &&
+  value.every(
+    (item) =>
+      typeof item === 'object' &&
+      item !== null &&
+      'name' in item &&
+      'size' in item &&
+      'type' in item,
+  );
+
 const getInitialFieldValue = (field: CalculatorField): CalculatorFieldValue => {
   if (field.defaultValue !== undefined) {
     return field.defaultValue;
@@ -57,6 +69,10 @@ const getInitialFieldValue = (field: CalculatorField): CalculatorFieldValue => {
   }
 
   if (field.type === 'checkbox') {
+    if ((field.options?.length ?? 0) > 0) {
+      return field.defaultValue === true ? ['__primary__'] : [];
+    }
+
     return false;
   }
 
@@ -139,7 +155,7 @@ const validateFieldValue = (
   }
 
   if (inputSubtype === 'file') {
-    if (!Array.isArray(value) || value.length === 0) {
+    if (!isUploadedFileArray(value) || value.length === 0) {
       return '';
     }
 

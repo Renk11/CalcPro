@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   CalculationBreakdownItem,
   CalculationResult,
   CalculatorField,
@@ -35,15 +35,15 @@ export const createTemplatePublicId = (seed?: string) => {
 
 export const createDefaultRequestFormSettings = (): CalculatorRequestFormSettings => ({
   enabled: true,
-  title: 'Отправить заявку',
-  description: 'Оставьте контакты, и мы свяжемся с вами',
-  nameLabel: 'Имя',
-  namePlaceholder: 'Как к вам обращаться',
-  phoneLabel: 'Телефон',
+  title: 'РћС‚РїСЂР°РІРёС‚СЊ Р·Р°СЏРІРєСѓ',
+  description: 'РћСЃС‚Р°РІСЊС‚Рµ РєРѕРЅС‚Р°РєС‚С‹, Рё РјС‹ СЃРІСЏР¶РµРјСЃСЏ СЃ РІР°РјРё',
+  nameLabel: 'РРјСЏ',
+  namePlaceholder: 'РљР°Рє Рє РІР°Рј РѕР±СЂР°С‰Р°С‚СЊСЃСЏ',
+  phoneLabel: 'РўРµР»РµС„РѕРЅ',
   phonePlaceholder: '+7 (___) ___-__-__',
-  commentLabel: 'Комментарий',
-  commentPlaceholder: 'Уточнения по заявке',
-  submitButtonText: 'Отправить заявку',
+  commentLabel: 'РљРѕРјРјРµРЅС‚Р°СЂРёР№',
+  commentPlaceholder: 'РЈС‚РѕС‡РЅРµРЅРёСЏ РїРѕ Р·Р°СЏРІРєРµ',
+  submitButtonText: 'РћС‚РїСЂР°РІРёС‚СЊ Р·Р°СЏРІРєСѓ',
 });
 
 const getNumericOptionValue = (option?: CalculatorFieldOption) => {
@@ -105,8 +105,8 @@ const normalizeFormula = (formula: string, fields: CalculatorField[]) => {
   });
 
   nextFormula = nextFormula
-    .replace(/Базовая цена/g, 'basePrice')
-    .replace(/Общий коэффициент/g, 'globalCoefficient');
+    .replace(/Р‘Р°Р·РѕРІР°СЏ С†РµРЅР°/g, 'basePrice')
+    .replace(/РћР±С‰РёР№ РєРѕСЌС„С„РёС†РёРµРЅС‚/g, 'globalCoefficient');
 
   return nextFormula;
 };
@@ -122,26 +122,62 @@ const isSafeFormulaExpression = (formula: string) => {
   return compactFormula === matchedFormula.replace(/\s+/g, '');
 };
 
+const getCheckboxSelectedIds = (value: CalculatorFieldValue) =>
+  Array.isArray(value) ? value.map(String) : value ? ['__primary__'] : [];
+
+const getCheckboxAmount = (field: CalculatorField, value: CalculatorFieldValue) => {
+  const selectedIds = getCheckboxSelectedIds(value);
+  const primaryAmount = selectedIds.includes('__primary__')
+    ? getNumericFieldValue(field.onValue)
+    : getNumericFieldValue(field.offValue);
+  const extraAmount = (field.options ?? []).reduce((sum, option) => {
+    if (!selectedIds.includes(option.id)) {
+      return sum;
+    }
+
+    return sum + getNumericOptionValue(option);
+  }, 0);
+
+  return primaryAmount + extraAmount;
+};
+
+
 const formatValueLabel = (field: CalculatorField, value: CalculatorFieldValue) => {
   if (field.type === 'checkbox') {
-    return value ? 'Да' : 'Нет';
+    const selectedIds = getCheckboxSelectedIds(value);
+    if (selectedIds.length === 0) {
+      return '\u041d\u0435\u0442';
+    }
+
+    const labels = [
+      ...(selectedIds.includes('__primary__')
+        ? [field.checkboxLabel || '\u0412\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u043e\u043f\u0446\u0438\u044e']
+        : []),
+      ...(field.options ?? [])
+        .filter((item) => selectedIds.includes(item.id))
+        .map((item) => item.label),
+    ];
+
+    return labels.length > 0 ? labels.join(', ') : '\u0414\u0430';
   }
 
   if (field.type === 'select' || field.type === 'radio') {
     const option = field.options?.find((item) => String(item.value) === String(value));
-    return option?.label ?? 'Не выбрано';
+    return option?.label ?? '\u041d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u043e';
   }
 
   if (field.type === 'booking') {
     if (!isBookingValue(value)) {
-      return 'РќРµ РІС‹Р±СЂР°РЅРѕ';
+      return '\u041d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u043e';
     }
 
     return value.surcharge > 0 ? `${value.label} +${value.surcharge} \u20bd` : value.label;
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => item.name).join(', ');
+    return value
+      .map((item) => (typeof item === 'string' ? item : item.name))
+      .join(', ');
   }
 
   return String(value || '');
@@ -154,8 +190,7 @@ const getFieldAmount = (field: CalculatorField, value: CalculatorFieldValue) => 
   }
 
   if (field.type === 'checkbox') {
-    const checkboxValue = value ? field.onValue : field.offValue;
-    return getNumericFieldValue(checkboxValue) * field.coefficient;
+    return getCheckboxAmount(field, value) * field.coefficient;
   }
 
   if (field.type === 'select' || field.type === 'radio') {
@@ -200,10 +235,7 @@ export const buildFormulaContext = (
     if (isNumericField(field)) {
       nextValue = field.useValueInFormula === false ? 0 : Number(rawValue || 0);
     } else if (field.type === 'checkbox') {
-      nextValue =
-        field.useValueInFormula === false
-          ? 0
-          : getNumericFieldValue(rawValue ? field.onValue : field.offValue);
+      nextValue = field.useValueInFormula === false ? 0 : getCheckboxAmount(field, rawValue);
     } else if (field.type === 'select' || field.type === 'radio') {
       if (field.useValueInFormula === false) {
         nextValue = 0;
@@ -234,7 +266,7 @@ export const evaluateFormulaExpression = (
 ) => {
   const trimmedExpression = expression.trim();
   if (!trimmedExpression) {
-    return { value: 0, error: 'Формула не заполнена' };
+    return { value: 0, error: 'Р¤РѕСЂРјСѓР»Р° РЅРµ Р·Р°РїРѕР»РЅРµРЅР°' };
   }
 
   const normalizedExpression = normalizeFormula(trimmedExpression, template.fields);
@@ -243,19 +275,19 @@ export const evaluateFormulaExpression = (
   const args = Object.values(context);
 
   if (!isSafeFormulaExpression(normalizedExpression)) {
-    return { value: 0, error: 'Формула содержит недопустимые символы' };
+    return { value: 0, error: 'Р¤РѕСЂРјСѓР»Р° СЃРѕРґРµСЂР¶РёС‚ РЅРµРґРѕРїСѓСЃС‚РёРјС‹Рµ СЃРёРјРІРѕР»С‹' };
   }
 
   try {
     const evaluate = new Function(...keys, `return (${normalizedExpression});`);
     const result = Number(evaluate(...args));
     if (!Number.isFinite(result)) {
-      return { value: 0, error: 'Формула вернула нечисловое значение' };
+      return { value: 0, error: 'Р¤РѕСЂРјСѓР»Р° РІРµСЂРЅСѓР»Р° РЅРµС‡РёСЃР»РѕРІРѕРµ Р·РЅР°С‡РµРЅРёРµ' };
     }
 
     return { value: result, error: '' };
   } catch {
-    return { value: 0, error: 'Ошибка формулы' };
+    return { value: 0, error: 'РћС€РёР±РєР° С„РѕСЂРјСѓР»С‹' };
   }
 };
 
@@ -326,9 +358,9 @@ export const createEmptyTemplate = (folderId?: string): CalculatorTemplate => {
     publicationStatus: 'draft',
     publicId: createTemplatePublicId(id.slice(0, 8)),
     publishedAt: undefined,
-    lastModifiedBy: 'Администратор',
-    title: 'Новый калькулятор',
-    description: 'Кратко опишите назначение калькулятора.',
+    lastModifiedBy: 'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ',
+    title: 'РќРѕРІС‹Р№ РєР°Р»СЊРєСѓР»СЏС‚РѕСЂ',
+    description: 'РљСЂР°С‚РєРѕ РѕРїРёС€РёС‚Рµ РЅР°Р·РЅР°С‡РµРЅРёРµ РєР°Р»СЊРєСѓР»СЏС‚РѕСЂР°.',
     type: 'services',
     basePrice: 0,
     discount: 0,

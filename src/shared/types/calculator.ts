@@ -107,7 +107,7 @@ export interface CalculatorField {
   buttonLoading?: boolean;
   buttonShowWhenValid?: boolean;
   buttonUrl?: string;
-  defaultValue?: string | number | boolean;
+  defaultValue?: string | string[] | number | boolean;
   checkboxLabel?: string;
   onValue?: CalculatorOptionValue;
   offValue?: CalculatorOptionValue;
@@ -236,6 +236,7 @@ export interface CalculatorBookingValue {
 
 export type CalculatorFieldValue =
   | string
+  | string[]
   | number
   | boolean
   | CalculatorUploadedFile[]

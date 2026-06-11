@@ -556,7 +556,15 @@ const getPreviewFieldValue = (field: CalculatorField) => {
     return '';
   }
 
-  return field.type === 'checkbox' ? false : '';
+  if (field.type === 'checkbox') {
+    return (field.options?.length ?? 0) > 0
+      ? field.defaultValue === true
+        ? ['__primary__']
+        : []
+      : false;
+  }
+
+  return '';
 };
 
 const getCheckboxPriceLabel = (field: CalculatorField) => {
@@ -762,6 +770,8 @@ export const BuilderPage = ({
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
   const [dragOverFieldId, setDragOverFieldId] = useState<string | null>(null);
   const [dragOverPlacement, setDragOverPlacement] = useState<'before' | 'after' | 'left' | 'right'>('after');
+  const [draggedOptionId, setDraggedOptionId] = useState<string | null>(null);
+  const [dragOverOptionId, setDragOverOptionId] = useState<string | null>(null);
   const [pendingDeleteFieldId, setPendingDeleteFieldId] = useState<string | null>(null);
   const [pendingDeleteOption, setPendingDeleteOption] = useState<{
     fieldId: string;
@@ -1112,13 +1122,72 @@ export const BuilderPage = ({
     }
 
     const removedOption = field.options?.find((option) => option.id === optionId);
+    const currentDefaultValue =
+      field.type === 'checkbox' && Array.isArray(field.defaultValue)
+        ? field.defaultValue.filter((value) => value !== optionId)
+        : field.defaultValue;
     updateField(fieldId, {
       options: (field.options ?? []).filter((option) => option.id !== optionId),
       defaultValue:
-        String(field.defaultValue ?? '') === String(removedOption?.value ?? '')
+        field.type === 'checkbox'
+          ? currentDefaultValue
+          : String(field.defaultValue ?? '') === String(removedOption?.value ?? '')
           ? ''
           : field.defaultValue,
     });
+  };
+
+  const moveSelectOption = (fieldId: string, draggedOption: string, targetOption: string) => {
+    if (draggedOption === targetOption) {
+      return;
+    }
+
+    const field = template.fields.find((item) => item.id === fieldId);
+    if (!field?.options?.length) {
+      return;
+    }
+
+    const nextOptions = [...field.options];
+    const sourceIndex = nextOptions.findIndex((option) => option.id === draggedOption);
+    const targetIndex = nextOptions.findIndex((option) => option.id === targetOption);
+
+    if (sourceIndex === -1 || targetIndex === -1) {
+      return;
+    }
+
+    const [movedOption] = nextOptions.splice(sourceIndex, 1);
+    nextOptions.splice(targetIndex, 0, movedOption);
+
+    updateField(fieldId, { options: nextOptions });
+  };
+
+  const toggleCheckboxDefaultOption = (field: CalculatorField, optionId: string, checked: boolean) => {
+    const currentDefaultValue = Array.isArray(field.defaultValue)
+      ? field.defaultValue.map(String)
+      : field.defaultValue === true
+        ? ['__primary__']
+        : [];
+
+    const nextDefaultValue = checked
+      ? [...currentDefaultValue.filter((value) => value !== optionId), optionId]
+      : currentDefaultValue.filter((value) => value !== optionId);
+
+    updateField(field.id, { defaultValue: nextDefaultValue });
+  };
+
+  const toggleCheckboxPrimaryDefault = (field: CalculatorField, checked: boolean) => {
+    const currentDefaultValue = Array.isArray(field.defaultValue)
+      ? field.defaultValue.map(String).filter((value) => value !== '__primary__')
+      : [];
+
+    if ((field.options?.length ?? 0) > 0) {
+      updateField(field.id, {
+        defaultValue: checked ? ['__primary__', ...currentDefaultValue] : currentDefaultValue,
+      });
+      return;
+    }
+
+    updateField(field.id, { defaultValue: checked });
   };
 
   const selectField = (fieldId: string) => {
@@ -1135,6 +1204,7 @@ export const BuilderPage = ({
 
     if (item.onAdd) {
       item.onAdd(template, updateTemplate);
+      setIsLibraryOpen(false);
       setIsPreview(false);
       setMode('design');
       setIsInspectorOpen(true);
@@ -1153,6 +1223,7 @@ export const BuilderPage = ({
       updatedAt: new Date().toISOString(),
     }));
     setSelectedFieldId(nextField.id);
+    setIsLibraryOpen(false);
     setIsInspectorOpen(true);
     setMode('design');
     setIsPreview(false);
@@ -1286,6 +1357,25 @@ export const BuilderPage = ({
     setDraggedFieldId(null);
     setDragOverFieldId(null);
     setDragOverPlacement('after');
+  };
+
+  const startOptionDrag = (optionId: string) => {
+    setDraggedOptionId(optionId);
+    setDragOverOptionId(optionId);
+  };
+
+  const handleOptionDragOver = (event: React.DragEvent<HTMLElement>, optionId: string) => {
+    event.preventDefault();
+    if (draggedOptionId === optionId) {
+      return;
+    }
+
+    setDragOverOptionId(optionId);
+  };
+
+  const finishOptionDrag = () => {
+    setDraggedOptionId(null);
+    setDragOverOptionId(null);
   };
 
   const handleSave = () => {
@@ -2669,10 +2759,10 @@ export const BuilderPage = ({
                         <span>{'\u041c\u0438\u043d\u0438\u043c\u0443\u043c'}</span>
                         <input
                           type="number"
-                          value={selectedField.min ?? 0}
+                          value={selectedField.min ?? ''}
                           onChange={(event) =>
                             updateField(selectedField.id, {
-                              min: Number(event.target.value) || 0,
+                              min: event.target.value === '' ? undefined : Number(event.target.value),
                             })
                           }
                         />
@@ -2682,10 +2772,10 @@ export const BuilderPage = ({
                         <span>{'\u041c\u0430\u043a\u0441\u0438\u043c\u0443\u043c'}</span>
                         <input
                           type="number"
-                          value={selectedField.max ?? 100}
+                          value={selectedField.max ?? ''}
                           onChange={(event) =>
                             updateField(selectedField.id, {
-                              max: Number(event.target.value) || 0,
+                              max: event.target.value === '' ? undefined : Number(event.target.value),
                             })
                           }
                         />
@@ -2812,7 +2902,7 @@ export const BuilderPage = ({
                     </label>
 
                     <label className="builder-inspector__field">
-                      <span>{'\u0422\u0435\u043a\u0441\u0442 \u0447\u0435\u043a\u0431\u043e\u043a\u0441\u0430'}</span>
+                      <span>{'\u0422\u0435\u043a\u0441\u0442 \u043e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u0442\u0440\u043e\u043a\u0438'}</span>
                       <input
                         value={selectedField.checkboxLabel ?? ''}
                         onChange={(event) =>
@@ -2823,7 +2913,7 @@ export const BuilderPage = ({
 
                     <div className="builder-inspector__grid">
                       <label className="builder-inspector__field">
-                        <span>{'\u0417\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u043f\u0440\u0438 \u0432\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0438'}</span>
+                        <span>{'\u0417\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u043e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u0442\u0440\u043e\u043a\u0438'}</span>
                         <input
                           type="number"
                           value={Number(selectedField.onValue ?? 0)}
@@ -2845,15 +2935,114 @@ export const BuilderPage = ({
                       </label>
                     </div>
 
+                    <div className="builder-inspector__field">
+                      <span>{'\u0414\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u0441\u0442\u0440\u043e\u043a\u0438'}</span>
+                      <div className="builder-option-list">
+                        {(selectedField.options ?? []).map((option) => (
+                          <div
+                            key={option.id}
+                            className={`builder-option-row ${draggedOptionId === option.id ? 'builder-option-row_dragging' : ''} ${dragOverOptionId === option.id ? 'builder-option-row_drop-target' : ''}`}
+                            draggable
+                            onDragStart={() => startOptionDrag(option.id)}
+                            onDragOver={(event) => handleOptionDragOver(event, option.id)}
+                            onDragEnd={finishOptionDrag}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              if (draggedOptionId) {
+                                moveSelectOption(selectedField.id, draggedOptionId, option.id);
+                              }
+                              finishOptionDrag();
+                            }}
+                          >
+                            <div className="builder-option-row__tools">
+                              <button
+                                className={`builder-option-row__drag ${draggedOptionId === option.id ? 'builder-option-row__drag_active' : ''}`}
+                                type="button"
+                                tabIndex={-1}
+                                aria-label={`\u041f\u0435\u0440\u0435\u0442\u0430\u0449\u0438\u0442\u044c ${option.label}`}
+                              >
+                                \u2261
+                              </button>
+                              <label className="builder-option-row__default">
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    Array.isArray(selectedField.defaultValue) &&
+                                    selectedField.defaultValue.includes(option.id)
+                                  }
+                                  onChange={(event) =>
+                                    toggleCheckboxDefaultOption(selectedField, option.id, event.target.checked)
+                                  }
+                                />
+                                <span>{'\u041f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e'}</span>
+                              </label>
+                            </div>
+                            <input
+                              value={option.label}
+                              placeholder={'\u0422\u0435\u043a\u0441\u0442 \u0441\u0442\u0440\u043e\u043a\u0438'}
+                              onChange={(event) =>
+                                updateSelectOption(selectedField.id, option.id, {
+                                  label: event.target.value,
+                                })
+                              }
+                            />
+                            <input
+                              type="number"
+                              value={option.value}
+                              placeholder={'\u0417\u043d\u0430\u0447\u0435\u043d\u0438\u0435'}
+                              onChange={(event) =>
+                                updateSelectOption(selectedField.id, option.id, {
+                                  value: Number(event.target.value) || 0,
+                                })
+                              }
+                            />
+                            <input
+                              value={option.description ?? ''}
+                              placeholder={'\u041f\u043e\u0434\u043f\u0438\u0441\u044c'}
+                              onChange={(event) =>
+                                updateSelectOption(selectedField.id, option.id, {
+                                  description: event.target.value,
+                                })
+                              }
+                            />
+                            <button
+                              className="builder-option-row__remove"
+                              type="button"
+                              onClick={() =>
+                                setPendingDeleteOption({
+                                  fieldId: selectedField.id,
+                                  optionId: option.id,
+                                  label: option.label,
+                                })
+                              }
+                            >
+                              {'\u0423\u0434\u0430\u043b\u0438\u0442\u044c'}
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          className="builder-option-list__add"
+                          type="button"
+                          onClick={() => addSelectOption(selectedField.id)}
+                        >
+                          {'\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0441\u0442\u0440\u043e\u043a\u0443'}
+                        </button>
+                      </div>
+                    </div>
+
                     <label className="builder-inspector__checkbox">
                       <input
                         type="checkbox"
-                        checked={Boolean(selectedField.defaultValue)}
+                        checked={
+                          Array.isArray(selectedField.defaultValue)
+                            ? selectedField.defaultValue.includes('__primary__')
+                            : Boolean(selectedField.defaultValue)
+                        }
                         onChange={(event) =>
-                          updateField(selectedField.id, { defaultValue: event.target.checked })
+                          toggleCheckboxPrimaryDefault(selectedField, event.target.checked)
                         }
                       />
-                      <span>{'\u0412\u043a\u043b\u044e\u0447\u0435\u043d \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e'}</span>
+                      <span>{'\u041e\u0441\u043d\u043e\u0432\u043d\u0430\u044f \u0441\u0442\u0440\u043e\u043a\u0430 \u0432\u043a\u043b\u044e\u0447\u0435\u043d\u0430 \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e'}</span>
                     </label>
 
                     <label className="builder-inspector__checkbox">
@@ -2920,6 +3109,9 @@ export const BuilderPage = ({
                         />
                         <span className="builder-upload-field__button">{'\u0412\u044b\u0431\u0440\u0430\u0442\u044c \u043a\u0430\u0440\u0442\u0438\u043d\u043a\u0443'}</span>
                       </label>
+                      <div className="builder-inspector__field-hint">
+                        Рекомендуемый размер: 1600 x 900 px, формат 16:9.
+                      </div>
                     </div>
 
                     <label className="builder-inspector__field">
@@ -3362,9 +3554,11 @@ export const BuilderPage = ({
                             <span>{'Минимум'}</span>
                             <input
                               type="number"
-                              value={selectedField.min ?? 0}
+                              value={selectedField.min ?? ''}
                               onChange={(event) =>
-                                updateField(selectedField.id, { min: Number(event.target.value) || 0 })
+                                updateField(selectedField.id, {
+                                  min: event.target.value === '' ? undefined : Number(event.target.value),
+                                })
                               }
                             />
                           </label>
@@ -3373,9 +3567,11 @@ export const BuilderPage = ({
                             <span>{'Максимум'}</span>
                             <input
                               type="number"
-                              value={selectedField.max ?? 0}
+                              value={selectedField.max ?? ''}
                               onChange={(event) =>
-                                updateField(selectedField.id, { max: Number(event.target.value) || 0 })
+                                updateField(selectedField.id, {
+                                  max: event.target.value === '' ? undefined : Number(event.target.value),
+                                })
                               }
                             />
                           </label>
