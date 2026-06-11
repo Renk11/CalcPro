@@ -779,6 +779,33 @@ export const BuilderPage = ({
       return acc;
     }, {}),
   );
+
+  useEffect(() => {
+    const body = document.body;
+    const root = document.getElementById('root');
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyMinHeight = body.style.minHeight;
+    const previousRootHeight = root?.style.height ?? '';
+    const previousRootOverflow = root?.style.overflow ?? '';
+
+    body.style.overflow = 'auto';
+    body.style.minHeight = '100dvh';
+
+    if (root) {
+      root.style.height = 'auto';
+      root.style.overflow = 'visible';
+    }
+
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      body.style.minHeight = previousBodyMinHeight;
+
+      if (root) {
+        root.style.height = previousRootHeight;
+        root.style.overflow = previousRootOverflow;
+      }
+    };
+  }, []);
   const [formulaDrafts, setFormulaDrafts] = useState(() => ({
     basePrice: String((initialTemplate ?? createEmptyTemplate()).basePrice),
     discount: String((initialTemplate ?? createEmptyTemplate()).discount),

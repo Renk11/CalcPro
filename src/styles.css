@@ -2253,9 +2253,10 @@ body,
 }
 
 .builder-shell_editor {
-  height: 100vh;
-  max-height: 100vh;
-  overflow: hidden;
+  min-height: 100dvh;
+  height: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .builder-editor__topbar {
@@ -2387,8 +2388,8 @@ body,
   position: relative;
   flex: 1;
   display: flex;
-  min-height: 0;
-  overflow: hidden;
+  min-height: calc(100dvh - 88px);
+  overflow: visible;
   padding-top: 0;
   box-sizing: border-box;
 }
