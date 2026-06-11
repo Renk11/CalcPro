@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import bridge, { type GetLaunchParamsResponse } from '@vkontakte/vk-bridge';
+import bridge, {
+  parseURLSearchParamsForGetLaunchParams,
+  type GetLaunchParamsResponse,
+} from '@vkontakte/vk-bridge';
 import { Panel, SplitCol, SplitLayout, View } from '@vkontakte/vkui';
 import {
   clampFolderName,
@@ -106,7 +109,17 @@ const App = () => {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [isDesktopClient, setIsDesktopClient] = useState(true);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
-  const [launchParams, setLaunchParams] = useState<GetLaunchParamsResponse | null>(null);
+  const [launchParams, setLaunchParams] = useState<Partial<GetLaunchParamsResponse> | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    try {
+      return parseURLSearchParamsForGetLaunchParams(window.location.search);
+    } catch {
+      return null;
+    }
+  });
   const hasActiveSubscription = useMemo(
     () => isSubscriptionActive(adminSettings.subscription),
     [adminSettings.subscription],

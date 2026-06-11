@@ -4147,7 +4147,8 @@ body::-webkit-scrollbar-thumb:hover,
 
 .calculator-page__actions {
   display: flex;
-  justify-content: flex-start;
+  justify-content: flex-end;
+  width: 100%;
 }
 
 .calculator-page__back {
