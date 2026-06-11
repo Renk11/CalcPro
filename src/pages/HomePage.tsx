@@ -70,6 +70,7 @@ interface HomePageProps {
   canCreateMoreTemplates: boolean;
   templateLimit: number;
   onStartPayment: () => void;
+  onInstallInCommunity: () => void;
   isProcessingPayment: boolean;
   paymentStatus: {
     tone: 'neutral' | 'success' | 'error';
@@ -77,6 +78,7 @@ interface HomePageProps {
   } | null;
   isDesktopClient: boolean;
   isCompactViewport: boolean;
+  isCommunityContext: boolean;
 }
 
 type AnalyticsRange = 7 | 30 | 90 | 365;
@@ -702,10 +704,12 @@ export const HomePage = ({
   canCreateMoreTemplates,
   templateLimit,
   onStartPayment,
+  onInstallInCommunity,
   isProcessingPayment,
   paymentStatus,
   isDesktopClient,
   isCompactViewport,
+  isCommunityContext,
 }: HomePageProps) => {
   const isSectionLocked = (section: AdminSection) =>
     !hasActiveSubscription && (section === 'analytics' || section === 'integrations');
@@ -783,6 +787,18 @@ export const HomePage = ({
     [selectedFaqTopicId],
   );
   const subscriptionPaidUntilLabel = formatSubscriptionDate(adminSettings.subscription.paidUntil);
+  const activationSteps = isCommunityContext
+    ? [
+        'Оплатите доступ через YooKassa на этом экране.',
+        'После оплаты укажите VK ID менеджера, который будет получать заявки.',
+        'Откройте конструктор, опубликуйте калькулятор и проверьте форму внутри сообщества.',
+      ]
+    : [
+        'Нажмите «Установить в сообщество» и выберите нужную группу VK.',
+        'Откройте приложение уже внутри выбранного сообщества.',
+        'Оплатите доступ через YooKassa на экране активации.',
+        'После открытия админки укажите VK ID менеджера и включите публикацию формы заявки.',
+      ];
 
   const filteredCatalog = useMemo(() => {
     const normalizedQuery = templateSearch.trim().toLowerCase();
@@ -1471,7 +1487,7 @@ export const HomePage = ({
     </main>
   );
 
-  const renderPaymentsSection = () => (
+  const renderPaymentsSectionLegacy = () => (
     <main className="admin-home__content admin-home__content_wide">
       <div className="admin-home__content-head">
         <div className="admin-home__title-wrap">
@@ -1554,6 +1570,164 @@ export const HomePage = ({
             </ul>
           </article>
         </div>
+      </section>
+    </main>
+  );
+
+  void renderPaymentsSectionLegacy;
+
+  const renderPaymentsSection = () => (
+    <main className="admin-home__content admin-home__content_wide">
+      <div className="admin-home__content-head">
+        <div className="admin-home__title-wrap">
+          <h1 className="admin-home__title">Платежи и активация</h1>
+        </div>
+        <div className="admin-home__role-badge">Подписка</div>
+      </div>
+
+      <section className="payments-section">
+        <article className="payments-hero">
+          <div className="payments-hero__copy">
+            <div className="payments-hero__eyebrow">Плагин для сообщества</div>
+            <h2 className="payments-hero__title">CalcPro</h2>
+            <p className="payments-hero__text">
+              Приложение работает как инструмент внутри сообщества VK: помогает принимать заявки,
+              показывать предварительный расчёт и передавать обращения менеджеру.
+            </p>
+
+            <div className="payments-activation-card">
+              <div className="payments-activation-card__copy">
+                <div className="payments-activation-card__title">
+                  {isCommunityContext
+                    ? 'Приложение открыто внутри сообщества'
+                    : 'Подключение и активация приложения'}
+                </div>
+                <p className="payments-activation-card__text">
+                  {isCommunityContext
+                    ? 'Теперь можно оплатить доступ, завершить настройку и опубликовать форму для посетителей сообщества.'
+                    : 'Сейчас приложение запущено вне контекста сообщества. Чтобы посетители могли оставлять заявки, а администраторы управлять настройками, подключите его к нужной группе и завершите активацию по инструкции ниже.'}
+                </p>
+              </div>
+              <button
+                className="payments-activation-card__button"
+                type="button"
+                onClick={onInstallInCommunity}
+              >
+                Установить в сообщество
+              </button>
+            </div>
+
+            <div className="payments-activation-banner">
+              {isCommunityContext
+                ? 'Приложение уже открыто в группе VK. Теперь оплатите доступ и завершите настройку админки.'
+                : 'После подключения откройте приложение в вашей группе VK.'}
+            </div>
+          </div>
+
+          <div className="payments-price-card">
+            <div className="payments-price-card__label">К оплате</div>
+            <div className="payments-price-card__value">{formatCurrency(monthlyServicePrice)}</div>
+            <div className="payments-price-card__caption">
+              {hasActiveSubscription ? 'Продление доступа на 30 дней' : '1 месяц доступа'}
+            </div>
+            <button
+              className="payments-price-card__button"
+              type="button"
+              onClick={onStartPayment}
+              disabled={isProcessingPayment}
+            >
+              {isProcessingPayment
+                ? 'Переходим к оплате...'
+                : hasActiveSubscription
+                  ? 'Продлить на 30 дней'
+                  : 'Оплатить доступ'}
+            </button>
+            <div className="payments-price-card__meta-row">
+              <div className="payments-price-card__meta-label">Статус</div>
+              <div className="payments-price-card__meta-value">
+                {hasActiveSubscription ? 'Подписка активна' : 'Требуется активация'}
+              </div>
+            </div>
+            <div className="payments-price-card__meta-row">
+              <div className="payments-price-card__meta-label">План</div>
+              <div className="payments-price-card__meta-value">
+                {hasActiveSubscription ? 'Про' : 'Базовый'}
+              </div>
+            </div>
+            <div className="payments-price-card__meta-row">
+              <div className="payments-price-card__meta-label">Доступ</div>
+              <div className="payments-price-card__meta-value">
+                {subscriptionPaidUntilLabel ? `до ${subscriptionPaidUntilLabel}` : 'откроется после оплаты'}
+              </div>
+            </div>
+            {paymentStatus ? (
+              <div className={`payments-price-card__status payments-price-card__status_${paymentStatus.tone}`}>
+                {paymentStatus.message}
+              </div>
+            ) : null}
+          </div>
+        </article>
+
+        <div className="payments-scenarios">
+          <article className="payments-scenario-card">
+            <div className="payments-scenario-card__index">01</div>
+            <div className="payments-scenario-card__caption">Сценарий для посетителя</div>
+            <div className="payments-scenario-card__content">
+              <h3 className="payments-scenario-card__title">Что делает плагин</h3>
+              <p className="payments-scenario-card__text">
+                Посетитель открывает калькулятор внутри сообщества, оставляет параметры расчёта и
+                отправляет заявку прямо из сообщества.
+              </p>
+            </div>
+          </article>
+
+          <article className="payments-scenario-card">
+            <div className="payments-scenario-card__index">02</div>
+            <div className="payments-scenario-card__caption">Сценарий для администратора</div>
+            <div className="payments-scenario-card__content">
+              <h3 className="payments-scenario-card__title">Что получает администратор</h3>
+              <p className="payments-scenario-card__text">
+                Админ-панель с настройкой цен, шаблонов, публикацией формы и обработкой заявок для
+                конкретного сообщества.
+              </p>
+            </div>
+          </article>
+
+          <article className="payments-scenario-card">
+            <div className="payments-scenario-card__index">03</div>
+            <div className="payments-scenario-card__caption">Запуск в VK</div>
+            <div className="payments-scenario-card__content">
+              <h3 className="payments-scenario-card__title">Как установить</h3>
+              <p className="payments-scenario-card__text">
+                Нажмите кнопку установки, выберите сообщество VK, откройте приложение внутри него и
+                завершите настройку после оплаты.
+              </p>
+            </div>
+          </article>
+        </div>
+
+        <article className="payments-guide">
+          <div className="payments-guide__copy">
+            <div className="payments-guide__eyebrow">Инструкция по активации</div>
+            <h3 className="payments-guide__title">
+              {isCommunityContext ? 'Как завершить активацию CalcPro' : 'Как запустить CalcPro в сообществе VK'}
+            </h3>
+            <p className="payments-guide__text">
+              {isCommunityContext
+                ? 'Вы уже внутри сообщества. Осталось оплатить доступ, указать менеджера для заявок и опубликовать калькулятор для посетителей.'
+                : 'После установки откройте приложение внутри выбранного сообщества и завершите настройку. После оплаты откроется админка, где можно указать получателя заявок и опубликовать форму для посетителей.'}
+            </p>
+          </div>
+
+          <ol className="payments-guide__steps">
+            {activationSteps.map((step, index) => (
+              <li key={step} className="payments-guide__step">
+                <span className="payments-guide__step-index">{index + 1}</span>
+                <span className="payments-guide__step-text">{step}</span>
+              </li>
+            ))}
+          </ol>
+        </article>
       </section>
     </main>
   );

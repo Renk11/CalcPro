@@ -393,6 +393,35 @@ const App = () => {
     }
   };
 
+  const openCommunityInstall = async () => {
+    const appId = launchParams?.vk_app_id;
+    const groupId = Number(launchParams?.vk_group_id ?? 0);
+
+    if (groupId > 0) {
+      try {
+        await bridge.send('VKWebAppAddToCommunity' as never, { group_id: groupId } as never);
+        setHomeSection('payments');
+        setPaymentStatus({
+          tone: 'success',
+          message:
+            'Приложение добавлено в сообщество. Откройте его внутри группы и завершите активацию на этом экране.',
+        });
+        return;
+      } catch {
+        // Fall back to opening the app page if direct install is unavailable.
+      }
+    }
+
+    const fallbackUrl = appId ? `https://vk.com/app${appId}` : 'https://vk.com/apps?act=manage';
+    await openExternalPaymentUrl(fallbackUrl);
+    setHomeSection('payments');
+    setPaymentStatus({
+      tone: 'neutral',
+      message:
+        'Откройте приложение в нужном сообществе VK, затем вернитесь на экран активации и оплатите доступ.',
+    });
+  };
+
   const startSubscriptionPayment = async () => {
     if (typeof window === 'undefined' || isProcessingPayment) {
       return;
@@ -794,10 +823,12 @@ const App = () => {
                 canCreateMoreTemplates={canCreateMoreTemplates}
                 templateLimit={BASIC_TEMPLATE_LIMIT}
                 onStartPayment={startSubscriptionPayment}
+                onInstallInCommunity={openCommunityInstall}
                 isProcessingPayment={isProcessingPayment}
                 paymentStatus={paymentStatus}
                 isDesktopClient={isDesktopClient}
                 isCompactViewport={isCompactViewport}
+                isCommunityContext={Number(launchParams?.vk_group_id ?? 0) > 0}
               />
             ) : null}
           </Panel>
