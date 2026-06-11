@@ -19,7 +19,7 @@ import type {
 
 interface CalculatorPageProps {
   template: CalculatorTemplate;
-  onBack: () => void;
+  onOpenAdmin?: () => void;
   onRequestCreated: (request: CalculatorRequest) => void;
 }
 
@@ -229,7 +229,7 @@ const getPhoneValidationError = (value: string) => {
   return '';
 };
 
-export const CalculatorPage = ({ template, onBack, onRequestCreated }: CalculatorPageProps) => {
+export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: CalculatorPageProps) => {
   const [values, setValues] = useState<CalculatorValues>(() => createInitialValues(template));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [requests, setRequests] = useState<CalculatorRequest[]>(() => getRequests());
@@ -402,9 +402,13 @@ export const CalculatorPage = ({ template, onBack, onRequestCreated }: Calculato
     <div className="calculator-page">
       <div className="calculator-page__shell">
         <div className="calculator-page__hero">
-          <button className="calculator-page__back" type="button" onClick={onBack}>
-            Назад
-          </button>
+          {onOpenAdmin ? (
+            <div className="calculator-page__actions">
+              <button className="calculator-page__back" type="button" onClick={onOpenAdmin}>
+                Админка
+              </button>
+            </div>
+          ) : null}
           <div className="calculator-page__hero-copy">
             <div className="calculator-page__eyebrow">Расчет стоимости</div>
             <h1 className="calculator-page__title">{template.title}</h1>

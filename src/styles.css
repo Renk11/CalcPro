@@ -4145,6 +4145,11 @@ body::-webkit-scrollbar-thumb:hover,
   margin-bottom: 24px;
 }
 
+.calculator-page__actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .calculator-page__back {
   width: fit-content;
   padding: 10px 16px;
@@ -4163,6 +4168,13 @@ body::-webkit-scrollbar-thumb:hover,
   border-radius: 28px;
   background: linear-gradient(180deg, #242c34 0%, #1d2329 100%);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+}
+
+.calculator-page__hero-copy_empty {
+  min-height: 280px;
+  display: grid;
+  align-content: center;
+  gap: 12px;
 }
 
 .calculator-page__eyebrow {

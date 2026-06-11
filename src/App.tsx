@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import bridge from '@vkontakte/vk-bridge';
+import bridge, { type GetLaunchParamsResponse } from '@vkontakte/vk-bridge';
 import { Panel, SplitCol, SplitLayout, View } from '@vkontakte/vkui';
 import {
   clampFolderName,
@@ -87,8 +87,10 @@ type PaymentStatus = {
   message: string;
 };
 
+const COMMUNITY_ADMIN_ROLES = new Set(['admin', 'editor', 'moder']);
+
 const App = () => {
-  const [activeView, setActiveView] = useState<AppView>('home');
+  const [activeView, setActiveView] = useState<AppView>('calculator');
   const [templates, setTemplates] = useState<CalculatorTemplate[]>(() => getTemplates());
   const [folders, setFolders] = useState<CalculatorFolder[]>(() => getFolders());
   const [requests, setRequests] = useState<CalculatorRequest[]>(() => getRequests());
@@ -104,11 +106,14 @@ const App = () => {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [isDesktopClient, setIsDesktopClient] = useState(true);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [launchParams, setLaunchParams] = useState<GetLaunchParamsResponse | null>(null);
   const hasActiveSubscription = useMemo(
     () => isSubscriptionActive(adminSettings.subscription),
     [adminSettings.subscription],
   );
   const canCreateMoreTemplates = hasActiveSubscription || templates.length < BASIC_TEMPLATE_LIMIT;
+  const viewerGroupRole = launchParams?.vk_viewer_group_role ?? 'none';
+  const isViewerGroupAdmin = COMMUNITY_ADMIN_ROLES.has(viewerGroupRole);
 
   useEffect(() => {
     bridge
@@ -123,6 +128,17 @@ const App = () => {
       })
       .catch(() => {
         setAdminProfile(FALLBACK_PROFILE);
+      });
+  }, []);
+
+  useEffect(() => {
+    bridge
+      .send('VKWebAppGetLaunchParams')
+      .then((params) => {
+        setLaunchParams(params);
+      })
+      .catch(() => {
+        setLaunchParams(null);
       });
   }, []);
 
@@ -195,35 +211,67 @@ const App = () => {
   }, [activeFolderId, sortedTemplates]);
 
   const currentAdminLabel = useMemo(() => getProfileLabel(adminProfile), [adminProfile]);
+  const latestPublishedTemplate = useMemo(
+    () => sortedTemplates.find((template) => template.publicationStatus === 'published'),
+    [sortedTemplates],
+  );
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
 
-    const publicId = new URLSearchParams(window.location.search).get('calculator');
-    if (!publicId) {
+    if (
+      activeView === 'builder' ||
+      (activeView === 'calculator' && selectedTemplate?.publicationStatus !== 'published')
+    ) {
       return;
     }
 
-    const publishedTemplate = templates.find(
+    const publicId = new URLSearchParams(window.location.search).get('calculator');
+    const publishedTemplateFromUrl = templates.find(
       (template) => template.publicId === publicId && template.publicationStatus === 'published',
     );
+    const nextPublicTemplate = publishedTemplateFromUrl ?? latestPublishedTemplate;
 
-    if (!publishedTemplate) {
+    if (nextPublicTemplate) {
+      setSelectedTemplate((current) =>
+        current?.id === nextPublicTemplate.id ? current : nextPublicTemplate,
+      );
+
+      if (!(isViewerGroupAdmin && activeView === 'home')) {
+        setActiveView('calculator');
+      }
+
       return;
     }
 
-    setSelectedTemplate(publishedTemplate);
-    setActiveView('calculator');
-  }, [templates]);
+    if (!isViewerGroupAdmin) {
+      setSelectedTemplate(undefined);
+      setActiveView('calculator');
+    }
+  }, [activeView, isViewerGroupAdmin, latestPublishedTemplate, selectedTemplate, templates]);
+
+  useEffect(() => {
+    if (!isViewerGroupAdmin && activeView === 'home') {
+      setActiveView('calculator');
+    }
+  }, [activeView, isViewerGroupAdmin]);
 
   const openBuilder = (template?: CalculatorTemplate) => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
     setSelectedTemplate(template);
     setActiveView('builder');
   };
 
   const createTemplateInActiveFolder = () => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
     if (!canCreateMoreTemplates) {
       setHomeSection('payments');
       setActiveView('home');
@@ -239,6 +287,10 @@ const App = () => {
   };
 
   const createTemplateFromCatalog = (presetId: string) => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
     if (!canCreateMoreTemplates) {
       setHomeSection('payments');
       setActiveView('home');
@@ -276,6 +328,14 @@ const App = () => {
     }
     setSelectedTemplate(template);
     setActiveView('calculator');
+  };
+
+  const openAdminHome = () => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
+    setActiveView('home');
   };
 
   const handleSaveAdminSettings = (settings: CalculatorAdminSettings) => {
@@ -478,6 +538,10 @@ const App = () => {
   }, []);
 
   const handleSaveTemplate = (template: CalculatorTemplate) => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
     const normalizedTemplate = normalizeTemplateRecord({
       ...template,
       title: clampTemplateTitle(template.title),
@@ -490,6 +554,10 @@ const App = () => {
   };
 
   const duplicateTemplate = (template: CalculatorTemplate) => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
     if (!canCreateMoreTemplates) {
       setHomeSection('payments');
       setActiveView('home');
@@ -547,6 +615,10 @@ const App = () => {
   };
 
   const deleteTemplate = (template: CalculatorTemplate) => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
     const next = templates.filter((item) => item.id !== template.id);
     saveTemplates(next);
     setTemplates(next);
@@ -560,6 +632,10 @@ const App = () => {
     template: CalculatorTemplate,
     publicationStatus: CalculatorPublicationStatus,
   ) => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
     const now = new Date().toISOString();
     const nextTemplate = normalizeTemplateRecord({
       ...template,
@@ -581,6 +657,10 @@ const App = () => {
   };
 
   const handleCopyTemplateLink = async (template: CalculatorTemplate) => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
     if (typeof navigator === 'undefined' || !navigator.clipboard) {
       return;
     }
@@ -589,6 +669,10 @@ const App = () => {
   };
 
   const moveTemplateToFolder = (template: CalculatorTemplate, folderId?: string) => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
     const moved: CalculatorTemplate = {
       ...template,
       folderId,
@@ -604,6 +688,10 @@ const App = () => {
   };
 
   const createFolder = () => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
     const now = new Date().toISOString();
     const folder: CalculatorFolder = {
       id: crypto.randomUUID(),
@@ -618,6 +706,10 @@ const App = () => {
   };
 
   const renameFolder = (folderId: string, name: string) => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
     const current = folders.find((folder) => folder.id === folderId);
     if (!current) {
       return;
@@ -634,6 +726,10 @@ const App = () => {
   };
 
   const deleteFolder = (folderId: string) => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
     const nextFolders = folders.filter((folder) => folder.id !== folderId);
     const nextTemplates = templates.map((template) =>
       template.folderId === folderId ? { ...template, folderId: undefined } : template,
@@ -654,41 +750,43 @@ const App = () => {
       <SplitCol width="100%" maxWidth="100%">
         <View activePanel={activeView}>
           <Panel id="home">
-            <HomePage
-              folders={folders}
-              activeFolderId={activeFolderId}
-              allTemplates={sortedTemplates}
-              templates={visibleTemplates}
-              adminSettings={adminSettings}
-              adminProfile={adminProfile}
-              isAdminNavOpen={isAdminNavOpen}
-              currentSection={homeSection}
-              requests={requests}
-              onSectionChange={setHomeSection}
-              onSaveAdminSettings={handleSaveAdminSettings}
-              onToggleAdminNav={() => setIsAdminNavOpen((current) => !current)}
-              onCreateFolder={createFolder}
-              onDeleteFolder={deleteFolder}
-              onRenameFolder={renameFolder}
-              onSelectFolder={setActiveFolderId}
-              onCreate={createTemplateInActiveFolder}
-              onUsePreset={createTemplateFromCatalog}
-              onOpen={openCalculator}
-              onEdit={openBuilder}
-              onDuplicateTemplate={duplicateTemplate}
-              onDeleteTemplate={deleteTemplate}
-              onMoveTemplateToFolder={moveTemplateToFolder}
-              onUpdateTemplateStatus={updateTemplatePublicationStatus}
-              onCopyTemplateLink={handleCopyTemplateLink}
-              hasActiveSubscription={hasActiveSubscription}
-              canCreateMoreTemplates={canCreateMoreTemplates}
-              templateLimit={BASIC_TEMPLATE_LIMIT}
-              onStartPayment={startSubscriptionPayment}
-              isProcessingPayment={isProcessingPayment}
-              paymentStatus={paymentStatus}
-              isDesktopClient={isDesktopClient}
-              isCompactViewport={isCompactViewport}
-            />
+            {isViewerGroupAdmin ? (
+              <HomePage
+                folders={folders}
+                activeFolderId={activeFolderId}
+                allTemplates={sortedTemplates}
+                templates={visibleTemplates}
+                adminSettings={adminSettings}
+                adminProfile={adminProfile}
+                isAdminNavOpen={isAdminNavOpen}
+                currentSection={homeSection}
+                requests={requests}
+                onSectionChange={setHomeSection}
+                onSaveAdminSettings={handleSaveAdminSettings}
+                onToggleAdminNav={() => setIsAdminNavOpen((current) => !current)}
+                onCreateFolder={createFolder}
+                onDeleteFolder={deleteFolder}
+                onRenameFolder={renameFolder}
+                onSelectFolder={setActiveFolderId}
+                onCreate={createTemplateInActiveFolder}
+                onUsePreset={createTemplateFromCatalog}
+                onOpen={openCalculator}
+                onEdit={openBuilder}
+                onDuplicateTemplate={duplicateTemplate}
+                onDeleteTemplate={deleteTemplate}
+                onMoveTemplateToFolder={moveTemplateToFolder}
+                onUpdateTemplateStatus={updateTemplatePublicationStatus}
+                onCopyTemplateLink={handleCopyTemplateLink}
+                hasActiveSubscription={hasActiveSubscription}
+                canCreateMoreTemplates={canCreateMoreTemplates}
+                templateLimit={BASIC_TEMPLATE_LIMIT}
+                onStartPayment={startSubscriptionPayment}
+                isProcessingPayment={isProcessingPayment}
+                paymentStatus={paymentStatus}
+                isDesktopClient={isDesktopClient}
+                isCompactViewport={isCompactViewport}
+              />
+            ) : null}
           </Panel>
           <Panel id="builder">
             <BuilderPage
@@ -702,19 +800,33 @@ const App = () => {
             {selectedTemplate ? (
               <CalculatorPage
                 template={selectedTemplate}
-                onBack={() => {
-                  if (typeof window !== 'undefined') {
-                    const url = new URL(window.location.href);
-                    url.searchParams.delete('calculator');
-                    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-                  }
-                  setActiveView('home');
-                }}
+                onOpenAdmin={isViewerGroupAdmin ? openAdminHome : undefined}
                 onRequestCreated={(request) =>
                   setRequests((current) => [request, ...current.filter((item) => item.id !== request.id)])
                 }
               />
-            ) : null}
+            ) : (
+              <div className="calculator-page calculator-page_empty">
+                <div className="calculator-page__shell">
+                  <div className="calculator-page__hero-copy calculator-page__hero-copy_empty">
+                    <div className="calculator-page__eyebrow">Публичная версия</div>
+                    <h1 className="calculator-page__title">Калькулятор пока не опубликован</h1>
+                    <p className="calculator-page__description">
+                      После публикации собранный калькулятор появится здесь как главная страница приложения.
+                    </p>
+                    {isViewerGroupAdmin ? (
+                      <button
+                        className="calculator-page__back"
+                        type="button"
+                        onClick={openAdminHome}
+                      >
+                        Открыть админку
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            )}
           </Panel>
         </View>
       </SplitCol>
