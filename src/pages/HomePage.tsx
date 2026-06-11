@@ -76,6 +76,7 @@ interface HomePageProps {
     message: string;
   } | null;
   isDesktopClient: boolean;
+  isCompactViewport: boolean;
 }
 
 type AnalyticsRange = 7 | 30 | 90 | 365;
@@ -90,6 +91,7 @@ type FaqTopic = {
   intro: string;
   sections: FaqTopicSection[];
 };
+
 
 const supportTypeLabels: Record<CalculatorSupportTicketType, string> = {
   message: 'Сообщение',
@@ -516,6 +518,7 @@ const faqTopics: FaqTopic[] = [
   },
 ];
 
+
 const navItems: Array<{
   key: AdminSection;
   label: string;
@@ -702,6 +705,7 @@ export const HomePage = ({
   isProcessingPayment,
   paymentStatus,
   isDesktopClient,
+  isCompactViewport,
 }: HomePageProps) => {
   const isSectionLocked = (section: AdminSection) =>
     !hasActiveSubscription && (section === 'analytics' || section === 'integrations');
@@ -1924,7 +1928,7 @@ export const HomePage = ({
                 {hasActiveSubscription ? <Icon20CrownVerified /> : <Icon20WalletOutline />}
               </span>
             </div>
-            {isDesktopClient ? (
+            {isDesktopClient && !isCompactViewport ? (
               hasActiveSubscription ? (
                 <div className="admin-nav__plan-meta">Активен до 12.05.2026</div>
               ) : (

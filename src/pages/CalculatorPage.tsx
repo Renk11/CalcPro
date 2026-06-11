@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CalculatorFieldInput } from '../components/CalculatorFieldInput';
 import {
   buildBookingSlots,
@@ -7,6 +7,7 @@ import {
 } from '../entities/calculator/booking';
 import { calculateTemplate } from '../entities/calculator/model';
 import { submitRequest } from '../entities/calculator/submission';
+import { legalDocs, type LegalDocKey } from '../shared/legal';
 import { getRequests } from '../shared/storage/localStorage';
 import type {
   CalculatorField,
@@ -192,8 +193,8 @@ const validateFieldValue = (
   }
 
   if (inputSubtype === 'phone' && field.validatePhone !== false && textValue) {
-    const digits = textValue.replace(/\D/g, '');
-    if (digits.length < 10) {
+    const normalized = textValue.replace(/[\s()-]/g, '');
+    if (!/^(?:\+)?(?:79|89)\d{9}$/.test(normalized)) {
       return 'Введите корректный телефон';
     }
   }
@@ -213,6 +214,21 @@ const createInitialValues = (template: CalculatorTemplate): CalculatorValues =>
     return acc;
   }, {});
 
+const COMMENT_MAX_LENGTH = 250;
+const getPhoneValidationError = (value: string) => {
+  const normalized = value.replace(/[\s()-]/g, '');
+
+  if (!normalized) {
+    return '';
+  }
+
+  if (!/^(?:\+)?(?:79|89)\d{9}$/.test(normalized)) {
+    return 'Телефон должен начинаться с 79, 89, +79 или +89';
+  }
+
+  return '';
+};
+
 export const CalculatorPage = ({ template, onBack, onRequestCreated }: CalculatorPageProps) => {
   const [values, setValues] = useState<CalculatorValues>(() => createInitialValues(template));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -223,6 +239,37 @@ export const CalculatorPage = ({ template, onBack, onRequestCreated }: Calculato
   const [status, setStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCalculationTriggered, setIsCalculationTriggered] = useState(false);
+  const [isConsentChecked, setIsConsentChecked] = useState(false);
+  const [consentError, setConsentError] = useState('');
+  const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocKey | null>(null);
+  const phoneError = useMemo(() => getPhoneValidationError(phone), [phone]);
+
+  useEffect(() => {
+    const body = document.body;
+    const root = document.getElementById('root');
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyMinHeight = body.style.minHeight;
+    const previousRootHeight = root?.style.height ?? '';
+    const previousRootOverflow = root?.style.overflow ?? '';
+
+    body.style.overflow = 'auto';
+    body.style.minHeight = '100dvh';
+
+    if (root) {
+      root.style.height = 'auto';
+      root.style.overflow = 'visible';
+    }
+
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      body.style.minHeight = previousBodyMinHeight;
+
+      if (root) {
+        root.style.height = previousRootHeight;
+        root.style.overflow = previousRootOverflow;
+      }
+    };
+  }, []);
 
   const result = useMemo(() => calculateTemplate(template, values), [template, values]);
 
@@ -267,6 +314,17 @@ export const CalculatorPage = ({ template, onBack, onRequestCreated }: Calculato
       return;
     }
 
+    if (phoneError) {
+      setStatus(phoneError);
+      return;
+    }
+
+    if (!isConsentChecked) {
+      setConsentError('Подтвердите согласие перед отправкой заявки');
+      setStatus('');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const request: CalculatorRequest = {
@@ -298,6 +356,8 @@ export const CalculatorPage = ({ template, onBack, onRequestCreated }: Calculato
     setPhone('');
     setComment('');
     setStatus('');
+    setIsConsentChecked(false);
+    setConsentError('');
     setIsCalculationTriggered(false);
   };
 
@@ -447,6 +507,7 @@ export const CalculatorPage = ({ template, onBack, onRequestCreated }: Calculato
                     placeholder={template.requestForm.phonePlaceholder}
                     onChange={(event) => setPhone(event.target.value)}
                   />
+                  {phoneError ? <span className="error-text">{phoneError}</span> : null}
                 </label>
 
                 <label className="calc-field">
@@ -454,16 +515,57 @@ export const CalculatorPage = ({ template, onBack, onRequestCreated }: Calculato
                   <textarea
                     className="calc-field__control calc-field__control_textarea"
                     value={comment}
+                    maxLength={COMMENT_MAX_LENGTH}
                     placeholder={template.requestForm.commentPlaceholder}
-                    onChange={(event) => setComment(event.target.value)}
+                    onChange={(event) => setComment(event.target.value.slice(0, COMMENT_MAX_LENGTH))}
                   />
+                  <span className="calc-field__hint">
+                    {comment.length} / {COMMENT_MAX_LENGTH}
+                  </span>
+                </label>
+
+                <label className={`calculator-request__consent ${consentError ? 'calculator-request__consent_error' : ''}`}>
+                  <span className="calculator-request__consent-row">
+                    <input
+                      className="calculator-request__consent-checkbox"
+                      type="checkbox"
+                      checked={isConsentChecked}
+                      onChange={(event) => {
+                        setIsConsentChecked(event.target.checked);
+                        if (event.target.checked) {
+                          setConsentError('');
+                        }
+                      }}
+                    />
+                    <span className="calculator-request__consent-text">
+                      Я принимаю{' '}
+                      <button
+                        className="calculator-request__consent-link"
+                        type="button"
+                        onClick={() => setActiveLegalDoc('agreement')}
+                      >
+                        пользовательское соглашение
+                      </button>{' '}
+                      и{' '}
+                      <button
+                        className="calculator-request__consent-link"
+                        type="button"
+                        onClick={() => setActiveLegalDoc('privacy')}
+                      >
+                        политику конфиденциальности
+                      </button>
+                    </span>
+                  </span>
+                  {consentError ? (
+                    <span className="calculator-request__consent-error">{consentError}</span>
+                  ) : null}
                 </label>
 
                 <button
                   className="calculator-request__submit"
                   type="button"
                   onClick={handleSubmit}
-                  disabled={!name || !phone || isSubmitting}
+                  disabled={!name || !phone || Boolean(phoneError) || isSubmitting}
                 >
                   {template.requestForm.submitButtonText}
                 </button>
@@ -502,6 +604,37 @@ export const CalculatorPage = ({ template, onBack, onRequestCreated }: Calculato
           </aside>
         </div>
       </div>
+      {activeLegalDoc ? (
+        <div className="admin-modal" role="dialog" aria-modal="true">
+          <div className="admin-modal__backdrop" onClick={() => setActiveLegalDoc(null)} />
+          <div className="admin-modal__card admin-modal__card_wide calculator-legal-modal">
+            <div className="admin-modal__eyebrow">{legalDocs[activeLegalDoc].caption}</div>
+            <h3 className="admin-modal__title">{legalDocs[activeLegalDoc].title}</h3>
+            <p className="admin-modal__text">{legalDocs[activeLegalDoc].intro}</p>
+            <div className="calculator-legal-modal__sections">
+              {legalDocs[activeLegalDoc].sections.map((section) => (
+                <section key={section.title} className="calculator-legal-modal__section">
+                  <h4 className="calculator-legal-modal__section-title">{section.title}</h4>
+                  <ul className="calculator-legal-modal__list">
+                    {section.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+            <div className="admin-modal__actions">
+              <button
+                className="admin-modal__button admin-modal__button_secondary"
+                type="button"
+                onClick={() => setActiveLegalDoc(null)}
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

@@ -4120,8 +4120,8 @@ body::-webkit-scrollbar-thumb:hover,
 
 .calculator-page {
   box-sizing: border-box;
-  height: 100vh;
-  min-height: 100vh;
+  min-height: 100dvh;
+  height: auto;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
@@ -4238,6 +4238,56 @@ body::-webkit-scrollbar-thumb:hover,
   gap: 14px;
 }
 
+.calculator-request__consent {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(188, 154, 129, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.calculator-request__consent_error {
+  border-color: rgba(212, 92, 92, 0.35);
+  box-shadow: 0 0 0 3px rgba(212, 92, 92, 0.08);
+}
+
+.calculator-request__consent-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.calculator-request__consent-checkbox {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+}
+
+.calculator-request__consent-text {
+  color: #5f4a38;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.calculator-request__consent-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a1642f;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.calculator-request__consent-error {
+  color: #c53030;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .calculator-fields {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -4286,6 +4336,14 @@ body::-webkit-scrollbar-thumb:hover,
   color: #9a856f;
   font-size: 12px;
   line-height: 1.4;
+}
+
+.calc-field__counter {
+  color: #9a856f;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: right;
 }
 
 .calc-field__control {
@@ -5097,6 +5155,41 @@ body::-webkit-scrollbar-thumb:hover,
   box-shadow: none;
 }
 
+.calculator-legal-modal {
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: hidden;
+}
+
+.calculator-legal-modal__sections {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  max-height: calc(min(760px, calc(100vh - 48px)) - 210px);
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.calculator-legal-modal__section {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.calculator-legal-modal__section-title {
+  margin: 0 0 10px;
+  color: #f7f0e5;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.calculator-legal-modal__list {
+  margin: 0;
+  padding-left: 18px;
+  color: #c6b8a8;
+  line-height: 1.55;
+}
+
 .result-card {
   padding: 22px;
   border-radius: 32px;
@@ -5161,6 +5254,68 @@ body::-webkit-scrollbar-thumb:hover,
   font-weight: 600;
 }
 
+@media (max-width: 1100px) {
+  .admin-home_nav-open {
+    padding-left: 0;
+  }
+
+  .admin-nav {
+    width: min(284px, calc(100vw - 56px));
+    padding-top: 72px;
+  }
+
+  .admin-nav__head {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .admin-nav__eyebrow,
+  .admin-nav__title {
+    overflow: visible;
+  }
+
+  .admin-nav__toggle {
+    top: 14px;
+    left: 14px;
+  }
+
+  .admin-nav__toggle_open {
+    left: 14px;
+  }
+
+  .admin-home__content,
+  .admin-home__content_wide {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .admin-home__content-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-home__title {
+    white-space: normal;
+  }
+
+  .admin-nav__plan-button {
+    display: none;
+  }
+
+  .payments-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .payments-hero__title,
+  .payments-card__title {
+    font-size: 28px;
+  }
+
+  .payments-price-card {
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 900px) {
   .admin-home {
     flex-direction: column;
@@ -5172,11 +5327,11 @@ body::-webkit-scrollbar-thumb:hover,
   }
 
   .admin-nav {
-    width: min(264px, calc(100vw - 32px));
+    width: min(284px, calc(100vw - 32px));
   }
 
   .admin-nav__toggle_open {
-    left: calc(min(264px, calc(100vw - 32px)) + 22px);
+    left: 14px;
   }
 
   .admin-home__sidebar {
@@ -5230,16 +5385,17 @@ body::-webkit-scrollbar-thumb:hover,
 
 @media (max-width: 640px) {
   .admin-nav__toggle {
-    top: 8px;
-    left: 16px;
+    top: 12px;
+    left: 12px;
   }
 
   .admin-nav__toggle_open {
-    left: calc(min(264px, calc(100vw - 32px)) + 8px);
+    left: 12px;
   }
 
   .admin-nav {
-    padding-top: 24px;
+    width: min(284px, calc(100vw - 24px));
+    padding-top: 72px;
   }
 
   .admin-home__content {

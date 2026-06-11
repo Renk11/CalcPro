@@ -103,6 +103,7 @@ const App = () => {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [isDesktopClient, setIsDesktopClient] = useState(true);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
   const hasActiveSubscription = useMemo(
     () => isSubscriptionActive(adminSettings.subscription),
     [adminSettings.subscription],
@@ -127,6 +128,25 @@ const App = () => {
 
   useEffect(() => {
     setIsDesktopClient(!bridge.isWebView());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 1100px)');
+    const updateViewportState = () => setIsCompactViewport(mediaQuery.matches);
+
+    updateViewportState();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', updateViewportState);
+      return () => mediaQuery.removeEventListener('change', updateViewportState);
+    }
+
+    mediaQuery.addListener(updateViewportState);
+    return () => mediaQuery.removeListener(updateViewportState);
   }, []);
 
   useEffect(() => {
@@ -667,6 +687,7 @@ const App = () => {
               isProcessingPayment={isProcessingPayment}
               paymentStatus={paymentStatus}
               isDesktopClient={isDesktopClient}
+              isCompactViewport={isCompactViewport}
             />
           </Panel>
           <Panel id="builder">

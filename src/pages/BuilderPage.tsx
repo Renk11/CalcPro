@@ -31,6 +31,7 @@ import type {
   InputFieldSubtype,
 } from '../shared/types/calculator';
 import { MAX_BUTTON_TEXT_LENGTH } from '../shared/types/calculator';
+import { legalDocs, type LegalDocKey } from '../shared/legal';
 import { sanitizeHtml } from '../shared/html/sanitizeHtml';
 import { normalizeTemplateRecord } from '../shared/storage/localStorage';
 
@@ -770,6 +771,8 @@ export const BuilderPage = ({
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
   const [jsonDraft, setJsonDraft] = useState('');
   const [jsonError, setJsonError] = useState('');
+  const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocKey | null>(null);
+  const [previewConsentChecked, setPreviewConsentChecked] = useState(false);
   const [previewValues, setPreviewValues] = useState<CalculatorValues>(() =>
     normalizeTemplateContent(initialTemplate ?? createEmptyTemplate()).fields.reduce<CalculatorValues>((acc, field) => {
       acc[field.key] = getPreviewFieldValue(field);
@@ -1587,18 +1590,50 @@ export const BuilderPage = ({
                               readOnly
                             />
                           </label>
-                          <label className="calc-field">
-                            <span className="calc-field__label">{template.requestForm.commentLabel}</span>
-                            <textarea
-                              className="calc-field__control calc-field__control_textarea"
-                              value=""
-                              placeholder={template.requestForm.commentPlaceholder}
-                              readOnly
+                        <label className="calc-field">
+                          <span className="calc-field__label">{template.requestForm.commentLabel}</span>
+                          <textarea
+                            className="calc-field__control calc-field__control_textarea"
+                            value=""
+                            maxLength={250}
+                            placeholder={template.requestForm.commentPlaceholder}
+                            readOnly
+                          />
+                          <span className="calc-field__hint">
+                            0 / 250
+                          </span>
+                        </label>
+                        <label className="calculator-request__consent">
+                          <span className="calculator-request__consent-row">
+                            <input
+                              className="calculator-request__consent-checkbox"
+                              type="checkbox"
+                              checked={previewConsentChecked}
+                              onChange={(event) => setPreviewConsentChecked(event.target.checked)}
                             />
-                          </label>
-                          <button className="calculator-request__submit" type="button">
-                            {template.requestForm.submitButtonText}
-                          </button>
+                            <span className="calculator-request__consent-text">
+                              Я принимаю{' '}
+                              <button
+                                className="calculator-request__consent-link"
+                                type="button"
+                                onClick={() => setActiveLegalDoc('agreement')}
+                              >
+                                пользовательское соглашение
+                              </button>{' '}
+                              и{' '}
+                              <button
+                                className="calculator-request__consent-link"
+                                type="button"
+                                onClick={() => setActiveLegalDoc('privacy')}
+                              >
+                                политику конфиденциальности
+                              </button>
+                            </span>
+                          </span>
+                        </label>
+                        <button className="calculator-request__submit" type="button">
+                          {template.requestForm.submitButtonText}
+                        </button>
                         </div>
                       </div>
                     ) : null}
@@ -2094,9 +2129,41 @@ export const BuilderPage = ({
                             <textarea
                               className="calc-field__control calc-field__control_textarea"
                               value=""
+                              maxLength={250}
                               placeholder={template.requestForm.commentPlaceholder}
                               readOnly
                             />
+                            <span className="calc-field__hint">
+                              0 / 250
+                            </span>
+                          </label>
+                          <label className="calculator-request__consent">
+                            <span className="calculator-request__consent-row">
+                              <input
+                                className="calculator-request__consent-checkbox"
+                                type="checkbox"
+                                checked={false}
+                                readOnly
+                              />
+                              <span className="calculator-request__consent-text">
+                                Я принимаю{' '}
+                                <button
+                                  className="calculator-request__consent-link"
+                                  type="button"
+                                  onClick={() => setActiveLegalDoc('agreement')}
+                                >
+                                  пользовательское соглашение
+                                </button>{' '}
+                                и{' '}
+                                <button
+                                  className="calculator-request__consent-link"
+                                  type="button"
+                                  onClick={() => setActiveLegalDoc('privacy')}
+                                >
+                                  политику конфиденциальности
+                                </button>
+                              </span>
+                            </span>
                           </label>
                           <button className="calculator-request__submit" type="button">
                             {template.requestForm.submitButtonText}
@@ -3626,6 +3693,38 @@ export const BuilderPage = ({
                   onClick={applyJsonStorage}
                 >
                   {'Применить'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {activeLegalDoc ? (
+          <div className="admin-modal" role="dialog" aria-modal="true">
+            <div className="admin-modal__backdrop" onClick={() => setActiveLegalDoc(null)} />
+            <div className="admin-modal__card admin-modal__card_wide calculator-legal-modal">
+              <div className="admin-modal__eyebrow">{legalDocs[activeLegalDoc].caption}</div>
+              <h3 className="admin-modal__title">{legalDocs[activeLegalDoc].title}</h3>
+              <p className="admin-modal__text">{legalDocs[activeLegalDoc].intro}</p>
+              <div className="calculator-legal-modal__sections">
+                {legalDocs[activeLegalDoc].sections.map((section) => (
+                  <section key={section.title} className="calculator-legal-modal__section">
+                    <h4 className="calculator-legal-modal__section-title">{section.title}</h4>
+                    <ul className="calculator-legal-modal__list">
+                      {section.items.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+              <div className="admin-modal__actions">
+                <button
+                  className="admin-modal__button admin-modal__button_secondary"
+                  type="button"
+                  onClick={() => setActiveLegalDoc(null)}
+                >
+                  Закрыть
                 </button>
               </div>
             </div>
