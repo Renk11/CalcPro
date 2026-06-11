@@ -1670,8 +1670,10 @@ export const HomePage = ({
 
         <div className="payments-scenarios">
           <article className="payments-scenario-card">
-            <div className="payments-scenario-card__index">01</div>
-            <div className="payments-scenario-card__caption">Сценарий для посетителя</div>
+            <div className="payments-scenario-card__head">
+              <div className="payments-scenario-card__index">01</div>
+              <div className="payments-scenario-card__caption">Сценарий для посетителя</div>
+            </div>
             <div className="payments-scenario-card__content">
               <h3 className="payments-scenario-card__title">Что делает плагин</h3>
               <p className="payments-scenario-card__text">
@@ -1682,8 +1684,10 @@ export const HomePage = ({
           </article>
 
           <article className="payments-scenario-card">
-            <div className="payments-scenario-card__index">02</div>
-            <div className="payments-scenario-card__caption">Сценарий для администратора</div>
+            <div className="payments-scenario-card__head">
+              <div className="payments-scenario-card__index">02</div>
+              <div className="payments-scenario-card__caption">Сценарий для администратора</div>
+            </div>
             <div className="payments-scenario-card__content">
               <h3 className="payments-scenario-card__title">Что получает администратор</h3>
               <p className="payments-scenario-card__text">
@@ -1694,8 +1698,10 @@ export const HomePage = ({
           </article>
 
           <article className="payments-scenario-card">
-            <div className="payments-scenario-card__index">03</div>
-            <div className="payments-scenario-card__caption">Запуск в VK</div>
+            <div className="payments-scenario-card__head">
+              <div className="payments-scenario-card__index">03</div>
+              <div className="payments-scenario-card__caption">Запуск в VK</div>
+            </div>
             <div className="payments-scenario-card__content">
               <h3 className="payments-scenario-card__title">Как установить</h3>
               <p className="payments-scenario-card__text">

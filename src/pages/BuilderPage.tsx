@@ -1872,7 +1872,24 @@ export const BuilderPage = ({
                   <div className="builder-formula__result-card">
                     <div className="builder-formula__result-settings">
                       <div className="builder-formula__result-settings-title">Настройки карточки результата</div>
-                      <div className="builder-formula__result-row">
+	                      <div className="builder-formula__result-row">
+	                        <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
+	                          <input
+	                            type="checkbox"
+	                            aria-label="Показывать карточку результата"
+	                            checked={template.resultCardShow !== false}
+	                            onChange={(event) =>
+	                              updateTemplate({ resultCardShow: event.target.checked })
+	                            }
+	                          />
+	                        </label>
+	                        <label className="builder-formula__field builder-formula__result-input">
+	                          <span>Карточка результата</span>
+	                          <input value="Показывать весь блок результата" readOnly />
+	                        </label>
+	                      </div>
+
+	                      <div className="builder-formula__result-row">
                         <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
                           <input
                             type="checkbox"

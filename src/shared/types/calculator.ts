@@ -176,6 +176,7 @@ export interface CalculatorTemplate {
   globalCoefficient: number;
   formulaMode: FormulaMode;
   customFormula: string;
+  resultCardShow?: boolean;
   resultCardTitle?: string;
   resultCardShowTitle?: boolean;
   resultCardShowTotal?: boolean;
