@@ -1686,7 +1686,7 @@ export const HomePage = ({
     </main>
   );
 
-  const handleSupportSubmit = () => {
+  const handleSupportSubmit = async () => {
     const subject = supportSubject.trim();
     const message = supportMessage.trim();
 
@@ -1710,7 +1710,31 @@ export const HomePage = ({
     setSupportSubject('');
     setSupportMessage('');
     setSupportType('message');
-    setSupportStatus('Сообщение отправлено в саппорт.');
+
+    try {
+      const response = await fetch('/api/support', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...ticket,
+          groupId: currentGroupId,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; message?: string }
+        | null;
+
+      if (response.ok && payload?.ok) {
+        setSupportStatus(payload.message || 'Обращение отправлено в саппорт.');
+        return;
+      }
+    } catch {
+      // Keep the local ticket as a fallback if VK delivery is unavailable.
+    }
+
+    setSupportStatus('Обращение сохранено локально. Отправка в саппорт сейчас недоступна.');
   };
 
   const toggleSupportTicketExpanded = (ticketId: string) => {
@@ -1890,7 +1914,9 @@ export const HomePage = ({
               <button className="settings-support__button" type="button" onClick={handleSupportSubmit}>
                 Отправить в саппорт
               </button>
-              <div className="settings-support__note">{supportStatus || 'Обращение сохранится локально в этом проекте.'}</div>
+              <div className="settings-support__note">
+                {supportStatus || 'Обращение сохранится локально в этом проекте.'}
+              </div>
             </div>
 
             <div className="settings-support__actions">
@@ -1911,6 +1937,7 @@ export const HomePage = ({
                         })}
                       </span>
                     </div>
+                    <div className="settings-support__note">Автор: {ticket.authorLabel}</div>
                     <div
                       className={`settings-support__ticket-subject ${isExpanded ? 'settings-support__ticket-subject_expanded' : ''}`}
                     >
