@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CalculatorFieldInput } from '../components/CalculatorFieldInput';
 import {
   buildBookingSlots,
@@ -106,17 +106,17 @@ const validateFieldValue = (
           : value === '' || value === undefined || value === null;
 
     if (isEmpty) {
-      return 'РџРѕР»Рµ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ РґР»СЏ Р·Р°РїРѕР»РЅРµРЅРёСЏ';
+      return 'Поле обязательно для заполнения';
     }
   }
 
   if (field.type === 'booking') {
     if (!isBookingValue(value)) {
-      return field.required ? 'Р’С‹Р±РµСЂРёС‚Рµ РґР°С‚Сѓ Рё РІСЂРµРјСЏ Р·Р°РїРёСЃРё' : '';
+      return field.required ? 'Выберите дату и время записи' : '';
     }
 
     if (!isBookingDateSelectable(field, value.date, templateId, requests)) {
-      return 'РќР° РІС‹Р±СЂР°РЅРЅСѓСЋ РґР°С‚Сѓ РЅРµС‚ РґРѕСЃС‚СѓРїРЅС‹С… СЃР»РѕС‚РѕРІ';
+      return 'На выбранную дату нет доступных слотов';
     }
 
     const slot = buildBookingSlots(field, value.date, templateId, requests).find(
@@ -124,7 +124,7 @@ const validateFieldValue = (
     );
 
     if (!slot?.isAvailable) {
-      return 'Р’С‹Р±СЂР°РЅРЅС‹Р№ СЃР»РѕС‚ СѓР¶Рµ РЅРµРґРѕСЃС‚СѓРїРµРЅ';
+      return 'Выбранный слот уже недоступен';
     }
 
     return '';
@@ -142,15 +142,15 @@ const validateFieldValue = (
     const numericValue = Number(value);
 
     if (Number.isNaN(numericValue)) {
-      return 'Р’РІРµРґРёС‚Рµ РєРѕСЂСЂРµРєС‚РЅРѕРµ С‡РёСЃР»Рѕ';
+      return 'Введите корректное число';
     }
 
     if (field.min !== undefined && numericValue < field.min) {
-      return `РњРёРЅРёРјСѓРј: ${field.min}`;
+      return `Минимум: ${field.min}`;
     }
 
     if (field.max !== undefined && numericValue > field.max) {
-      return `РњР°РєСЃРёРјСѓРј: ${field.max}`;
+      return `Максимум: ${field.max}`;
     }
 
     return '';
@@ -165,7 +165,7 @@ const validateFieldValue = (
       const maxSizeBytes = field.maxFileSizeMb * 1024 * 1024;
       const oversizedFile = value.find((file) => file.size > maxSizeBytes);
       if (oversizedFile) {
-        return `Р¤Р°Р№Р» "${oversizedFile.name}" Р±РѕР»СЊС€Рµ ${field.maxFileSizeMb} РњР‘`;
+        return `Файл "${oversizedFile.name}" больше ${field.maxFileSizeMb} МБ`;
       }
     }
 
@@ -193,7 +193,7 @@ const validateFieldValue = (
       });
 
       if (invalidFile) {
-        return `Р¤Р°Р№Р» "${invalidFile.name}" РЅРµ РїРѕРґС…РѕРґРёС‚ РїРѕ С‚РёРїСѓ`;
+        return `Файл "${invalidFile.name}" не подходит по типу`;
       }
     }
 
@@ -203,23 +203,23 @@ const validateFieldValue = (
   const textValue = String(value ?? '');
 
   if (field.minLength && textValue.length < field.minLength) {
-    return `РњРёРЅРёРјР°Р»СЊРЅР°СЏ РґР»РёРЅР°: ${field.minLength}`;
+    return `Минимальная длина: ${field.minLength}`;
   }
 
   if (field.maxLength && textValue.length > field.maxLength) {
-    return `РњР°РєСЃРёРјР°Р»СЊРЅР°СЏ РґР»РёРЅР°: ${field.maxLength}`;
+    return `Максимальная длина: ${field.maxLength}`;
   }
 
   if (inputSubtype === 'phone' && field.validatePhone !== false && textValue) {
     const normalized = textValue.replace(/[\s()-]/g, '');
     if (!/^(?:\+)?(?:79|89)\d{9}$/.test(normalized)) {
-      return 'Р’РІРµРґРёС‚Рµ РєРѕСЂСЂРµРєС‚РЅС‹Р№ С‚РµР»РµС„РѕРЅ';
+      return 'Введите корректный телефон';
     }
   }
 
   if (inputSubtype === 'email' && field.validateEmail !== false && textValue) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(textValue)) {
-      return 'Р’РІРµРґРёС‚Рµ РєРѕСЂСЂРµРєС‚РЅСѓСЋ СЌР». РїРѕС‡С‚Сѓ';
+      return 'Введите корректную эл. почту';
     }
   }
 
@@ -241,7 +241,7 @@ const getPhoneValidationError = (value: string) => {
   }
 
   if (!/^(?:\+)?(?:79|89)\d{9}$/.test(normalized)) {
-    return 'РўРµР»РµС„РѕРЅ РґРѕР»Р¶РµРЅ РЅР°С‡РёРЅР°С‚СЊСЃСЏ СЃ 79, 89, +79 РёР»Рё +89';
+    return 'Телефон должен начинаться с 79, 89, +79 или +89';
   }
 
   return '';
@@ -316,7 +316,7 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
     }
 
     if (!isConsentChecked) {
-      items.push('СЃРѕРіР»Р°СЃРёРµ');
+      items.push('согласие');
     }
 
     return [...new Set(items)];
@@ -332,14 +332,15 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
     template.requestForm.phoneLabel,
     values,
   ]);
-  const resultCardTitle = (template.resultCardTitle ?? '').trim() || 'РС‚РѕРі СЂР°СЃС‡РµС‚Р°';
+
+  const resultCardTitle = (template.resultCardTitle ?? '').trim() || 'Итог расчета';
   const resultCardDescription = status
     ? status
     : missingRequestItems.length > 0
-      ? `РќСѓР¶РЅРѕ Р·Р°РїРѕР»РЅРёС‚СЊ: ${missingRequestItems.join(', ')}`
+      ? `Нужно заполнить: ${missingRequestItems.join(', ')}`
       : template.requestForm.enabled
-        ? 'Р’СЃРµ РґР°РЅРЅС‹Рµ Р·Р°РїРѕР»РЅРµРЅС‹, РјРѕР¶РЅРѕ РѕС‚РїСЂР°РІРёС‚СЊ Р·Р°СЏРІРєСѓ.'
-        : 'Р РµР·СѓР»СЊС‚Р°С‚ СЂР°СЃС‡РµС‚Р° РѕР±РЅРѕРІР»СЏРµС‚СЃСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё.';
+        ? 'Все данные заполнены, можно отправить заявку.'
+        : 'Результат расчета обновляется автоматически.';
 
   const isRequestSubmitDisabled = !name || !phone || Boolean(phoneError) || isSubmitting;
   const shouldShowResultDetails = !template.requestForm.enabled || missingRequestItems.length === 0;
@@ -381,7 +382,7 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
 
   const handleSubmit = async () => {
     if (!validate()) {
-      setStatus('Р—Р°РїРѕР»РЅРёС‚Рµ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РїРѕР»СЏ');
+      setStatus('Заполните обязательные поля');
       return;
     }
 
@@ -391,7 +392,7 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
     }
 
     if (!isConsentChecked) {
-      setConsentError('РџРѕРґС‚РІРµСЂРґРёС‚Рµ СЃРѕРіР»Р°СЃРёРµ РїРµСЂРµРґ РѕС‚РїСЂР°РІРєРѕР№ Р·Р°СЏРІРєРё');
+      setConsentError('Подтвердите согласие перед отправкой заявки');
       setStatus('');
       return;
     }
@@ -451,19 +452,19 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
         break;
       case 'copy':
         try {
-          await navigator.clipboard.writeText(`${result.total} в‚Ѕ`);
-          setStatus('Р РµР·СѓР»СЊС‚Р°С‚ СЃРєРѕРїРёСЂРѕРІР°РЅ');
+          await navigator.clipboard.writeText(`${result.total} ₽`);
+          setStatus('Результат скопирован');
         } catch {
-          setStatus('РќРµ СѓРґР°Р»РѕСЃСЊ СЃРєРѕРїРёСЂРѕРІР°С‚СЊ СЂРµР·СѓР»СЊС‚Р°С‚');
+          setStatus('Не удалось скопировать результат');
         }
         break;
       case 'calculate':
       default:
         if (!validate()) {
-          setStatus('Р—Р°РїРѕР»РЅРёС‚Рµ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РїРѕР»СЏ');
+          setStatus('Заполните обязательные поля');
         } else {
           setIsCalculationTriggered(true);
-          setStatus(`РС‚РѕРі: ${result.total} в‚Ѕ`);
+          setStatus(`Итог: ${result.total} ₽`);
         }
         break;
     }
@@ -476,12 +477,12 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
           {onOpenAdmin ? (
             <div className="calculator-page__actions">
               <button className="calculator-page__back" type="button" onClick={onOpenAdmin}>
-                РђРґРјРёРЅРєР°
+                Админка
               </button>
             </div>
           ) : null}
           <div className="calculator-page__hero-copy">
-            <div className="calculator-page__eyebrow">Р Р°СЃС‡РµС‚ СЃС‚РѕРёРјРѕСЃС‚Рё</div>
+            <div className="calculator-page__eyebrow">Расчет стоимости</div>
             <h1 className="calculator-page__title">{template.title}</h1>
             <p className="calculator-page__description">{template.description}</p>
           </div>
@@ -491,9 +492,9 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
           <section className="calculator-layout__form">
             <div className="calculator-panel">
               <div className="calculator-panel__head">
-                <h2 className="calculator-panel__title">РџР°СЂР°РјРµС‚СЂС‹</h2>
+                <h2 className="calculator-panel__title">Параметры</h2>
                 <div className="calculator-panel__caption">
-                  Р—Р°РїРѕР»РЅРёС‚Рµ РїРѕР»СЏ, С‡С‚РѕР±С‹ СѓРІРёРґРµС‚СЊ СЃС‚РѕРёРјРѕСЃС‚СЊ
+                  Заполните поля, чтобы увидеть стоимость
                 </div>
               </div>
 
@@ -613,21 +614,21 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
                       }}
                     />
                     <span className="calculator-request__consent-text">
-                      РЇ РїСЂРёРЅРёРјР°СЋ{' '}
+                      Я принимаю{' '}
                       <button
                         className="calculator-request__consent-link"
                         type="button"
                         onClick={() => setActiveLegalDoc('agreement')}
                       >
-                        РїРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєРѕРµ СЃРѕРіР»Р°С€РµРЅРёРµ
+                        пользовательское соглашение
                       </button>{' '}
-                      Рё{' '}
+                      и{' '}
                       <button
                         className="calculator-request__consent-link"
                         type="button"
                         onClick={() => setActiveLegalDoc('privacy')}
                       >
-                        РїРѕР»РёС‚РёРєСѓ РєРѕРЅС„РёРґРµРЅС†РёР°Р»СЊРЅРѕСЃС‚Рё
+                        политику конфиденциальности
                       </button>
                     </span>
                   </span>
@@ -642,33 +643,33 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
 
           {template.resultCardShow !== false ? (
             <aside className="calculator-layout__result">
-              <div className="result-card result-card_sticky">
+                <div className="result-card result-card_sticky">
                 <div className="result-card__content">
                   {template.resultCardShowTitle !== false ? (
                     <div className="result-card__eyebrow">{resultCardTitle}</div>
                   ) : null}
                   {template.resultCardShowTotal !== false ? (
-                    <div className="result-card__amount result-card__amount_compact">{`${result.total} в‚Ѕ`}</div>
+                    <div className="result-card__amount result-card__amount_compact">{`${result.total} ₽`}</div>
                   ) : null}
                   <div className="result-card__description">{resultCardDescription}</div>
                   {shouldShowResultDetails ? (
                     <div className="result-card__list result-card__list_compact">
                       {template.resultCardShowSubtotal !== false ? (
                         <div className="result-card__row">
-                          <span>{template.resultSubtotalLabel ?? 'РџРѕРґС‹С‚РѕРі'}</span>
-                          <strong>{result.subtotal} в‚Ѕ</strong>
+                          <span>{template.resultSubtotalLabel ?? 'Подытог'}</span>
+                          <strong>{result.subtotal} ₽</strong>
                         </div>
                       ) : null}
                       {template.resultCardShowDiscount !== false ? (
                         <div className="result-card__row">
-                          <span>{template.resultDiscountLabel ?? 'РЎРєРёРґРєР°'}</span>
-                          <strong>{result.discountAmount} в‚Ѕ</strong>
+                          <span>{template.resultDiscountLabel ?? 'Скидка'}</span>
+                          <strong>{result.discountAmount} ₽</strong>
                         </div>
                       ) : null}
                       {template.resultCardShowMinPrice !== false ? (
                         <div className="result-card__row">
-                          <span>{template.resultMinPriceLabel ?? 'РњРёРЅРёРјР°Р»СЊРЅР°СЏ С†РµРЅР°'}</span>
-                          <strong>{template.minPrice} в‚Ѕ</strong>
+                          <span>{template.resultMinPriceLabel ?? 'Минимальная цена'}</span>
+                          <strong>{template.minPrice} ₽</strong>
                         </div>
                       ) : null}
                     </div>
@@ -714,7 +715,7 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
                 type="button"
                 onClick={() => setActiveLegalDoc(null)}
               >
-                Р—Р°РєСЂС‹С‚СЊ
+                Закрыть
               </button>
             </div>
           </div>
@@ -723,4 +724,3 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
     </div>
   );
 };
-
