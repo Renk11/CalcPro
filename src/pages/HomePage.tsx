@@ -609,9 +609,11 @@ const getDonutSegments = (
 const TemplatePresetCard = ({
   preset,
   onUse,
+  disabled = false,
 }: {
   preset: TemplateCatalogPreset;
   onUse: (presetId: string) => void;
+  disabled?: boolean;
 }) => (
   <article className={`template-preset template-preset_${preset.visual}`}>
     <div className="template-preset__visual">
@@ -631,8 +633,13 @@ const TemplatePresetCard = ({
       </div>
     </div>
 
-    <button className="template-preset__action" type="button" onClick={() => onUse(preset.id)}>
-      Использовать
+    <button
+      className="template-preset__action"
+      type="button"
+      disabled={disabled}
+      onClick={() => onUse(preset.id)}
+    >
+      {disabled ? 'Доступно в Про' : 'Использовать'}
     </button>
   </article>
 );
@@ -675,7 +682,8 @@ export const HomePage = ({
   isCommunityContext,
 }: HomePageProps) => {
   const isSectionLocked = (section: AdminSection) =>
-    !hasActiveSubscription && (section === 'analytics' || section === 'integrations');
+    !hasActiveSubscription &&
+    (section === 'analytics' || section === 'integrations' || section === 'templates');
   const showCreateCalculatorLimitHint = !hasActiveSubscription && !canCreateMoreTemplates;
 
   const handleSectionSelect = (section: AdminSection) => {
@@ -980,11 +988,17 @@ export const HomePage = ({
               className="admin-home__icon-button"
               type="button"
               aria-label="Создать папку"
+              disabled={!hasActiveSubscription}
               onClick={onCreateFolder}
             >
               <Icon20Add />
             </button>
           </div>
+          {!hasActiveSubscription ? (
+            <div className="create-calculator-tile__tooltip">
+              Папки доступны на тарифе Про.
+            </div>
+          ) : null}
 
           <button
             className={`folder-card ${activeFolderId === 'all' ? 'folder-card_active' : ''}`}
@@ -1038,11 +1052,17 @@ export const HomePage = ({
                   role="button"
                   tabIndex={0}
                   onClick={(event) => {
+                    if (!hasActiveSubscription) {
+                      return;
+                    }
                     event.stopPropagation();
                     setEditingFolderId(folder.id);
                     setDraftFolderName(folder.name);
                   }}
                   onKeyDown={(event) => {
+                    if (!hasActiveSubscription) {
+                      return;
+                    }
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
                       event.stopPropagation();
@@ -1058,10 +1078,16 @@ export const HomePage = ({
                   role="button"
                   tabIndex={0}
                   onClick={(event) => {
+                    if (!hasActiveSubscription) {
+                      return;
+                    }
                     event.stopPropagation();
                     setPendingDeleteFolder(folder);
                   }}
                   onKeyDown={(event) => {
+                    if (!hasActiveSubscription) {
+                      return;
+                    }
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
                       event.stopPropagation();
@@ -1113,6 +1139,8 @@ export const HomePage = ({
               key={template.id}
               template={template}
               folders={folders}
+              canDuplicate={hasActiveSubscription}
+              canUseFolders={hasActiveSubscription}
               onOpen={onOpen}
               onEdit={onEdit}
               onDuplicate={onDuplicateTemplate}
@@ -1184,7 +1212,12 @@ export const HomePage = ({
 
         <div className="templates-hub__grid">
           {filteredCatalog.map((preset) => (
-            <TemplatePresetCard key={preset.id} preset={preset} onUse={onUsePreset} />
+            <TemplatePresetCard
+              key={preset.id}
+              preset={preset}
+              onUse={onUsePreset}
+              disabled={!hasActiveSubscription}
+            />
           ))}
 
           <button
@@ -1672,17 +1705,21 @@ export const HomePage = ({
               inputMode="text"
               placeholder="Например: 123456789"
               value={managerVkId}
+              disabled={!hasActiveSubscription}
               onChange={(event) => setManagerVkId(event.target.value.replace(/[^\d,\s;-]/g, ''))}
             />
           </label>
 
           <div className="settings-form__hint">
-            Укажите VK ID сотрудника, которому будут приходить заявки из калькуляторов.
+            {hasActiveSubscription
+              ? 'Укажите VK ID сотрудника, которому будут приходить заявки из калькуляторов.'
+              : 'Отправка заявок менеджерам доступна на тарифе Про.'}
           </div>
 
           <button
             className="settings-form__button"
             type="button"
+            disabled={!hasActiveSubscription}
             onClick={() =>
               onSaveAdminSettings({
                 ...adminSettings,
@@ -2039,7 +2076,9 @@ export const HomePage = ({
         : currentSection === 'settings'
           ? renderSettingsSection()
         : currentSection === 'templates'
-          ? renderTemplatesSection()
+          ? hasActiveSubscription
+            ? renderTemplatesSection()
+            : renderPlanLockedSection('Шаблоны', 'Каталог шаблонов')
         : currentSection === 'faq'
           ? renderFaqSection()
           : renderPlaceholderSection()}

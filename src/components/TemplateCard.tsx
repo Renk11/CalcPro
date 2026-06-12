@@ -8,6 +8,8 @@ import type {
 interface TemplateCardProps {
   template: CalculatorTemplate;
   folders: CalculatorFolder[];
+  canDuplicate: boolean;
+  canUseFolders: boolean;
   onOpen: (template: CalculatorTemplate) => void;
   onEdit: (template: CalculatorTemplate) => void;
   onDuplicate: (template: CalculatorTemplate) => void;
@@ -47,6 +49,8 @@ const formatTemplateDate = (value?: string) =>
 export const TemplateCard = ({
   template,
   folders,
+  canDuplicate,
+  canUseFolders,
   onOpen,
   onEdit,
   onDuplicate,
@@ -165,22 +169,24 @@ export const TemplateCard = ({
                   <button
                     className="template-card__menu-action"
                     type="button"
+                    disabled={!canDuplicate}
                     onClick={() => {
                       onDuplicate(template);
                       setIsMenuOpen(false);
                     }}
                   >
-                    Дублировать
+                    {canDuplicate ? 'Дублировать' : 'Дублировать (Про)'}
                   </button>
                   <button
                     className="template-card__menu-action"
                     type="button"
+                    disabled={!canUseFolders}
                     onClick={() => setIsFolderPickerOpen((current) => !current)}
                   >
-                    Перенести в папку
+                    {canUseFolders ? 'Перенести в папку' : 'Папки (Про)'}
                   </button>
 
-                  {isFolderPickerOpen ? (
+                  {isFolderPickerOpen && canUseFolders ? (
                     <div className="template-card__folder-picker">
                       <button
                         className={`template-card__folder-option ${template.folderId ? '' : 'template-card__folder-option_active'}`}

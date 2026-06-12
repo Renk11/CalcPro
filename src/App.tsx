@@ -350,6 +350,12 @@ const App = () => {
       return;
     }
 
+    if (!hasActiveSubscription) {
+      setHomeSection('payments');
+      setActiveView('home');
+      return;
+    }
+
     if (!canCreateMoreTemplates) {
       setHomeSection('payments');
       setActiveView('home');
@@ -661,6 +667,12 @@ const App = () => {
       return;
     }
 
+    if (!hasActiveSubscription) {
+      setHomeSection('payments');
+      setActiveView('home');
+      return;
+    }
+
     if (!canCreateMoreTemplates) {
       setHomeSection('payments');
       setActiveView('home');
@@ -775,6 +787,12 @@ const App = () => {
       return;
     }
 
+    if (!hasActiveSubscription) {
+      setHomeSection('payments');
+      setActiveView('home');
+      return;
+    }
+
     const moved: CalculatorTemplate = {
       ...template,
       folderId,
@@ -791,6 +809,12 @@ const App = () => {
 
   const createFolder = () => {
     if (!isViewerGroupAdmin) {
+      return;
+    }
+
+    if (!hasActiveSubscription) {
+      setHomeSection('payments');
+      setActiveView('home');
       return;
     }
 
@@ -812,6 +836,12 @@ const App = () => {
       return;
     }
 
+    if (!hasActiveSubscription) {
+      setHomeSection('payments');
+      setActiveView('home');
+      return;
+    }
+
     const current = folders.find((folder) => folder.id === folderId);
     if (!current) {
       return;
@@ -829,6 +859,12 @@ const App = () => {
 
   const deleteFolder = (folderId: string) => {
     if (!isViewerGroupAdmin) {
+      return;
+    }
+
+    if (!hasActiveSubscription) {
+      setHomeSection('payments');
+      setActiveView('home');
       return;
     }
 
@@ -897,6 +933,7 @@ const App = () => {
               onBack={() => setActiveView('home')}
               onSave={handleSaveTemplate}
               canUseBooking={hasActiveSubscription}
+              canUseProFeatures={hasActiveSubscription}
             />
           </Panel>
           <Panel id="calculator">

@@ -41,6 +41,7 @@ interface BuilderPageProps {
   onBack: () => void;
   onSave: (template: CalculatorTemplate) => void;
   canUseBooking?: boolean;
+  canUseProFeatures?: boolean;
 }
 
 interface LocalizedBuilderDateTimeInputProps {
@@ -51,6 +52,8 @@ interface LocalizedBuilderDateTimeInputProps {
 }
 
 const BUILDER_AUTOSAVE_STORAGE_KEY = 'calcpro-builder-autosave-enabled';
+const PRO_LIBRARY_ITEM_IDS = new Set(['range', 'flag', 'image', 'booking', 'html']);
+const BASIC_BUTTON_ACTIONS: ButtonActionType[] = ['calculate', 'submit', 'reset'];
 
 type BuilderLibraryItem = {
   id: string;
@@ -766,11 +769,18 @@ export const BuilderPage = ({
   onBack,
   onSave,
   canUseBooking = true,
+  canUseProFeatures = true,
 }: BuilderPageProps) => {
+  const [template, setTemplate] = useState<CalculatorTemplate>(
+    normalizeTemplateContent(initialTemplate ?? createEmptyTemplate()),
+  );
+  const resultFieldCount = template.fields.filter((field) => field.type === 'result').length;
   const preparedLibraryItems = libraryItems.map((item) =>
     item.id === 'flag'
       ? {
           ...item,
+          supported: canUseProFeatures,
+          label: canUseProFeatures ? item.label : 'Флажок (Про)',
           createField: () =>
             createField('radio', '\u0424\u043b\u0430\u0436\u043e\u043a', 'flag', {
               placeholder: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043e\u0434\u0438\u043d \u0432\u0430\u0440\u0438\u0430\u043d\u0442',
@@ -782,17 +792,28 @@ export const BuilderPage = ({
               useValueInFormula: true,
             }),
         }
-      : item.id === 'booking'
+      : item.id === 'result'
         ? {
             ...item,
-            supported: canUseBooking,
-            label: canUseBooking ? item.label : 'Бронирование (Про)',
+            supported: canUseProFeatures || resultFieldCount === 0,
+            label:
+              canUseProFeatures || resultFieldCount === 0
+                ? item.label
+                : 'Доп. результат (Про)',
           }
-        : item,
-  );
-
-  const [template, setTemplate] = useState<CalculatorTemplate>(
-    normalizeTemplateContent(initialTemplate ?? createEmptyTemplate()),
+        : item.id === 'booking'
+          ? {
+              ...item,
+              supported: canUseBooking && canUseProFeatures,
+              label: canUseBooking && canUseProFeatures ? item.label : 'Бронирование (Про)',
+            }
+          : PRO_LIBRARY_ITEM_IDS.has(item.id)
+            ? {
+                ...item,
+                supported: canUseProFeatures,
+                label: canUseProFeatures ? item.label : `${item.label} (Про)`,
+              }
+            : item,
   );
   const [saveStatus, setSaveStatus] = useState('');
   const saveToastTimeoutRef = useRef<number | null>(null);
@@ -1816,6 +1837,7 @@ export const BuilderPage = ({
                         <button
                           className="builder-formula__chip"
                           type="button"
+                          disabled={!canUseProFeatures}
                           onClick={() => insertIntoCustomFormula('Базовая цена')}
                         >
                           {'Базовая цена'}
@@ -1823,6 +1845,7 @@ export const BuilderPage = ({
                         <button
                           className="builder-formula__chip"
                           type="button"
+                          disabled={!canUseProFeatures}
                           onClick={() => insertIntoCustomFormula('Общий коэффициент')}
                         >
                           {'Общий коэффициент'}
@@ -1832,6 +1855,7 @@ export const BuilderPage = ({
                             key={field.id}
                             className="builder-formula__chip"
                             type="button"
+                            disabled={!canUseProFeatures}
                             onClick={() => insertIntoCustomFormula(getFormulaReference(field))}
                           >
                             {getFormulaReference(field)}
@@ -1845,6 +1869,7 @@ export const BuilderPage = ({
                             key={operator}
                             className="builder-formula__chip builder-formula__chip_symbol"
                             type="button"
+                            disabled={!canUseProFeatures}
                             onClick={() =>
                               insertIntoCustomFormula(
                                 operator === '(' || operator === ')' ? operator : ` ${operator} `,
@@ -1908,9 +1933,19 @@ export const BuilderPage = ({
                     <textarea
                       ref={customFormulaRef}
                       value={template.customFormula}
-                      onChange={(event) => updateTemplate({ customFormula: event.target.value })}
+                      onChange={(event) =>
+                        canUseProFeatures
+                          ? updateTemplate({ customFormula: event.target.value })
+                          : undefined
+                      }
+                      disabled={!canUseProFeatures}
                       placeholder={'\u041d\u0430\u043f\u0440\u0438\u043c\u0435\u0440: (\u0411\u0430\u0437\u043e\u0432\u0430\u044f \u0446\u0435\u043d\u0430 + \u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e) * \u041e\u0431\u0449\u0438\u0439 \u043a\u043e\u044d\u0444\u0444\u0438\u0446\u0438\u0435\u043d\u0442'}
                     />
+                    {!canUseProFeatures ? (
+                      <span className="builder-inspector__field-hint">
+                        Кастомная формула доступна на тарифе Про. В Базовом тарифе работает простой расчет.
+                      </span>
+                    ) : null}
                   </label>
 
                   <div className="builder-formula__result-card">
@@ -1978,6 +2013,7 @@ export const BuilderPage = ({
                             type="checkbox"
                             aria-label="Показывать подытог"
                             checked={template.resultCardShowSubtotal !== false}
+                            disabled={!canUseProFeatures}
                             onChange={(event) =>
                               updateTemplate({ resultCardShowSubtotal: event.target.checked })
                             }
@@ -1987,6 +2023,7 @@ export const BuilderPage = ({
                           <span>Подытог</span>
                           <input
                             value={template.resultSubtotalLabel ?? 'Подытог'}
+                            disabled={!canUseProFeatures}
                             onChange={(event) =>
                               updateTemplate({ resultSubtotalLabel: event.target.value })
                             }
@@ -2000,6 +2037,7 @@ export const BuilderPage = ({
                             type="checkbox"
                             aria-label="Показывать скидку"
                             checked={template.resultCardShowDiscount !== false}
+                            disabled={!canUseProFeatures}
                             onChange={(event) =>
                               updateTemplate({ resultCardShowDiscount: event.target.checked })
                             }
@@ -2009,6 +2047,7 @@ export const BuilderPage = ({
                           <span>Скидка</span>
                           <input
                             value={template.resultDiscountLabel ?? 'Скидка'}
+                            disabled={!canUseProFeatures}
                             onChange={(event) =>
                               updateTemplate({ resultDiscountLabel: event.target.value })
                             }
@@ -2022,6 +2061,7 @@ export const BuilderPage = ({
                             type="checkbox"
                             aria-label="Показывать минимальную цену"
                             checked={template.resultCardShowMinPrice !== false}
+                            disabled={!canUseProFeatures}
                             onChange={(event) =>
                               updateTemplate({ resultCardShowMinPrice: event.target.checked })
                             }
@@ -2031,12 +2071,18 @@ export const BuilderPage = ({
                           <span>Минимальная цена</span>
                           <input
                             value={template.resultMinPriceLabel ?? 'Минимальная цена'}
+                            disabled={!canUseProFeatures}
                             onChange={(event) =>
                               updateTemplate({ resultMinPriceLabel: event.target.value })
                             }
                           />
                         </label>
                       </div>
+                      {!canUseProFeatures ? (
+                        <div className="builder-inspector__field-hint">
+                          Подытог, скидка и минимальная цена доступны на тарифе Про.
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
@@ -2058,6 +2104,7 @@ export const BuilderPage = ({
                           <span>Префикс</span>
                           <input
                             value={field.resultPrefix ?? ''}
+                            disabled={!canUseProFeatures}
                             onChange={(event) =>
                               updateField(field.id, { resultPrefix: event.target.value })
                             }
@@ -2068,6 +2115,7 @@ export const BuilderPage = ({
                           <span>Суффикс</span>
                           <input
                             value={field.resultSuffix ?? ''}
+                            disabled={!canUseProFeatures}
                             onChange={(event) =>
                               updateField(field.id, { resultSuffix: event.target.value })
                             }
@@ -2080,6 +2128,7 @@ export const BuilderPage = ({
                           <span>Округление</span>
                           <select
                             value={field.resultRounding === false ? 'off' : 'on'}
+                            disabled={!canUseProFeatures}
                             onChange={(event) =>
                               updateField(field.id, {
                                 resultRounding: event.target.value === 'on',
@@ -2097,6 +2146,7 @@ export const BuilderPage = ({
                             type="text"
                             inputMode="numeric"
                             value={field.resultDecimals ?? ''}
+                            disabled={!canUseProFeatures}
                             onChange={(event) =>
                               updateField(field.id, {
                                 resultDecimals:
@@ -2119,6 +2169,7 @@ export const BuilderPage = ({
                           <span>Формат числа</span>
                           <select
                             value={field.resultFormat ?? 'space'}
+                            disabled={!canUseProFeatures}
                             onChange={(event) =>
                               updateField(field.id, {
                                 resultFormat: event.target.value as NonNullable<CalculatorField['resultFormat']>,
@@ -2134,6 +2185,7 @@ export const BuilderPage = ({
                           <span>Показ результата</span>
                           <select
                             value={field.resultDisplayMode ?? 'auto'}
+                            disabled={!canUseProFeatures}
                             onChange={(event) =>
                               updateField(field.id, {
                                 resultDisplayMode: event.target.value as NonNullable<CalculatorField['resultDisplayMode']>,
@@ -2145,6 +2197,11 @@ export const BuilderPage = ({
                           </select>
                         </label>
                       </div>
+                      {!canUseProFeatures ? (
+                        <div className="builder-inspector__field-hint">
+                          Префикс, суффикс, округление, формат и показ после кнопки доступны на тарифе Про.
+                        </div>
+                      ) : null}
 
                     </div>
                   ))}
@@ -2574,6 +2631,7 @@ export const BuilderPage = ({
                             <input
                               value={option.description ?? ''}
                               placeholder={'\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435'}
+                              disabled={!canUseProFeatures}
                               onChange={(event) =>
                                 updateSelectOption(selectedField.id, option.id, {
                                   description: event.target.value,
@@ -2622,26 +2680,28 @@ export const BuilderPage = ({
                           </select>
                         </label>
 
-                        <label className="builder-inspector__checkbox">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(selectedField.showOptionDescription)}
-                            onChange={(event) =>
-                              updateField(selectedField.id, {
-                                showOptionDescription: event.target.checked,
+	                        <label className="builder-inspector__checkbox">
+	                          <input
+	                            type="checkbox"
+	                            checked={Boolean(selectedField.showOptionDescription)}
+	                            disabled={!canUseProFeatures}
+	                            onChange={(event) =>
+	                              updateField(selectedField.id, {
+	                                showOptionDescription: event.target.checked,
                               })
                             }
                           />
                           <span>{'\u041f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c \u043e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u0443 \u0432\u0430\u0440\u0438\u0430\u043d\u0442\u0430'}</span>
                         </label>
 
-                        <label className="builder-inspector__checkbox">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(selectedField.showOptionPrice)}
-                            onChange={(event) =>
-                              updateField(selectedField.id, {
-                                showOptionPrice: event.target.checked,
+	                        <label className="builder-inspector__checkbox">
+	                          <input
+	                            type="checkbox"
+	                            checked={Boolean(selectedField.showOptionPrice)}
+	                            disabled={!canUseProFeatures}
+	                            onChange={(event) =>
+	                              updateField(selectedField.id, {
+	                                showOptionPrice: event.target.checked,
                               })
                             }
                           />
@@ -2649,19 +2709,25 @@ export const BuilderPage = ({
                         </label>
                       </>
                     ) : (
-                      <label className="builder-inspector__checkbox">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(selectedField.showOptionPrices)}
-                          onChange={(event) =>
-                            updateField(selectedField.id, {
-                              showOptionPrices: event.target.checked,
+	                      <label className="builder-inspector__checkbox">
+	                        <input
+	                          type="checkbox"
+	                          checked={Boolean(selectedField.showOptionPrices)}
+	                          disabled={!canUseProFeatures}
+	                          onChange={(event) =>
+	                            updateField(selectedField.id, {
+	                              showOptionPrices: event.target.checked,
                             })
                           }
                         />
                         <span>{'\u041f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c \u0446\u0435\u043d\u0443 \u0440\u044f\u0434\u043e\u043c \u0441 \u0432\u0430\u0440\u0438\u0430\u043d\u0442\u043e\u043c'}</span>
                       </label>
-                    )}
+	                    )}
+                    {!canUseProFeatures ? (
+                      <div className="builder-inspector__field-hint">
+                        Описания и показ цены у вариантов доступны на тарифе Про.
+                      </div>
+                    ) : null}
 
                     <label className="builder-inspector__checkbox">
                       <input
@@ -3072,6 +3138,7 @@ export const BuilderPage = ({
                               className="builder-option-row__meta-input"
                               value={option.description ?? ''}
                               placeholder={'\u041f\u043e\u0434\u043f\u0438\u0441\u044c'}
+                              disabled={!canUseProFeatures}
                               onChange={(event) =>
                                 updateSelectOption(selectedField.id, option.id, {
                                   description: event.target.value,
@@ -3096,12 +3163,18 @@ export const BuilderPage = ({
                         <button
                           className="builder-option-list__add"
                           type="button"
+                          disabled={!canUseProFeatures}
                           onClick={() => addSelectOption(selectedField.id)}
                         >
                           {'\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0441\u0442\u0440\u043e\u043a\u0443'}
                         </button>
                       </div>
                     </div>
+                    {!canUseProFeatures ? (
+                      <div className="builder-inspector__field-hint">
+                        Дополнительные строки чекбокса доступны на тарифе Про.
+                      </div>
+                    ) : null}
 
                     <label className="builder-inspector__checkbox">
                       <input
@@ -3297,25 +3370,33 @@ export const BuilderPage = ({
                       <select
                         value={selectedField.buttonAction ?? 'calculate'}
                         onChange={(event) =>
-                          updateField(selectedField.id, {
-                            buttonAction: event.target.value as ButtonActionType,
-                            buttonText:
-                              selectedField.buttonText?.trim()
-                                ? selectedField.buttonText
-                                : getButtonActionLabel(event.target.value as ButtonActionType),
-                          })
+                          BASIC_BUTTON_ACTIONS.includes(event.target.value as ButtonActionType) ||
+                          canUseProFeatures
+                            ? updateField(selectedField.id, {
+                                buttonAction: event.target.value as ButtonActionType,
+                                buttonText:
+                                  selectedField.buttonText?.trim()
+                                    ? selectedField.buttonText
+                                    : getButtonActionLabel(event.target.value as ButtonActionType),
+                              })
+                            : undefined
                         }
                       >
                         <option value="calculate">{'\u0420\u0430\u0441\u0441\u0447\u0438\u0442\u0430\u0442\u044c'}</option>
                         <option value="submit">{'\u041e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u0437\u0430\u044f\u0432\u043a\u0443'}</option>
                         <option value="reset">{'\u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0444\u043e\u0440\u043c\u0443'}</option>
-                        <option value="link">{'\u041f\u0435\u0440\u0435\u0439\u0442\u0438 \u043f\u043e \u0441\u0441\u044b\u043b\u043a\u0435'}</option>
-                        <option value="vk">{'\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0432 \u0412\u041a'}</option>
-                        <option value="copy">{'\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442'}</option>
+                        <option value="link" disabled={!canUseProFeatures}>{'\u041f\u0435\u0440\u0435\u0439\u0442\u0438 \u043f\u043e \u0441\u0441\u044b\u043b\u043a\u0435'}</option>
+                        <option value="vk" disabled={!canUseProFeatures}>{'\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0432 \u0412\u041a'}</option>
+                        <option value="copy" disabled={!canUseProFeatures}>{'\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442'}</option>
                       </select>
                       {selectedField.buttonAction === 'submit' ? (
                         <span className="builder-inspector__field-hint">
                           {'\u0417\u0430\u044f\u0432\u043a\u0430 \u0431\u0443\u0434\u0435\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0430 \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0443, \u043a\u043e\u0442\u043e\u0440\u043e\u0433\u043e \u0432\u044b \u0443\u043a\u0430\u0437\u0430\u043b\u0438 \u0432 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u0445'}
+                        </span>
+	                      ) : null}
+                      {!canUseProFeatures ? (
+                        <span className="builder-inspector__field-hint">
+                          Ссылка, сообщение в VK и копирование результата доступны на тарифе Про.
                         </span>
                       ) : null}
                     </label>
