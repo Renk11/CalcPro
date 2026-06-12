@@ -13,7 +13,10 @@ interface TemplateCardProps {
   onDuplicate: (template: CalculatorTemplate) => void;
   onDelete: (template: CalculatorTemplate) => void;
   onMoveToFolder: (template: CalculatorTemplate, folderId?: string) => void;
-  onUpdateStatus: (template: CalculatorTemplate, publicationStatus: CalculatorPublicationStatus) => void;
+  onUpdateStatus: (
+    template: CalculatorTemplate,
+    publicationStatus: CalculatorPublicationStatus,
+  ) => void;
   onCopyLink: (template: CalculatorTemplate) => Promise<void>;
 }
 
@@ -23,6 +26,14 @@ const publicationStatusLabels: Record<CalculatorPublicationStatus, string> = {
   hidden: 'Скрыт',
   archived: 'Архив',
 };
+
+const hasMojibake = (value?: string) =>
+  Boolean(value) &&
+  (value!.includes('Р') ||
+    value!.includes('Ð') ||
+    value!.includes('Ñ') ||
+    value!.includes('вЂ') ||
+    value!.includes('Â'));
 
 const formatTemplateDate = (value?: string) =>
   value
@@ -48,6 +59,11 @@ export const TemplateCard = ({
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const safeTitle = hasMojibake(template.title) ? 'Новый калькулятор' : template.title;
+  const safeDescription = hasMojibake(template.description) ? '' : template.description;
+  const safeLastModifiedBy = hasMojibake(template.lastModifiedBy)
+    ? 'Администратор'
+    : template.lastModifiedBy;
 
   useEffect(() => {
     if (!isMenuOpen) {
@@ -88,7 +104,7 @@ export const TemplateCard = ({
               <div className={`template-card__status template-card__status_${template.publicationStatus}`}>
                 {publicationStatusLabels[template.publicationStatus]}
               </div>
-              <h3 className="template-card__title">{template.title}</h3>
+              <h3 className="template-card__title">{safeTitle}</h3>
             </div>
 
             <div className="template-card__menu" ref={menuRef}>
@@ -220,7 +236,7 @@ export const TemplateCard = ({
             </div>
           </div>
 
-          <p className="template-card__description">{template.description}</p>
+          <p className="template-card__description">{safeDescription}</p>
 
           <div className="template-card__meta">
             <span className="template-card__meta-item">ID: {template.publicId}</span>
@@ -228,7 +244,7 @@ export const TemplateCard = ({
             <span className="template-card__meta-item">
               Публикация: {formatTemplateDate(template.publishedAt)}
             </span>
-            <span className="template-card__meta-item">Изменил: {template.lastModifiedBy}</span>
+            <span className="template-card__meta-item">Изменил: {safeLastModifiedBy}</span>
           </div>
 
           {copyStatus ? <div className="template-card__copy-status">{copyStatus}</div> : null}

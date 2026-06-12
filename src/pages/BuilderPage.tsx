@@ -17,6 +17,7 @@ import { CalculatorFieldInput } from '../components/CalculatorFieldInput';
 import {
   clampTemplateDescription,
   clampTemplateTitle,
+  createDefaultRequestFormSettings,
   createEmptyTemplate,
   MAX_TEMPLATE_DESCRIPTION_LENGTH,
   MAX_TEMPLATE_TITLE_LENGTH,
@@ -712,10 +713,49 @@ const normalizeFieldContent = (field: CalculatorField): CalculatorField => {
   };
 };
 
-const normalizeTemplateContent = (template: CalculatorTemplate): CalculatorTemplate => ({
-  ...normalizeTemplateRecord(template),
-  fields: normalizeFieldLayouts(template.fields.map(normalizeFieldContent)),
-});
+const normalizeRequestFormContent = (
+  template: CalculatorTemplate,
+): CalculatorTemplate['requestForm'] => {
+  const defaults = createDefaultRequestFormSettings();
+  const requestForm = template.requestForm ?? defaults;
+
+  return {
+    ...requestForm,
+    title: hasMojibake(requestForm.title) ? defaults.title : requestForm.title,
+    description: hasMojibake(requestForm.description)
+      ? defaults.description
+      : requestForm.description,
+    nameLabel: hasMojibake(requestForm.nameLabel) ? defaults.nameLabel : requestForm.nameLabel,
+    namePlaceholder: hasMojibake(requestForm.namePlaceholder)
+      ? defaults.namePlaceholder
+      : requestForm.namePlaceholder,
+    phoneLabel: hasMojibake(requestForm.phoneLabel)
+      ? defaults.phoneLabel
+      : requestForm.phoneLabel,
+    phonePlaceholder: hasMojibake(requestForm.phonePlaceholder)
+      ? defaults.phonePlaceholder
+      : requestForm.phonePlaceholder,
+    commentLabel: hasMojibake(requestForm.commentLabel)
+      ? defaults.commentLabel
+      : requestForm.commentLabel,
+    commentPlaceholder: hasMojibake(requestForm.commentPlaceholder)
+      ? defaults.commentPlaceholder
+      : requestForm.commentPlaceholder,
+    submitButtonText: hasMojibake(requestForm.submitButtonText)
+      ? defaults.submitButtonText
+      : requestForm.submitButtonText,
+  };
+};
+
+const normalizeTemplateContent = (template: CalculatorTemplate): CalculatorTemplate => {
+  const normalizedRecord = normalizeTemplateRecord(template);
+
+  return {
+    ...normalizedRecord,
+    requestForm: normalizeRequestFormContent(normalizedRecord),
+    fields: normalizeFieldLayouts(normalizedRecord.fields.map(normalizeFieldContent)),
+  };
+};
 
 export const BuilderPage = ({
   initialTemplate,
