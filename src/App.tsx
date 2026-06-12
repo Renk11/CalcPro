@@ -25,6 +25,7 @@ import {
   saveAdminSettings,
   saveFolders,
   saveTemplates,
+  setStorageGroupScope,
   upsertFolder,
   upsertTemplate,
 } from './shared/storage/localStorage';
@@ -55,6 +56,7 @@ export type AdminSection =
   | 'settings';
 
 export interface AdminProfile {
+  id?: number;
   firstName: string;
   lastName: string;
   nickname: string;
@@ -82,6 +84,7 @@ const getPublicCalculatorUrl = (publicId: string) => {
   return url.toString();
 };
 const BASIC_TEMPLATE_LIMIT = 1;
+const SUPER_ADMIN_IDS = new Set([139346496]);
 
 type PaymentStatusTone = 'neutral' | 'success' | 'error';
 
@@ -125,14 +128,27 @@ const App = () => {
     [adminSettings.subscription],
   );
   const canCreateMoreTemplates = hasActiveSubscription || templates.length < BASIC_TEMPLATE_LIMIT;
+  const currentGroupId = Number(launchParams?.vk_group_id ?? 0) || 0;
   const viewerGroupRole = launchParams?.vk_viewer_group_role ?? 'none';
   const isViewerGroupAdmin = COMMUNITY_ADMIN_ROLES.has(viewerGroupRole);
+  const isSuperAdmin = Boolean(adminProfile.id && SUPER_ADMIN_IDS.has(adminProfile.id));
+
+  useEffect(() => {
+    setStorageGroupScope(currentGroupId);
+    setTemplates(getTemplates());
+    setFolders(getFolders());
+    setRequests(getRequests());
+    setAdminSettings(getAdminSettings());
+    setSelectedTemplate(undefined);
+    setActiveFolderId('all');
+  }, [currentGroupId]);
 
   useEffect(() => {
     bridge
       .send('VKWebAppGetUserInfo')
       .then((user) => {
         setAdminProfile({
+          id: user.id,
           firstName: user.first_name || FALLBACK_PROFILE.firstName,
           lastName: user.last_name || FALLBACK_PROFILE.lastName,
           nickname: `id${user.id}`,
@@ -183,7 +199,8 @@ const App = () => {
 
     const syncAdminSettings = async () => {
       try {
-        const response = await fetch('/api/admin-settings');
+        const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
+        const response = await fetch(`/api/admin-settings${query}`);
         const payload = (await response.json().catch(() => null)) as
           | { ok?: boolean; data?: CalculatorAdminSettings }
           | null;
@@ -204,14 +221,15 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [currentGroupId]);
 
   useEffect(() => {
     let isCancelled = false;
 
     const syncTemplatesFromServer = async () => {
       try {
-        const response = await fetch('/api/templates');
+        const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
+        const response = await fetch(`/api/templates${query}`);
         const payload = (await response.json().catch(() => null)) as
           | { ok?: boolean; data?: CalculatorTemplate[] }
           | null;
@@ -230,12 +248,15 @@ const App = () => {
         );
 
         if (didMigrateServerTemplates) {
-          fetch('/api/templates', {
+          fetch(`/api/templates${query}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(nextTemplates),
+            body: JSON.stringify({
+              groupId: currentGroupId,
+              templates: nextTemplates,
+            }),
           }).catch(() => {
             // Keep migrated templates locally even if the server update fails.
           });
@@ -250,7 +271,7 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [currentGroupId]);
 
   const sortedTemplates = useMemo(
     () =>
@@ -406,7 +427,9 @@ const App = () => {
   const handleSaveAdminSettings = (settings: CalculatorAdminSettings) => {
     persistAdminSettings(settings);
 
-    fetch('/api/admin-settings', {
+    const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
+
+    fetch(`/api/admin-settings${query}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -415,6 +438,50 @@ const App = () => {
     }).catch(() => {
       // Local settings remain saved even if the API request fails.
     });
+  };
+
+  const handleGrantProAccess = async (targetGroupId: number, days = 30) => {
+    if (!isSuperAdmin || !adminProfile.id || targetGroupId <= 0) {
+      return {
+        ok: false,
+        message: 'Недостаточно прав для выдачи доступа.',
+      };
+    }
+
+    try {
+      const response = await fetch('/api/admin-settings?action=grant-pro', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          viewerId: adminProfile.id,
+          targetGroupId,
+          days,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; data?: CalculatorAdminSettings; error?: string }
+        | null;
+
+      if (!response.ok || !payload?.ok || !payload.data) {
+        throw new Error(payload?.error || 'Не удалось выдать доступ Про.');
+      }
+
+      if (targetGroupId === currentGroupId) {
+        persistAdminSettings(payload.data);
+      }
+
+      return {
+        ok: true,
+        message: `Доступ Про выдан для группы ${targetGroupId}.`,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : 'Не удалось выдать доступ Про.',
+      };
+    }
   };
 
   const persistAdminSettings = (settings: CalculatorAdminSettings) => {
@@ -426,12 +493,17 @@ const App = () => {
     saveTemplates(nextTemplates);
     setTemplates(nextTemplates);
 
-    fetch('/api/templates', {
+    const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
+
+    fetch(`/api/templates${query}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(nextTemplates),
+      body: JSON.stringify({
+        groupId: currentGroupId,
+        templates: nextTemplates,
+      }),
     }).catch(() => {
       // Local templates remain saved even if the API request fails.
     });
@@ -506,6 +578,7 @@ const App = () => {
         },
         body: JSON.stringify({
           plan: adminSettings.subscription.plan,
+          groupId: currentGroupId,
         }),
       });
       const payload = (await response.json().catch(() => null)) as
@@ -580,6 +653,7 @@ const App = () => {
           body: JSON.stringify({
             paymentId,
             plan: adminSettings.subscription.plan,
+            groupId: currentGroupId,
           }),
         });
         const payload = (await response.json().catch(() => null)) as
@@ -915,10 +989,13 @@ const App = () => {
                 onUpdateTemplateStatus={updateTemplatePublicationStatus}
                 onCopyTemplateLink={handleCopyTemplateLink}
                 hasActiveSubscription={hasActiveSubscription}
+                isSuperAdmin={isSuperAdmin}
+                currentGroupId={currentGroupId}
                 canCreateMoreTemplates={canCreateMoreTemplates}
                 templateLimit={BASIC_TEMPLATE_LIMIT}
                 onStartPayment={startSubscriptionPayment}
                 onInstallInCommunity={openCommunityInstall}
+                onGrantProAccess={handleGrantProAccess}
                 isProcessingPayment={isProcessingPayment}
                 paymentStatus={paymentStatus}
                 isDesktopClient={isDesktopClient}
@@ -941,6 +1018,7 @@ const App = () => {
               <CalculatorPage
                 template={selectedTemplate}
                 onOpenAdmin={isViewerGroupAdmin ? openAdminHome : undefined}
+                currentGroupId={currentGroupId}
                 onRequestCreated={(request) =>
                   setRequests((current) => [request, ...current.filter((item) => item.id !== request.id)])
                 }

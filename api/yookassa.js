@@ -13,6 +13,11 @@ import {
   SUBSCRIPTION_TITLE,
 } from '../server/subscription-config.js';
 
+function parseGroupId(rawValue) {
+  const groupId = Number(rawValue);
+  return Number.isInteger(groupId) && groupId > 0 ? groupId : 0;
+}
+
 function buildReturnUrl(request) {
   const forwardedProto = request.headers['x-forwarded-proto'];
   const forwardedHost = request.headers['x-forwarded-host'];
@@ -30,7 +35,8 @@ function buildReturnUrl(request) {
 }
 
 async function createPayment(request, response) {
-  const settings = await getServerAdminSettings();
+  const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
+  const settings = await getServerAdminSettings(groupId);
   const plan = String(request.body?.plan || settings.subscription.plan || SUBSCRIPTION_PLAN);
   const amountRub = normalizeSubscriptionAmount(settings.subscription.priceRub);
   const idempotenceKey = `calcpro_${Date.now()}`;
@@ -54,6 +60,7 @@ async function createPayment(request, response) {
         plan,
         expectedAmountRub: String(amountRub),
         product: 'calcpro_subscription_30_days',
+        groupId: String(groupId || ''),
       },
     },
   });
@@ -90,7 +97,8 @@ async function checkPayment(request, response) {
   const rawPayment = await requestYooKassa(`/payments/${encodeURIComponent(paymentId)}`);
   const payment = normalizeYooKassaPayment(rawPayment);
   const expectedAmountRub = normalizeSubscriptionAmount(rawPayment?.metadata?.expectedAmountRub);
-  const settings = await getServerAdminSettings();
+  const groupId = parseGroupId(rawPayment?.metadata?.groupId || request.body?.groupId);
+  const settings = await getServerAdminSettings(groupId);
 
   if (settings.subscription.externalPaymentId === payment.id) {
     return sendJson(response, 200, {
@@ -125,14 +133,17 @@ async function checkPayment(request, response) {
     });
   }
 
-  const nextSettings = await updateServerSubscription({
-    plan: String(rawPayment?.metadata?.plan || request.body?.plan || settings.subscription.plan),
-    priceRub: expectedAmountRub,
-    status: 'active',
-    paidUntil: buildNextPaidUntil(settings.subscription.paidUntil),
-    provider: 'yookassa',
-    externalPaymentId: payment.id,
-  });
+  const nextSettings = await updateServerSubscription(
+    {
+      plan: String(rawPayment?.metadata?.plan || request.body?.plan || settings.subscription.plan),
+      priceRub: expectedAmountRub,
+      status: 'active',
+      paidUntil: buildNextPaidUntil(settings.subscription.paidUntil),
+      provider: 'yookassa',
+      externalPaymentId: payment.id,
+    },
+    groupId,
+  );
   await saveServerPayment({
     id: payment.id,
     status: payment.status || 'succeeded',
@@ -165,21 +176,25 @@ async function handleWebhook(request, response) {
   const rawPayment = await requestYooKassa(`/payments/${encodeURIComponent(paymentId)}`);
   const payment = normalizeYooKassaPayment(rawPayment);
   const expectedAmountRub = normalizeSubscriptionAmount(rawPayment?.metadata?.expectedAmountRub);
+  const groupId = parseGroupId(rawPayment?.metadata?.groupId);
 
   if (
     (payment.paid || payment.status === 'succeeded') &&
     isSubscriptionAmountValid(payment.amountRub, expectedAmountRub)
   ) {
-    const settings = await getServerAdminSettings();
+    const settings = await getServerAdminSettings(groupId);
     if (settings.subscription.externalPaymentId !== payment.id) {
-      await updateServerSubscription({
-        plan: String(rawPayment?.metadata?.plan || settings.subscription.plan),
-        priceRub: expectedAmountRub,
-        status: 'active',
-        paidUntil: buildNextPaidUntil(settings.subscription.paidUntil),
-        provider: 'yookassa',
-        externalPaymentId: payment.id,
-      });
+      await updateServerSubscription(
+        {
+          plan: String(rawPayment?.metadata?.plan || settings.subscription.plan),
+          priceRub: expectedAmountRub,
+          status: 'active',
+          paidUntil: buildNextPaidUntil(settings.subscription.paidUntil),
+          provider: 'yookassa',
+          externalPaymentId: payment.id,
+        },
+        groupId,
+      );
     }
   }
 

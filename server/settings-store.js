@@ -5,6 +5,19 @@ import {
 import { supabaseSelect, supabaseUpsert } from './supabase.js';
 
 const ADMIN_SETTINGS_KEY = 'calcpro:admin-settings';
+const GROUP_SETTINGS_KEY_PREFIX = 'calcpro:admin-settings:group:';
+
+function normalizeGroupId(groupId) {
+  const numericGroupId = Number(groupId);
+  return Number.isInteger(numericGroupId) && numericGroupId > 0 ? String(numericGroupId) : '';
+}
+
+function getAdminSettingsKey(groupId) {
+  const normalizedGroupId = normalizeGroupId(groupId);
+  return normalizedGroupId
+    ? `${GROUP_SETTINGS_KEY_PREFIX}${normalizedGroupId}`
+    : ADMIN_SETTINGS_KEY;
+}
 
 function normalizeSubscription(subscription = {}) {
   const defaults = createDefaultSubscriptionSettings();
@@ -67,19 +80,25 @@ async function writeSettingRow(key, value) {
   }
 }
 
-export async function getServerAdminSettings() {
-  const settings = (await readSettingRow(ADMIN_SETTINGS_KEY)) || createDefaultAdminSettings();
+export async function getServerAdminSettings(groupId) {
+  const scopedKey = getAdminSettingsKey(groupId);
+  const scopedSettings = await readSettingRow(scopedKey);
+  const settings =
+    scopedSettings ||
+    (normalizeGroupId(groupId)
+      ? (await readSettingRow(ADMIN_SETTINGS_KEY)) || createDefaultAdminSettings()
+      : createDefaultAdminSettings());
   return normalizeAdminSettings(settings);
 }
 
-export async function saveServerAdminSettings(settings) {
+export async function saveServerAdminSettings(settings, groupId) {
   const normalized = normalizeAdminSettings(settings);
-  await writeSettingRow(ADMIN_SETTINGS_KEY, normalized);
+  await writeSettingRow(getAdminSettingsKey(groupId), normalized);
   return normalized;
 }
 
-export async function updateServerSubscription(subscriptionPatch = {}) {
-  const settings = await getServerAdminSettings();
+export async function updateServerSubscription(subscriptionPatch = {}, groupId) {
+  const settings = await getServerAdminSettings(groupId);
   const nextSettings = normalizeAdminSettings({
     ...settings,
     subscription: {
@@ -88,7 +107,7 @@ export async function updateServerSubscription(subscriptionPatch = {}) {
     },
   });
 
-  await writeSettingRow(ADMIN_SETTINGS_KEY, nextSettings);
+  await writeSettingRow(getAdminSettingsKey(groupId), nextSettings);
   return nextSettings;
 }
 

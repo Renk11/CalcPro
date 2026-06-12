@@ -21,6 +21,7 @@ import type {
 interface CalculatorPageProps {
   template: CalculatorTemplate;
   onOpenAdmin?: () => void;
+  currentGroupId?: number;
   onRequestCreated: (request: CalculatorRequest) => void;
 }
 
@@ -247,7 +248,12 @@ const getPhoneValidationError = (value: string) => {
   return '';
 };
 
-export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: CalculatorPageProps) => {
+export const CalculatorPage = ({
+  template,
+  onOpenAdmin,
+  currentGroupId = 0,
+  onRequestCreated,
+}: CalculatorPageProps) => {
   const [values, setValues] = useState<CalculatorValues>(() => createInitialValues(template));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [requests, setRequests] = useState<CalculatorRequest[]>(() => getRequests());
@@ -412,7 +418,7 @@ export const CalculatorPage = ({ template, onOpenAdmin, onRequestCreated }: Calc
     };
 
     try {
-      const response = await submitRequest(request);
+      const response = await submitRequest(request, currentGroupId);
       setRequests((current) => [request, ...current]);
       onRequestCreated(request);
       setStatus(response.message);

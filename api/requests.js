@@ -2,6 +2,11 @@ import { sendJson } from '../server/http.js';
 import { getServerAdminSettings } from '../server/settings-store.js';
 import { hasVkGroupToken, sendVkMessage } from '../server/vk.js';
 
+function parseGroupId(rawValue) {
+  const groupId = Number(rawValue);
+  return Number.isInteger(groupId) && groupId > 0 ? groupId : 0;
+}
+
 function parseManagerIds(rawValue) {
   return [...new Set(String(rawValue || '').split(/[,\s;]+/).map((item) => item.trim()).filter(Boolean))];
 }
@@ -53,7 +58,8 @@ export default async function handler(request, response) {
       return sendJson(response, 405, { ok: false, error: 'Method not allowed' });
     }
 
-    const settings = await getServerAdminSettings();
+    const groupId = parseGroupId(request.body?.groupId || request.query?.groupId);
+    const settings = await getServerAdminSettings(groupId);
     const managerIds = parseManagerIds(settings.managerVkId);
 
     if (managerIds.length === 0) {

@@ -53,7 +53,7 @@ const buildMessage = (request: CalculatorRequest) => {
   ].join('\n');
 };
 
-export const submitRequest = async (request: CalculatorRequest) => {
+export const submitRequest = async (request: CalculatorRequest, groupId = 0) => {
   addRequest(request);
   const message = buildMessage(request);
 
@@ -63,7 +63,10 @@ export const submitRequest = async (request: CalculatorRequest) => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify({
+        ...request,
+        groupId,
+      }),
     });
     const payload = (await response.json().catch(() => null)) as
       | { ok?: boolean; message?: string }

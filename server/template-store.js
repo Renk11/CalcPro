@@ -1,6 +1,17 @@
 import { supabaseSelect, supabaseUpsert } from './supabase.js';
 
 const TEMPLATES_KEY = 'calcpro:templates';
+const GROUP_TEMPLATES_KEY_PREFIX = 'calcpro:templates:group:';
+
+function normalizeGroupId(groupId) {
+  const numericGroupId = Number(groupId);
+  return Number.isInteger(numericGroupId) && numericGroupId > 0 ? String(numericGroupId) : '';
+}
+
+function getTemplatesKey(groupId) {
+  const normalizedGroupId = normalizeGroupId(groupId);
+  return normalizedGroupId ? `${GROUP_TEMPLATES_KEY_PREFIX}${normalizedGroupId}` : TEMPLATES_KEY;
+}
 
 function normalizeTemplates(templates = []) {
   return Array.isArray(templates) ? templates : [];
@@ -43,12 +54,23 @@ async function writeSettingRow(key, value) {
   }
 }
 
-export async function getServerTemplates() {
-  return normalizeTemplates((await readSettingRow(TEMPLATES_KEY)) || []);
+export async function getServerTemplates(groupId) {
+  const scopedKey = getTemplatesKey(groupId);
+  const scopedTemplates = await readSettingRow(scopedKey);
+
+  if (scopedTemplates) {
+    return normalizeTemplates(scopedTemplates);
+  }
+
+  if (normalizeGroupId(groupId)) {
+    return normalizeTemplates((await readSettingRow(TEMPLATES_KEY)) || []);
+  }
+
+  return normalizeTemplates([]);
 }
 
-export async function saveServerTemplates(templates) {
+export async function saveServerTemplates(templates, groupId) {
   const normalized = normalizeTemplates(templates);
-  await writeSettingRow(TEMPLATES_KEY, normalized);
+  await writeSettingRow(getTemplatesKey(groupId), normalized);
   return normalized;
 }

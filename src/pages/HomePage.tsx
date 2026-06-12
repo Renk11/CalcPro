@@ -67,10 +67,16 @@ interface HomePageProps {
   ) => void;
   onCopyTemplateLink: (template: CalculatorTemplate) => Promise<void>;
   hasActiveSubscription: boolean;
+  isSuperAdmin: boolean;
+  currentGroupId: number;
   canCreateMoreTemplates: boolean;
   templateLimit: number;
   onStartPayment: () => void;
   onInstallInCommunity: () => void;
+  onGrantProAccess: (
+    targetGroupId: number,
+    days?: number,
+  ) => Promise<{ ok: boolean; message: string }>;
   isProcessingPayment: boolean;
   paymentStatus: {
     tone: 'neutral' | 'success' | 'error';
@@ -671,10 +677,13 @@ export const HomePage = ({
   onUpdateTemplateStatus,
   onCopyTemplateLink,
   hasActiveSubscription,
+  isSuperAdmin,
+  currentGroupId,
   canCreateMoreTemplates,
   templateLimit,
   onStartPayment,
   onInstallInCommunity,
+  onGrantProAccess,
   isProcessingPayment,
   paymentStatus,
   isDesktopClient,
@@ -698,6 +707,11 @@ export const HomePage = ({
     null,
   );
   const [managerVkId, setManagerVkId] = useState(adminSettings.managerVkId);
+  const [superAdminGroupId, setSuperAdminGroupId] = useState(
+    currentGroupId > 0 ? String(currentGroupId) : '',
+  );
+  const [superAdminDays, setSuperAdminDays] = useState('30');
+  const [superAdminStatus, setSuperAdminStatus] = useState('');
   const [supportTickets, setSupportTickets] = useState<CalculatorSupportTicket[]>(() =>
     getSupportTickets(),
   );
@@ -727,6 +741,16 @@ export const HomePage = ({
   useEffect(() => {
     setManagerVkId(adminSettings.managerVkId);
   }, [adminSettings.managerVkId]);
+
+  useEffect(() => {
+    setSuperAdminGroupId(currentGroupId > 0 ? String(currentGroupId) : '');
+  }, [currentGroupId]);
+
+  useEffect(() => {
+    setSupportTickets(getSupportTickets());
+    setSupportTicketsPage(1);
+    setExpandedSupportTicketIds([]);
+  }, [currentGroupId]);
 
   useEffect(() => {
     const currentFolder = folders.find((folder) => folder.id === activeFolderId);
@@ -1680,6 +1704,19 @@ export const HomePage = ({
     );
   };
 
+  const handleGrantProSubmit = async () => {
+    const targetGroupId = Number(superAdminGroupId);
+    const days = Math.max(1, Number(superAdminDays) || 30);
+
+    if (!Number.isInteger(targetGroupId) || targetGroupId <= 0) {
+      setSuperAdminStatus('Укажите корректный ID группы VK.');
+      return;
+    }
+
+    const result = await onGrantProAccess(targetGroupId, days);
+    setSuperAdminStatus(result.message);
+  };
+
   const renderSettingsSection = () => (
     <main className="admin-home__content admin-home__content_wide">
       <div className="admin-home__content-head">
@@ -1730,6 +1767,54 @@ export const HomePage = ({
             Сохранить
           </button>
         </article>
+
+        {isSuperAdmin ? (
+          <article className="settings-card">
+            <div className="settings-card__eyebrow">Супер-админ</div>
+            <h2 className="settings-card__title">Ручная выдача тарифа Про</h2>
+            <p className="settings-card__text">
+              Здесь можно вручную открыть доступ Про для любой группы VK по её ID. Блок виден
+              только вашему аккаунту.
+            </p>
+
+            <label className="settings-form__field">
+              <span className="settings-form__label">ID группы</span>
+              <input
+                className="settings-form__input"
+                type="text"
+                inputMode="numeric"
+                placeholder="Например: 22702487"
+                value={superAdminGroupId}
+                onChange={(event) => setSuperAdminGroupId(event.target.value.replace(/[^\d]/g, ''))}
+              />
+            </label>
+
+            <label className="settings-form__field">
+              <span className="settings-form__label">Срок доступа, дней</span>
+              <input
+                className="settings-form__input"
+                type="text"
+                inputMode="numeric"
+                placeholder="30"
+                value={superAdminDays}
+                onChange={(event) => setSuperAdminDays(event.target.value.replace(/[^\d]/g, ''))}
+              />
+            </label>
+
+            <div className="settings-form__hint">
+              {currentGroupId > 0
+                ? `Текущая группа: ${currentGroupId}. Можно выдать Про ей или ввести другой ID.`
+                : 'Откройте приложение внутри сообщества или введите ID группы вручную.'}
+            </div>
+            {superAdminStatus ? (
+              <div className="settings-form__hint">{superAdminStatus}</div>
+            ) : null}
+
+            <button className="settings-form__button" type="button" onClick={handleGrantProSubmit}>
+              Выдать Про группе
+            </button>
+          </article>
+        ) : null}
 
         <article className="settings-card settings-card_support">
           <div className="settings-card__eyebrow">Саппорт</div>
