@@ -246,7 +246,6 @@ export const TemplateCard = ({
 
           <div className="template-card__meta">
             <span className="template-card__meta-item">ID: {template.publicId}</span>
-            <span className="template-card__meta-item">Ссылка: ?calculator={template.publicId}</span>
             <span className="template-card__meta-item">
               Публикация: {formatTemplateDate(template.publishedAt)}
             </span>

@@ -26,7 +26,7 @@ import {
 } from '../entities/calculator/templateCatalog';
 import { clampFolderName, MAX_FOLDER_NAME_LENGTH } from '../entities/calculator/model';
 import { addSupportTicket, getSupportTickets } from '../shared/storage/localStorage';
-import { formatSubscriptionDate } from '../shared/subscription';
+import { formatSubscriptionDate, parseSubscriptionDate } from '../shared/subscription';
 import type {
   CalculatorAdminSettings,
   CalculatorFolder,
@@ -782,6 +782,23 @@ export const HomePage = ({
     [selectedFaqTopicId],
   );
   const subscriptionPaidUntilLabel = formatSubscriptionDate(adminSettings.subscription.paidUntil);
+  const subscriptionDaysLeft = useMemo(() => {
+    const paidUntil = parseSubscriptionDate(adminSettings.subscription.paidUntil);
+    if (!paidUntil) {
+      return 0;
+    }
+
+    const diffMs = paidUntil.getTime() - Date.now();
+    if (diffMs <= 0) {
+      return 0;
+    }
+
+    return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  }, [adminSettings.subscription.paidUntil]);
+  const subscriptionDaysLeftLabel =
+    subscriptionDaysLeft > 0
+      ? `${subscriptionDaysLeft} дн. осталось`
+      : 'Срок не активен';
   const activationSteps = isCommunityContext
     ? [
         'Оплатите доступ через YooKassa на этом экране.',
@@ -2105,7 +2122,7 @@ export const HomePage = ({
             </div>
             {isDesktopClient && !isCompactViewport ? (
               hasActiveSubscription ? (
-                <div className="admin-nav__plan-meta">Активен до 12.05.2026</div>
+                <div className="admin-nav__plan-meta">{subscriptionDaysLeftLabel}</div>
               ) : (
                 <button
                   className="admin-nav__plan-button"
@@ -2117,7 +2134,7 @@ export const HomePage = ({
               )
             ) : (
               <div className="admin-nav__plan-meta">
-                {hasActiveSubscription ? 'Про' : 'Базовый'}
+                {hasActiveSubscription ? subscriptionDaysLeftLabel : 'Базовый'}
               </div>
             )}
           </div>
