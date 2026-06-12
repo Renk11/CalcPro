@@ -1229,6 +1229,10 @@ body,
   resize: vertical;
 }
 
+.settings-support__textarea_compact {
+  min-height: 72px;
+}
+
 .settings-support__list {
   margin: 0;
   padding-left: 18px;

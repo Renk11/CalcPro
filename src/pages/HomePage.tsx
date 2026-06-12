@@ -29,6 +29,7 @@ import {
   addSupportTicket,
   getSupportTickets,
   replaceSupportTickets,
+  updateSupportTicketComment,
   updateSupportTicketStatus,
 } from '../shared/storage/localStorage';
 import { formatSubscriptionDate, parseSubscriptionDate } from '../shared/subscription';
@@ -121,6 +122,35 @@ const supportStatusLabels: Record<CalculatorSupportTicketStatus, string> = {
 
 const SUPPORT_SUBJECT_MAX_LENGTH = 60;
 const SUPPORT_MESSAGE_MAX_LENGTH = 500;
+const SUPPORT_COMMENT_MAX_LENGTH = 240;
+const SUPPORT_TICKET_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+const formatSupportCountdown = (createdAt: string, now: number) => {
+  const createdAtMs = Date.parse(createdAt || '');
+  if (!Number.isFinite(createdAtMs)) {
+    return 'Скоро удалится';
+  }
+
+  const remainingMs = createdAtMs + SUPPORT_TICKET_RETENTION_MS - now;
+  if (remainingMs <= 0) {
+    return 'Удаляется...';
+  }
+
+  const totalMinutes = Math.ceil(remainingMs / (1000 * 60));
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) {
+    return `Удалится через ${days} д. ${hours} ч.`;
+  }
+
+  if (hours > 0) {
+    return `Удалится через ${hours} ч. ${minutes} мин.`;
+  }
+
+  return `Удалится через ${minutes} мин.`;
+};
 
 const faqTopics: FaqTopic[] = [
   {
@@ -733,6 +763,7 @@ export const HomePage = ({
   const [supportSubject, setSupportSubject] = useState('');
   const [supportMessage, setSupportMessage] = useState('');
   const [supportStatus, setSupportStatus] = useState('');
+  const [supportNow, setSupportNow] = useState(() => Date.now());
   const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRange>(30);
   const [templateSearch, setTemplateSearch] = useState('');
   const [templateCategory, setTemplateCategory] = useState<'all' | TemplateCatalogCategory>('all');
@@ -749,39 +780,72 @@ export const HomePage = ({
     supportTicketsStart,
     supportTicketsStart + supportTicketsPerPage,
   );
+  const loadSupportTicketsFromServer = async (resetPage = false) => {
+    try {
+      const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
+      const response = await fetch(`/api/support${query}`);
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; data?: CalculatorSupportTicket[] }
+        | null;
+
+      if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+        return;
+      }
+
+      setSupportTickets(replaceSupportTickets(payload.data));
+      if (resetPage) {
+        setSupportTicketsPage(1);
+      }
+    } catch {
+      // Keep local support tickets when server sync is unavailable.
+    }
+  };
 
   useEffect(() => {
     setManagerVkId(adminSettings.managerVkId);
   }, [adminSettings.managerVkId]);
 
   useEffect(() => {
-    let isCancelled = false;
+    void loadSupportTicketsFromServer(true);
+  }, [currentGroupId]);
 
-    const loadSupportTickets = async () => {
-      try {
-        const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
-        const response = await fetch(`/api/support${query}`);
-        const payload = (await response.json().catch(() => null)) as
-          | { ok?: boolean; data?: CalculatorSupportTicket[] }
-          | null;
+  useEffect(() => {
+    if (currentSection !== 'settings') {
+      return;
+    }
 
-        if (!response.ok || !payload?.ok || !Array.isArray(payload.data) || isCancelled) {
-          return;
-        }
+    const intervalId = window.setInterval(() => {
+      setSupportNow(Date.now());
+      void loadSupportTicketsFromServer(false);
+    }, 10000);
 
-        setSupportTickets(replaceSupportTickets(payload.data));
-        setSupportTicketsPage(1);
-      } catch {
-        // Keep local support tickets when server sync is unavailable.
-      }
+    const handleWindowFocus = () => {
+      void loadSupportTicketsFromServer(false);
     };
 
-    void loadSupportTickets();
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleWindowFocus);
 
     return () => {
-      isCancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleWindowFocus);
     };
-  }, [currentGroupId]);
+  }, [currentSection, currentGroupId]);
+
+  useEffect(() => {
+    if (currentSection !== 'settings') {
+      return;
+    }
+
+    const timerId = window.setInterval(() => {
+      setSupportNow(Date.now());
+    }, 60000);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [currentSection]);
 
   useEffect(() => {
     setSuperAdminGroupId(currentGroupId > 0 ? String(currentGroupId) : '');
@@ -1742,6 +1806,7 @@ export const HomePage = ({
       status: 'pending',
       subject,
       message,
+      managerComment: '',
       createdAt: new Date().toISOString(),
       authorLabel: currentAdminLabel,
       authorVkId: adminProfile.id,
@@ -1820,6 +1885,35 @@ export const HomePage = ({
         }
       } catch {
         // Keep the local status if server sync is temporarily unavailable.
+      }
+    })();
+  };
+
+  const handleSupportCommentChange = (ticketId: string, managerComment: string) => {
+    setSupportTickets(updateSupportTicketComment(ticketId, managerComment));
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/support?action=comment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ticketId,
+            managerComment,
+            groupId: currentGroupId,
+          }),
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; data?: CalculatorSupportTicket[] }
+          | null;
+
+        if (response.ok && payload?.ok && Array.isArray(payload.data)) {
+          setSupportTickets(replaceSupportTickets(payload.data));
+        }
+      } catch {
+        // Keep the local comment if server sync is temporarily unavailable.
       }
     })();
   };
@@ -2024,6 +2118,9 @@ export const HomePage = ({
                       </span>
                     </div>
                     <div className="settings-support__note">Автор: {ticket.authorLabel}</div>
+                    <div className="settings-support__note">
+                      {formatSupportCountdown(ticket.createdAt, supportNow)}
+                    </div>
                     <label className="settings-support__status-control">
                       <span className="settings-support__label">Статус</span>
                       <select
@@ -2040,6 +2137,24 @@ export const HomePage = ({
                         <option value="reviewed">Рассмотрено</option>
                         <option value="rejected">Отклонено</option>
                       </select>
+                    </label>
+                    <label className="settings-support__status-control">
+                      <span className="settings-support__label">Комментарий</span>
+                      <textarea
+                        className="settings-support__textarea settings-support__textarea_compact"
+                        placeholder="Короткий комментарий по обращению"
+                        value={ticket.managerComment ?? ''}
+                        maxLength={SUPPORT_COMMENT_MAX_LENGTH}
+                        onChange={(event) =>
+                          handleSupportCommentChange(
+                            ticket.id,
+                            event.target.value.slice(0, SUPPORT_COMMENT_MAX_LENGTH),
+                          )
+                        }
+                      />
+                      <span className="settings-support__counter">
+                        {(ticket.managerComment ?? '').length}/{SUPPORT_COMMENT_MAX_LENGTH}
+                      </span>
                     </label>
                     <div
                       className={`settings-support__ticket-subject ${isExpanded ? 'settings-support__ticket-subject_expanded' : ''}`}

@@ -2,6 +2,7 @@ import { hasSupabaseCredentials, supabaseSelect, supabaseUpsert } from './supaba
 
 const SUPPORT_TICKETS_KEY = 'calcpro:support-tickets';
 const GROUP_SUPPORT_TICKETS_KEY_PREFIX = 'calcpro:support-tickets:group:';
+const SUPPORT_TICKET_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 function normalizeGroupId(groupId) {
   const numericGroupId = Number(groupId);
@@ -13,6 +14,11 @@ function getSupportTicketsKey(groupId) {
   return normalizedGroupId
     ? `${GROUP_SUPPORT_TICKETS_KEY_PREFIX}${normalizedGroupId}`
     : SUPPORT_TICKETS_KEY;
+}
+
+function isSupportTicketExpired(ticket) {
+  const createdAt = Date.parse(String(ticket?.createdAt || ''));
+  return !Number.isFinite(createdAt) || createdAt + SUPPORT_TICKET_RETENTION_MS <= Date.now();
 }
 
 function normalizeSupportTicket(ticket = {}) {
@@ -28,6 +34,7 @@ function normalizeSupportTicket(ticket = {}) {
         : 'pending',
     subject: String(ticket.subject || ''),
     message: String(ticket.message || ''),
+    managerComment: String(ticket.managerComment || ''),
     createdAt: String(ticket.createdAt || new Date().toISOString()),
     authorLabel: String(ticket.authorLabel || 'Неизвестный администратор'),
     authorVkId:
@@ -86,7 +93,15 @@ export async function getServerSupportTickets(groupId) {
   const key = getSupportTicketsKey(groupId);
   const value = await readSupportTicketRow(key);
   const tickets = Array.isArray(value) ? value : [];
-  return tickets.map((ticket) => normalizeSupportTicket(ticket));
+  const normalized = tickets
+    .map((ticket) => normalizeSupportTicket(ticket))
+    .filter((ticket) => !isSupportTicketExpired(ticket));
+
+  if (normalized.length !== tickets.length && hasSupabaseCredentials()) {
+    await writeSupportTicketRow(key, normalized);
+  }
+
+  return normalized;
 }
 
 export async function addServerSupportTicket(ticket, groupId) {
@@ -100,6 +115,17 @@ export async function updateServerSupportTicketStatus(ticketId, status, groupId)
   const current = await getServerSupportTickets(groupId);
   const next = current.map((ticket) =>
     ticket.id === String(ticketId) ? normalizeSupportTicket({ ...ticket, status }) : ticket,
+  );
+  await writeSupportTicketRow(getSupportTicketsKey(groupId), next);
+  return next;
+}
+
+export async function updateServerSupportTicketComment(ticketId, managerComment, groupId) {
+  const current = await getServerSupportTickets(groupId);
+  const next = current.map((ticket) =>
+    ticket.id === String(ticketId)
+      ? normalizeSupportTicket({ ...ticket, managerComment })
+      : ticket,
   );
   await writeSupportTicketRow(getSupportTicketsKey(groupId), next);
   return next;

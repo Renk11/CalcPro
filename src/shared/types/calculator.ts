@@ -220,6 +220,7 @@ export interface CalculatorSupportTicket {
   status: CalculatorSupportTicketStatus;
   subject: string;
   message: string;
+  managerComment?: string;
   createdAt: string;
   authorLabel: string;
   authorVkId?: number;

@@ -2,6 +2,7 @@ import { sendJson } from '../server/http.js';
 import {
   addServerSupportTicket,
   getServerSupportTickets,
+  updateServerSupportTicketComment,
   updateServerSupportTicketStatus,
 } from '../server/support-store.js';
 import { hasVkGroupToken, sendVkMessageWithOptions } from '../server/vk.js';
@@ -124,6 +125,18 @@ export default async function handler(request, response) {
       }
 
       const tickets = await updateServerSupportTicketStatus(ticketId, status, groupId);
+      return sendJson(response, 200, { ok: true, data: tickets });
+    }
+
+    if (action === 'comment') {
+      const ticketId = String(request.body?.ticketId || '').trim();
+      const managerComment = String(request.body?.managerComment || '');
+
+      if (!ticketId) {
+        return sendJson(response, 400, { ok: false, error: 'ticketId is required' });
+      }
+
+      const tickets = await updateServerSupportTicketComment(ticketId, managerComment, groupId);
       return sendJson(response, 200, { ok: true, data: tickets });
     }
 

@@ -17,6 +17,7 @@ import { createDefaultSubscriptionSettings } from '../subscription';
 
 const BASE_PREFIX = 'vk-community-calculator';
 const DEMO_TEMPLATE_IDS = ['manicure', 'delivery', 'apartment-repair', 'printing'];
+const SUPPORT_TICKET_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 type StorageBucketKey =
   | 'templates'
@@ -27,6 +28,11 @@ type StorageBucketKey =
   | 'seeded';
 
 let activeStorageGroupId = 0;
+
+const isSupportTicketExpired = (ticket: CalculatorSupportTicket) => {
+  const createdAt = Date.parse(ticket.createdAt || '');
+  return !Number.isFinite(createdAt) || createdAt + SUPPORT_TICKET_RETENTION_MS <= Date.now();
+};
 
 const parseJson = <T,>(raw: string | null, fallback: T): T => {
   if (!raw) {
@@ -347,15 +353,24 @@ export const saveAdminSettings = (settings: CalculatorAdminSettings) => {
 
 export const getSupportTickets = (): CalculatorSupportTicket[] => {
   ensureScopedStorageInitialized();
+  const storageKey = buildStorageKey('support-tickets');
   const tickets = parseJson<CalculatorSupportTicket[]>(
-    localStorage.getItem(buildStorageKey('support-tickets')),
+    localStorage.getItem(storageKey),
     [],
   );
+  const normalized = tickets
+    .map((ticket) => ({
+      ...ticket,
+      status: ticket.status ?? 'pending',
+      managerComment: ticket.managerComment ?? '',
+    }))
+    .filter((ticket) => !isSupportTicketExpired(ticket));
 
-  return tickets.map((ticket) => ({
-    ...ticket,
-    status: ticket.status ?? 'pending',
-  }));
+  if (normalized.length !== tickets.length) {
+    localStorage.setItem(storageKey, JSON.stringify(normalized));
+  }
+
+  return normalized;
 };
 
 export const addSupportTicket = (ticket: CalculatorSupportTicket) => {
@@ -376,6 +391,15 @@ export const updateSupportTicketStatus = (
 ) => {
   const tickets = getSupportTickets();
   const next = tickets.map((ticket) => (ticket.id === ticketId ? { ...ticket, status } : ticket));
+  localStorage.setItem(buildStorageKey('support-tickets'), JSON.stringify(next));
+  return next;
+};
+
+export const updateSupportTicketComment = (ticketId: string, managerComment: string) => {
+  const tickets = getSupportTickets();
+  const next = tickets.map((ticket) =>
+    ticket.id === ticketId ? { ...ticket, managerComment } : ticket,
+  );
   localStorage.setItem(buildStorageKey('support-tickets'), JSON.stringify(next));
   return next;
 };
