@@ -25,7 +25,12 @@ import {
   type TemplateCatalogPreset,
 } from '../entities/calculator/templateCatalog';
 import { clampFolderName, MAX_FOLDER_NAME_LENGTH } from '../entities/calculator/model';
-import { addSupportTicket, getSupportTickets } from '../shared/storage/localStorage';
+import {
+  addSupportTicket,
+  getSupportTickets,
+  replaceSupportTickets,
+  updateSupportTicketStatus,
+} from '../shared/storage/localStorage';
 import { formatSubscriptionDate, parseSubscriptionDate } from '../shared/subscription';
 import type {
   CalculatorAdminSettings,
@@ -33,6 +38,7 @@ import type {
   CalculatorPublicationStatus,
   CalculatorRequest,
   CalculatorSupportTicket,
+  CalculatorSupportTicketStatus,
   CalculatorSupportTicketType,
   CalculatorTemplate,
 } from '../shared/types/calculator';
@@ -105,6 +111,12 @@ const supportTypeLabels: Record<CalculatorSupportTicketType, string> = {
   message: 'Сообщение',
   bug: 'Баг',
   suggestion: 'Предложение',
+};
+
+const supportStatusLabels: Record<CalculatorSupportTicketStatus, string> = {
+  pending: 'На рассмотрении',
+  reviewed: 'Рассмотрено',
+  rejected: 'Отклонено',
 };
 
 const SUPPORT_SUBJECT_MAX_LENGTH = 60;
@@ -741,6 +753,35 @@ export const HomePage = ({
   useEffect(() => {
     setManagerVkId(adminSettings.managerVkId);
   }, [adminSettings.managerVkId]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadSupportTickets = async () => {
+      try {
+        const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
+        const response = await fetch(`/api/support${query}`);
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; data?: CalculatorSupportTicket[] }
+          | null;
+
+        if (!response.ok || !payload?.ok || !Array.isArray(payload.data) || isCancelled) {
+          return;
+        }
+
+        setSupportTickets(replaceSupportTickets(payload.data));
+        setSupportTicketsPage(1);
+      } catch {
+        // Keep local support tickets when server sync is unavailable.
+      }
+    };
+
+    void loadSupportTickets();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentGroupId]);
 
   useEffect(() => {
     setSuperAdminGroupId(currentGroupId > 0 ? String(currentGroupId) : '');
@@ -1698,10 +1739,12 @@ export const HomePage = ({
     const ticket: CalculatorSupportTicket = {
       id: `support-${Date.now()}`,
       type: supportType,
+      status: 'pending',
       subject,
       message,
       createdAt: new Date().toISOString(),
       authorLabel: currentAdminLabel,
+      authorVkId: adminProfile.id,
     };
 
     const nextTickets = addSupportTicket(ticket);
@@ -1723,10 +1766,13 @@ export const HomePage = ({
         }),
       });
       const payload = (await response.json().catch(() => null)) as
-        | { ok?: boolean; message?: string }
+        | { ok?: boolean; message?: string; data?: CalculatorSupportTicket[] }
         | null;
 
       if (response.ok && payload?.ok) {
+        if (Array.isArray(payload.data)) {
+          setSupportTickets(replaceSupportTickets(payload.data));
+        }
         setSupportStatus(payload.message || 'Обращение отправлено в саппорт.');
         return;
       }
@@ -1743,6 +1789,39 @@ export const HomePage = ({
         ? current.filter((id) => id !== ticketId)
         : [...current, ticketId],
     );
+  };
+
+  const handleSupportStatusChange = (
+    ticketId: string,
+    status: CalculatorSupportTicketStatus,
+  ) => {
+    const nextTickets = updateSupportTicketStatus(ticketId, status);
+    setSupportTickets(nextTickets);
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/support?action=status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ticketId,
+            status,
+            groupId: currentGroupId,
+          }),
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; data?: CalculatorSupportTicket[] }
+          | null;
+
+        if (response.ok && payload?.ok && Array.isArray(payload.data)) {
+          setSupportTickets(replaceSupportTickets(payload.data));
+        }
+      } catch {
+        // Keep the local status if server sync is temporarily unavailable.
+      }
+    })();
   };
 
   const handleGrantProSubmit = async () => {
@@ -1928,7 +2007,14 @@ export const HomePage = ({
                   return (
                   <div key={ticket.id} className="settings-support__ticket">
                     <div className="settings-support__ticket-head">
-                      <strong>{supportTypeLabels[ticket.type]}</strong>
+                      <div className="settings-support__ticket-head-main">
+                        <strong>{supportTypeLabels[ticket.type]}</strong>
+                        <span
+                          className={`settings-support__status settings-support__status_${ticket.status}`}
+                        >
+                          {supportStatusLabels[ticket.status]}
+                        </span>
+                      </div>
                       <span>
                         {new Date(ticket.createdAt).toLocaleDateString('ru-RU')}{' '}
                         {new Date(ticket.createdAt).toLocaleTimeString('ru-RU', {
@@ -1938,6 +2024,23 @@ export const HomePage = ({
                       </span>
                     </div>
                     <div className="settings-support__note">Автор: {ticket.authorLabel}</div>
+                    <label className="settings-support__status-control">
+                      <span className="settings-support__label">Статус</span>
+                      <select
+                        className="settings-support__input"
+                        value={ticket.status}
+                        onChange={(event) =>
+                          handleSupportStatusChange(
+                            ticket.id,
+                            event.target.value as CalculatorSupportTicketStatus,
+                          )
+                        }
+                      >
+                        <option value="pending">На рассмотрении</option>
+                        <option value="reviewed">Рассмотрено</option>
+                        <option value="rejected">Отклонено</option>
+                      </select>
+                    </label>
                     <div
                       className={`settings-support__ticket-subject ${isExpanded ? 'settings-support__ticket-subject_expanded' : ''}`}
                     >

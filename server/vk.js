@@ -19,7 +19,10 @@ async function requestVk(method, params = {}) {
     access_token: token,
     v: VK_API_VERSION,
     ...Object.fromEntries(
-      Object.entries(params).map(([key, value]) => [key, String(value ?? '')]),
+      Object.entries(params).map(([key, value]) => [
+        key,
+        typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? ''),
+      ]),
     ),
   });
 
@@ -48,5 +51,23 @@ export async function sendVkMessage(userId, message) {
     user_id: userId,
     random_id: Math.floor(Math.random() * 2147483647),
     message,
+  });
+}
+
+export async function sendVkMessageWithOptions(userId, message, options = {}) {
+  return requestVk('messages.send', {
+    user_id: userId,
+    random_id: Math.floor(Math.random() * 2147483647),
+    message,
+    ...options,
+  });
+}
+
+export async function sendVkMessageEventAnswer(eventId, userId, peerId, eventData) {
+  return requestVk('messages.sendMessageEventAnswer', {
+    event_id: eventId,
+    user_id: userId,
+    peer_id: peerId,
+    event_data: eventData,
   });
 }

@@ -347,15 +347,35 @@ export const saveAdminSettings = (settings: CalculatorAdminSettings) => {
 
 export const getSupportTickets = (): CalculatorSupportTicket[] => {
   ensureScopedStorageInitialized();
-  return parseJson<CalculatorSupportTicket[]>(
+  const tickets = parseJson<CalculatorSupportTicket[]>(
     localStorage.getItem(buildStorageKey('support-tickets')),
     [],
   );
+
+  return tickets.map((ticket) => ({
+    ...ticket,
+    status: ticket.status ?? 'pending',
+  }));
 };
 
 export const addSupportTicket = (ticket: CalculatorSupportTicket) => {
   const tickets = getSupportTickets();
   const next = [ticket, ...tickets];
+  localStorage.setItem(buildStorageKey('support-tickets'), JSON.stringify(next));
+  return next;
+};
+
+export const replaceSupportTickets = (tickets: CalculatorSupportTicket[]) => {
+  localStorage.setItem(buildStorageKey('support-tickets'), JSON.stringify(tickets));
+  return tickets;
+};
+
+export const updateSupportTicketStatus = (
+  ticketId: string,
+  status: CalculatorSupportTicket['status'],
+) => {
+  const tickets = getSupportTickets();
+  const next = tickets.map((ticket) => (ticket.id === ticketId ? { ...ticket, status } : ticket));
   localStorage.setItem(buildStorageKey('support-tickets'), JSON.stringify(next));
   return next;
 };

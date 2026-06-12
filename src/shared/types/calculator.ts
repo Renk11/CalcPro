@@ -212,14 +212,17 @@ export interface CalculatorAdminSettings {
 }
 
 export type CalculatorSupportTicketType = 'message' | 'bug' | 'suggestion';
+export type CalculatorSupportTicketStatus = 'pending' | 'reviewed' | 'rejected';
 
 export interface CalculatorSupportTicket {
   id: string;
   type: CalculatorSupportTicketType;
+  status: CalculatorSupportTicketStatus;
   subject: string;
   message: string;
   createdAt: string;
   authorLabel: string;
+  authorVkId?: number;
 }
 
 export interface CalculatorUploadedFile {
