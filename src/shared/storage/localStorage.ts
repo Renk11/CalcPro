@@ -18,6 +18,7 @@ import { createDefaultSubscriptionSettings } from '../subscription';
 const BASE_PREFIX = 'vk-community-calculator';
 const DEMO_TEMPLATE_IDS = ['manicure', 'delivery', 'apartment-repair', 'printing'];
 const SUPPORT_TICKET_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const MOJIBAKE_PATTERN = /(?:Р.|С.){2,}|[\uFFFD]/u;
 
 type StorageBucketKey =
   | 'templates'
@@ -33,6 +34,8 @@ const isSupportTicketExpired = (ticket: CalculatorSupportTicket) => {
   const createdAt = Date.parse(ticket.createdAt || '');
   return !Number.isFinite(createdAt) || createdAt + SUPPORT_TICKET_RETENTION_MS <= Date.now();
 };
+
+const hasMojibake = (value?: string) => Boolean(value && MOJIBAKE_PATTERN.test(value));
 
 const parseJson = <T,>(raw: string | null, fallback: T): T => {
   if (!raw) {
@@ -234,14 +237,45 @@ const migrateFieldRecord = (field: CalculatorField): CalculatorField => {
 
 const migrateTemplateRecord = (template: CalculatorTemplate): CalculatorTemplate => {
   const defaults = createEmptyTemplate(template.folderId);
+  const requestFormDefaults = createDefaultRequestFormSettings();
+  const requestForm = {
+    ...requestFormDefaults,
+    ...(template.requestForm ?? {}),
+  };
 
   return {
     ...defaults,
     ...template,
+    title: hasMojibake(template.title) ? defaults.title : template.title,
+    description: hasMojibake(template.description) ? defaults.description : template.description,
     schemaVersion: CURRENT_TEMPLATE_SCHEMA_VERSION,
     requestForm: {
-      ...createDefaultRequestFormSettings(),
-      ...(template.requestForm ?? {}),
+      ...requestForm,
+      title: hasMojibake(requestForm.title) ? requestFormDefaults.title : requestForm.title,
+      description: hasMojibake(requestForm.description)
+        ? requestFormDefaults.description
+        : requestForm.description,
+      nameLabel: hasMojibake(requestForm.nameLabel)
+        ? requestFormDefaults.nameLabel
+        : requestForm.nameLabel,
+      namePlaceholder: hasMojibake(requestForm.namePlaceholder)
+        ? requestFormDefaults.namePlaceholder
+        : requestForm.namePlaceholder,
+      phoneLabel: hasMojibake(requestForm.phoneLabel)
+        ? requestFormDefaults.phoneLabel
+        : requestForm.phoneLabel,
+      phonePlaceholder: hasMojibake(requestForm.phonePlaceholder)
+        ? requestFormDefaults.phonePlaceholder
+        : requestForm.phonePlaceholder,
+      commentLabel: hasMojibake(requestForm.commentLabel)
+        ? requestFormDefaults.commentLabel
+        : requestForm.commentLabel,
+      commentPlaceholder: hasMojibake(requestForm.commentPlaceholder)
+        ? requestFormDefaults.commentPlaceholder
+        : requestForm.commentPlaceholder,
+      submitButtonText: hasMojibake(requestForm.submitButtonText)
+        ? requestFormDefaults.submitButtonText
+        : requestForm.submitButtonText,
     },
     publicationStatus: template.publicationStatus ?? 'draft',
     publicId: template.publicId ?? createTemplatePublicId(template.id.slice(0, 8)),
@@ -249,7 +283,10 @@ const migrateTemplateRecord = (template: CalculatorTemplate): CalculatorTemplate
       (template.publicationStatus ?? 'draft') === 'published'
         ? template.publishedAt ?? template.updatedAt ?? defaults.updatedAt
         : undefined,
-    lastModifiedBy: template.lastModifiedBy ?? 'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ',
+    lastModifiedBy:
+      !template.lastModifiedBy || hasMojibake(template.lastModifiedBy)
+        ? 'Администратор'
+        : template.lastModifiedBy,
     fields: (template.fields ?? []).map(migrateFieldRecord),
   };
 };
