@@ -15,6 +15,7 @@ type FormulaTemplateSource = Pick<CalculatorTemplate, 'basePrice' | 'globalCoeff
 export const MAX_TEMPLATE_TITLE_LENGTH = 24;
 export const MAX_TEMPLATE_DESCRIPTION_LENGTH = 80;
 export const MAX_FOLDER_NAME_LENGTH = 20;
+export const CURRENT_TEMPLATE_SCHEMA_VERSION = 1;
 
 export const clampTemplateTitle = (value: string) =>
   value.slice(0, MAX_TEMPLATE_TITLE_LENGTH);
@@ -357,6 +358,7 @@ export const createEmptyTemplate = (folderId?: string): CalculatorTemplate => {
   const id = crypto.randomUUID();
 
   return {
+    schemaVersion: CURRENT_TEMPLATE_SCHEMA_VERSION,
     id,
     folderId,
     requestForm: createDefaultRequestFormSettings(),

@@ -221,11 +221,25 @@ const App = () => {
         }
 
         const nextTemplates = payload.data.map((template) => normalizeTemplateRecord(template));
+        const didMigrateServerTemplates =
+          JSON.stringify(nextTemplates) !== JSON.stringify(payload.data);
         saveTemplates(nextTemplates);
         setTemplates(nextTemplates);
         setSelectedTemplate((current) =>
           current ? nextTemplates.find((template) => template.id === current.id) ?? current : current,
         );
+
+        if (didMigrateServerTemplates) {
+          fetch('/api/templates', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(nextTemplates),
+          }).catch(() => {
+            // Keep migrated templates locally even if the server update fails.
+          });
+        }
       } catch {
         // Keep local templates as a fallback when API is unavailable.
       }

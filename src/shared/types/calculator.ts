@@ -160,6 +160,7 @@ export interface CalculatorField {
 }
 
 export interface CalculatorTemplate {
+  schemaVersion?: number;
   id: string;
   folderId?: string;
   title: string;
