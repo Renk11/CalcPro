@@ -89,6 +89,8 @@ const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\
 const SAFE_FORMULA_CHARS_PATTERN = /^[\d\s+\-*/().,_a-zA-Z]+$/;
 const SAFE_FORMULA_TOKEN_PATTERN =
   /(basePrice|globalCoefficient|field_\d+|\d+(?:[.,]\d+)?|[()+\-*/])/g;
+const BASE_PRICE_FORMULA_LABEL = 'Базовая цена';
+const GLOBAL_COEFFICIENT_FORMULA_LABEL = 'Общий коэффициент';
 
 const normalizeFormula = (formula: string, fields: CalculatorField[]) => {
   let nextFormula = formula;
@@ -105,8 +107,11 @@ const normalizeFormula = (formula: string, fields: CalculatorField[]) => {
   });
 
   nextFormula = nextFormula
-    .replace(/Р‘Р°Р·РѕРІР°СЏ С†РµРЅР°/g, 'basePrice')
-    .replace(/РћР±С‰РёР№ РєРѕСЌС„С„РёС†РёРµРЅС‚/g, 'globalCoefficient');
+    .replace(new RegExp(escapeRegExp(BASE_PRICE_FORMULA_LABEL), 'g'), 'basePrice')
+    .replace(
+      new RegExp(escapeRegExp(GLOBAL_COEFFICIENT_FORMULA_LABEL), 'g'),
+      'globalCoefficient',
+    );
 
   return nextFormula;
 };
