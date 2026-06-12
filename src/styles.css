@@ -880,10 +880,10 @@ body,
   align-items: center;
   margin-top: 20px;
   padding: 18px 18px 18px 20px;
-  border: 1px solid rgba(52, 140, 157, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 24px;
-  background: linear-gradient(135deg, rgba(18, 81, 87, 0.82) 0%, rgba(29, 50, 91, 0.84) 100%);
-  box-shadow: inset 0 0 0 1px rgba(20, 204, 221, 0.04);
+  background: #2c3239;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
 .payments-activation-card__copy {
@@ -892,7 +892,7 @@ body,
 }
 
 .payments-activation-card__title {
-  color: #ff6f86;
+  color: #ffb36b;
   font-size: 16px;
   font-weight: 800;
   line-height: 1.3;
@@ -900,7 +900,7 @@ body,
 
 .payments-activation-card__text {
   margin: 0;
-  color: #aed3de;
+  color: #c6b8a8;
   font-size: 15px;
   line-height: 1.55;
 }
@@ -908,16 +908,16 @@ body,
 .payments-activation-card__button {
   min-height: 52px;
   padding: 0 26px;
-  border: 1px solid rgba(33, 159, 123, 0.42);
+  border: 0;
   border-radius: 18px;
-  background: linear-gradient(135deg, rgba(12, 49, 70, 0.9) 0%, rgba(12, 72, 58, 0.92) 100%);
-  color: #6dffb7;
+  background: linear-gradient(135deg, #ffb36b 0%, #ff9747 100%);
+  color: #1e2329;
   font: inherit;
   font-size: 15px;
   font-weight: 800;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 12px 24px rgba(255, 151, 71, 0.18);
 }
 
 .payments-activation-card__button:hover {
@@ -928,10 +928,10 @@ body,
 .payments-activation-banner {
   margin-top: 14px;
   padding: 16px 22px;
-  border: 1px solid rgba(220, 74, 119, 0.44);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 22px;
-  background: linear-gradient(135deg, rgba(92, 31, 52, 0.74) 0%, rgba(64, 31, 70, 0.72) 100%);
-  color: #f6dde7;
+  background: #2c3239;
+  color: #c6b8a8;
   font-size: 15px;
   font-weight: 800;
   line-height: 1.4;
@@ -970,9 +970,9 @@ body,
 .payments-scenario-card,
 .payments-guide {
   padding: 22px 24px;
-  border: 1px solid rgba(57, 92, 119, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 26px;
-  background: linear-gradient(180deg, rgba(17, 28, 39, 0.98) 0%, rgba(12, 22, 31, 0.98) 100%);
+  background: #2c3239;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.03),
     0 16px 34px rgba(0, 0, 0, 0.14);
@@ -995,10 +995,10 @@ body,
   width: fit-content;
   min-width: 52px;
   padding: 8px 16px;
-  border: 1px solid rgba(82, 120, 156, 0.32);
+  border: 1px solid rgba(114, 167, 255, 0.24);
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(39, 64, 88, 0.82) 0%, rgba(28, 47, 66, 0.84) 100%);
-  color: #eef6ff;
+  background: rgba(114, 167, 255, 0.12);
+  color: #72a7ff;
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -1007,7 +1007,7 @@ body,
 }
 
 .payments-scenario-card__caption {
-  color: #8fb0cf;
+  color: #90a0b2;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.16em;
@@ -1041,8 +1041,8 @@ body,
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   gap: 24px;
-  border-color: rgba(43, 158, 117, 0.38);
-  background: linear-gradient(180deg, rgba(14, 54, 58, 0.96) 0%, rgba(13, 47, 39, 0.98) 100%);
+  border-color: rgba(255, 255, 255, 0.06);
+  background: #2c3239;
 }
 
 .payments-guide__copy {
@@ -1052,7 +1052,7 @@ body,
 }
 
 .payments-guide__eyebrow {
-  color: #78f4b7;
+  color: #ffb36b;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -1080,16 +1080,16 @@ body,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(81, 199, 145, 0.36);
+  border: 1px solid rgba(114, 167, 255, 0.24);
   border-radius: 50%;
-  background: rgba(45, 134, 95, 0.28);
-  color: #d8ffe8;
+  background: rgba(114, 167, 255, 0.12);
+  color: #72a7ff;
   font-size: 15px;
   font-weight: 800;
 }
 
 .payments-guide__step-text {
-  color: #ecf8f0;
+  color: #c6b8a8;
   font-size: 15px;
   line-height: 1.5;
 }
