@@ -752,6 +752,10 @@ const normalizeTemplateContent = (template: CalculatorTemplate): CalculatorTempl
 
   return {
     ...normalizedRecord,
+    title: hasMojibake(normalizedRecord.title) ? createEmptyTemplate().title : normalizedRecord.title,
+    description: hasMojibake(normalizedRecord.description)
+      ? createEmptyTemplate().description
+      : normalizedRecord.description,
     requestForm: normalizeRequestFormContent(normalizedRecord),
     fields: normalizeFieldLayouts(normalizedRecord.fields.map(normalizeFieldContent)),
   };
