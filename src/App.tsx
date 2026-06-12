@@ -95,6 +95,37 @@ type PaymentStatus = {
 
 const COMMUNITY_ADMIN_ROLES = new Set(['admin', 'editor', 'moder']);
 
+const parsePositiveInteger = (rawValue: string | null | undefined) => {
+  const value = Number(rawValue);
+  return Number.isInteger(value) && value > 0 ? value : 0;
+};
+
+const getFallbackGroupIdFromLocation = () => {
+  if (typeof window === 'undefined') {
+    return 0;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const directGroupId =
+    parsePositiveInteger(searchParams.get('vk_group_id')) ||
+    parsePositiveInteger(searchParams.get('group_id'));
+  if (directGroupId > 0) {
+    return directGroupId;
+  }
+
+  const ownerId = Number(searchParams.get('owner_id') || 0);
+  if (Number.isInteger(ownerId) && ownerId < 0) {
+    return Math.abs(ownerId);
+  }
+
+  const pathnameMatch = window.location.pathname.match(/\/app\d+_-([1-9]\d*)/i);
+  if (pathnameMatch) {
+    return Number(pathnameMatch[1]);
+  }
+
+  return 0;
+};
+
 const App = () => {
   const [activeView, setActiveView] = useState<AppView>('calculator');
   const [templates, setTemplates] = useState<CalculatorTemplate[]>(() => getTemplates());
@@ -128,7 +159,8 @@ const App = () => {
     [adminSettings.subscription],
   );
   const canCreateMoreTemplates = hasActiveSubscription || templates.length < BASIC_TEMPLATE_LIMIT;
-  const currentGroupId = Number(launchParams?.vk_group_id ?? 0) || 0;
+  const fallbackGroupId = getFallbackGroupIdFromLocation();
+  const currentGroupId = Number(launchParams?.vk_group_id ?? 0) || fallbackGroupId;
   const viewerGroupRole = launchParams?.vk_viewer_group_role ?? 'none';
   const isViewerGroupAdmin = COMMUNITY_ADMIN_ROLES.has(viewerGroupRole);
   const isSuperAdmin = Boolean(adminProfile.id && SUPER_ADMIN_IDS.has(adminProfile.id));
@@ -1000,7 +1032,7 @@ const App = () => {
                 paymentStatus={paymentStatus}
                 isDesktopClient={isDesktopClient}
                 isCompactViewport={isCompactViewport}
-                isCommunityContext={Number(launchParams?.vk_group_id ?? 0) > 0}
+                isCommunityContext={currentGroupId > 0}
               />
             ) : null}
           </Panel>
