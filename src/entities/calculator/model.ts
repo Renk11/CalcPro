@@ -35,15 +35,15 @@ export const createTemplatePublicId = (seed?: string) => {
 
 export const createDefaultRequestFormSettings = (): CalculatorRequestFormSettings => ({
   enabled: true,
-  title: 'РћС‚РїСЂР°РІРёС‚СЊ Р·Р°СЏРІРєСѓ',
-  description: 'РћСЃС‚Р°РІСЊС‚Рµ РєРѕРЅС‚Р°РєС‚С‹, Рё РјС‹ СЃРІСЏР¶РµРјСЃСЏ СЃ РІР°РјРё',
-  nameLabel: 'РРјСЏ',
-  namePlaceholder: 'РљР°Рє Рє РІР°Рј РѕР±СЂР°С‰Р°С‚СЊСЃСЏ',
-  phoneLabel: 'РўРµР»РµС„РѕРЅ',
+  title: 'Отправить заявку',
+  description: 'Оставьте контакты, и мы свяжемся с вами',
+  nameLabel: 'Имя',
+  namePlaceholder: 'Как к вам обращаться',
+  phoneLabel: 'Телефон',
   phonePlaceholder: '+7 (___) ___-__-__',
-  commentLabel: 'РљРѕРјРјРµРЅС‚Р°СЂРёР№',
-  commentPlaceholder: 'РЈС‚РѕС‡РЅРµРЅРёСЏ РїРѕ Р·Р°СЏРІРєРµ',
-  submitButtonText: 'РћС‚РїСЂР°РІРёС‚СЊ Р·Р°СЏРІРєСѓ',
+  commentLabel: 'Комментарий',
+  commentPlaceholder: 'Уточнения по заявке',
+  submitButtonText: 'Отправить заявку',
 });
 
 const getNumericOptionValue = (option?: CalculatorFieldOption) => {
@@ -271,7 +271,7 @@ export const evaluateFormulaExpression = (
 ) => {
   const trimmedExpression = expression.trim();
   if (!trimmedExpression) {
-    return { value: 0, error: 'Р¤РѕСЂРјСѓР»Р° РЅРµ Р·Р°РїРѕР»РЅРµРЅР°' };
+    return { value: 0, error: 'Формула не заполнена' };
   }
 
   const normalizedExpression = normalizeFormula(trimmedExpression, template.fields);
@@ -280,19 +280,19 @@ export const evaluateFormulaExpression = (
   const args = Object.values(context);
 
   if (!isSafeFormulaExpression(normalizedExpression)) {
-    return { value: 0, error: 'Р¤РѕСЂРјСѓР»Р° СЃРѕРґРµСЂР¶РёС‚ РЅРµРґРѕРїСѓСЃС‚РёРјС‹Рµ СЃРёРјРІРѕР»С‹' };
+    return { value: 0, error: 'Формула содержит недопустимые символы' };
   }
 
   try {
     const evaluate = new Function(...keys, `return (${normalizedExpression});`);
     const result = Number(evaluate(...args));
     if (!Number.isFinite(result)) {
-      return { value: 0, error: 'Р¤РѕСЂРјСѓР»Р° РІРµСЂРЅСѓР»Р° РЅРµС‡РёСЃР»РѕРІРѕРµ Р·РЅР°С‡РµРЅРёРµ' };
+      return { value: 0, error: 'Формула вернула нечисловое значение' };
     }
 
     return { value: result, error: '' };
   } catch {
-    return { value: 0, error: 'РћС€РёР±РєР° С„РѕСЂРјСѓР»С‹' };
+    return { value: 0, error: 'Ошибка формулы' };
   }
 };
 
@@ -363,9 +363,9 @@ export const createEmptyTemplate = (folderId?: string): CalculatorTemplate => {
     publicationStatus: 'draft',
     publicId: createTemplatePublicId(id.slice(0, 8)),
     publishedAt: undefined,
-    lastModifiedBy: 'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ',
-    title: 'РќРѕРІС‹Р№ РєР°Р»СЊРєСѓР»СЏС‚РѕСЂ',
-    description: 'РљСЂР°С‚РєРѕ РѕРїРёС€РёС‚Рµ РЅР°Р·РЅР°С‡РµРЅРёРµ РєР°Р»СЊРєСѓР»СЏС‚РѕСЂР°.',
+    lastModifiedBy: 'Администратор',
+    title: 'Новый калькулятор',
+    description: 'Кратко опишите назначение калькулятора.',
     type: 'services',
     basePrice: 0,
     discount: 0,

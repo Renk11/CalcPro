@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Icon20AddSquareOutline,
   Icon20ArrowLeftOutline,
@@ -293,7 +293,7 @@ const getButtonActionLabel = (action?: ButtonActionType) => {
     case 'link':
       return 'Перейти по ссылке';
     case 'vk':
-      return 'Открыть сообщение в ВК';
+      return 'Открыть сообщение в VK';
     case 'copy':
       return 'Скопировать результат';
     default:
