@@ -335,7 +335,9 @@ const App = () => {
 
     if (
       activeView === 'builder' ||
-      (activeView === 'calculator' && selectedTemplate?.publicationStatus !== 'published')
+      (activeView === 'calculator' &&
+        selectedTemplate != null &&
+        selectedTemplate.publicationStatus !== 'published')
     ) {
       return;
     }
