@@ -206,6 +206,38 @@ const App = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    const syncTemplatesFromServer = async () => {
+      try {
+        const response = await fetch('/api/templates');
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; data?: CalculatorTemplate[] }
+          | null;
+
+        if (!response.ok || !payload?.ok || !Array.isArray(payload.data) || isCancelled) {
+          return;
+        }
+
+        const nextTemplates = payload.data.map((template) => normalizeTemplateRecord(template));
+        saveTemplates(nextTemplates);
+        setTemplates(nextTemplates);
+        setSelectedTemplate((current) =>
+          current ? nextTemplates.find((template) => template.id === current.id) ?? current : current,
+        );
+      } catch {
+        // Keep local templates as a fallback when API is unavailable.
+      }
+    };
+
+    syncTemplatesFromServer();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
   const sortedTemplates = useMemo(
     () =>
       [...templates].sort(
@@ -368,6 +400,21 @@ const App = () => {
   const persistAdminSettings = (settings: CalculatorAdminSettings) => {
     saveAdminSettings(settings);
     setAdminSettings(settings);
+  };
+
+  const persistTemplates = (nextTemplates: CalculatorTemplate[]) => {
+    saveTemplates(nextTemplates);
+    setTemplates(nextTemplates);
+
+    fetch('/api/templates', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(nextTemplates),
+    }).catch(() => {
+      // Local templates remain saved even if the API request fails.
+    });
   };
 
   const clearPaymentIdFromUrl = () => {
@@ -591,7 +638,7 @@ const App = () => {
       lastModifiedBy: currentAdminLabel,
     });
     const next = upsertTemplate(normalizedTemplate);
-    setTemplates(next);
+    persistTemplates(next);
     setSelectedTemplate(normalizedTemplate);
   };
 
@@ -653,7 +700,7 @@ const App = () => {
     };
 
     const next = upsertTemplate(duplicate);
-    setTemplates(next);
+    persistTemplates(next);
   };
 
   const deleteTemplate = (template: CalculatorTemplate) => {
@@ -662,8 +709,7 @@ const App = () => {
     }
 
     const next = templates.filter((item) => item.id !== template.id);
-    saveTemplates(next);
-    setTemplates(next);
+    persistTemplates(next);
 
     if (selectedTemplate?.id === template.id) {
       setSelectedTemplate(undefined);
@@ -691,7 +737,7 @@ const App = () => {
     });
 
     const next = upsertTemplate(nextTemplate);
-    setTemplates(next);
+    persistTemplates(next);
 
     if (selectedTemplate?.id === template.id) {
       setSelectedTemplate(nextTemplate);
@@ -722,7 +768,7 @@ const App = () => {
     };
 
     const next = upsertTemplate(moved);
-    setTemplates(next);
+    persistTemplates(next);
 
     if (selectedTemplate?.id === template.id) {
       setSelectedTemplate(moved);
@@ -778,9 +824,8 @@ const App = () => {
     );
 
     saveFolders(nextFolders);
-    saveTemplates(nextTemplates);
     setFolders(nextFolders);
-    setTemplates(nextTemplates);
+    persistTemplates(nextTemplates);
 
     if (activeFolderId === folderId) {
       setActiveFolderId('all');

@@ -20,7 +20,7 @@ const isUploadedFileArray = (value: CalculatorFieldValue): value is CalculatorUp
 
 const formatRequestValue = (value: CalculatorFieldValue) => {
   if (isBookingValue(value)) {
-    return value.surcharge > 0 ? `${value.label} (+${value.surcharge} \u20bd)` : value.label;
+    return value.surcharge > 0 ? `${value.label} (+${value.surcharge} ₽)` : value.label;
   }
 
   if (isUploadedFileArray(value)) {
@@ -58,11 +58,32 @@ export const submitRequest = async (request: CalculatorRequest) => {
   const message = buildMessage(request);
 
   try {
+    const response = await fetch('/api/requests', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+    const payload = (await response.json().catch(() => null)) as
+      | { ok?: boolean; message?: string }
+      | null;
+
+    if (response.ok && payload?.ok) {
+      return {
+        ok: true,
+        message: payload.message || 'Заявка отправлена менеджеру.',
+      };
+    }
+  } catch {
+    // Fall back to manual delivery when server-side VK sending is unavailable.
+  }
+
+  try {
     await bridge.send('VKWebAppCopyText', { text: message });
     return {
       ok: true,
-      message:
-        'Заявка сохранена, текст скопирован для отправки в сообщения сообщества.',
+      message: 'Заявка сохранена, текст скопирован для ручной отправки в сообщения сообщества.',
     };
   } catch {
     await navigator.clipboard.writeText(message).catch(() => undefined);
