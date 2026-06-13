@@ -1061,18 +1061,34 @@ const App = () => {
               <div className="calculator-page calculator-page_empty">
                 <div className="calculator-page__shell">
                   <div className="calculator-page__hero-copy calculator-page__hero-copy_empty">
-                    <div className="calculator-page__eyebrow">РџСѓР±Р»РёС‡РЅР°СЏ РІРµСЂСЃРёСЏ</div>
-                    <h1 className="calculator-page__title">РљР°Р»СЊРєСѓР»СЏС‚РѕСЂ РїРѕРєР° РЅРµ РѕРїСѓР±Р»РёРєРѕРІР°РЅ</h1>
+                    <div className="calculator-page__eyebrow">
+                      {currentGroupId > 0 ? 'Публичная версия' : 'Подключение приложения'}
+                    </div>
+                    <h1 className="calculator-page__title">
+                      {currentGroupId > 0
+                        ? 'Калькулятор пока не опубликован'
+                        : 'Установите приложение в сообщество'}
+                    </h1>
                     <p className="calculator-page__description">
-                      РџРѕСЃР»Рµ РїСѓР±Р»РёРєР°С†РёРё СЃРѕР±СЂР°РЅРЅС‹Р№ РєР°Р»СЊРєСѓР»СЏС‚РѕСЂ РїРѕСЏРІРёС‚СЃСЏ Р·РґРµСЃСЊ РєР°Рє РіР»Р°РІРЅР°СЏ СЃС‚СЂР°РЅРёС†Р° РїСЂРёР»РѕР¶РµРЅРёСЏ.
+                      {currentGroupId > 0
+                        ? 'После публикации собранный калькулятор появится здесь как главная страница приложения.'
+                        : 'Сейчас приложение открыто вне группы VK. Чтобы посетители увидели калькулятор, сначала выберите сообщество и установите приложение туда.'}
                     </p>
-                    {isViewerGroupAdmin ? (
+                    {currentGroupId === 0 ? (
+                      <button
+                        className="calculator-page__back"
+                        type="button"
+                        onClick={openCommunityInstall}
+                      >
+                        Установить в сообщество
+                      </button>
+                    ) : isViewerGroupAdmin ? (
                       <button
                         className="calculator-page__back"
                         type="button"
                         onClick={openAdminHome}
                       >
-                        РћС‚РєСЂС‹С‚СЊ Р°РґРјРёРЅРєСѓ
+                        Открыть админку
                       </button>
                     ) : null}
                   </div>
@@ -1087,3 +1103,4 @@ const App = () => {
 };
 
 export default App;
+
