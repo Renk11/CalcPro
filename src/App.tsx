@@ -567,31 +567,31 @@ const App = () => {
   };
 
   const openCommunityInstall = async () => {
-    const appId = launchParams?.vk_app_id;
-    const groupId = Number(launchParams?.vk_group_id ?? 0);
+    try {
+      const result = (await bridge.send('VKWebAppAddToCommunity' as never, {
+        hide_success_modal: false,
+      } as never)) as { group_id?: number };
+      const addedGroupId =
+        Number(result?.group_id) || Number(launchParams?.vk_group_id ?? 0) || currentGroupId;
 
-    if (groupId > 0) {
-      try {
-        await bridge.send('VKWebAppAddToCommunity' as never, { group_id: groupId } as never);
-        setHomeSection('payments');
-        setPaymentStatus({
-          tone: 'success',
-          message:
-            'РџСЂРёР»РѕР¶РµРЅРёРµ РґРѕР±Р°РІР»РµРЅРѕ РІ СЃРѕРѕР±С‰РµСЃС‚РІРѕ. РћС‚РєСЂРѕР№С‚Рµ РµРіРѕ РІРЅСѓС‚СЂРё РіСЂСѓРїРїС‹ Рё Р·Р°РІРµСЂС€РёС‚Рµ Р°РєС‚РёРІР°С†РёСЋ РЅР° СЌС‚РѕРј СЌРєСЂР°РЅРµ.',
-        });
-        return;
-      } catch {
-        // Fall back to opening the app page if direct install is unavailable.
-      }
+      setHomeSection('payments');
+      setPaymentStatus({
+        tone: 'success',
+        message:
+          addedGroupId > 0
+            ? `Приложение добавлено в сообщество ID ${addedGroupId}. Откройте его внутри группы и завершите активацию на этом экране.`
+            : 'Приложение добавлено в сообщество. Откройте его внутри группы и завершите активацию на этом экране.',
+      });
+      return;
+    } catch {
+      // Fall back to guidance when the native community picker is unavailable.
     }
 
-    const fallbackUrl = appId ? `https://vk.com/app${appId}` : 'https://vk.com/apps?act=manage';
-    await openExternalPaymentUrl(fallbackUrl);
     setHomeSection('payments');
     setPaymentStatus({
       tone: 'neutral',
       message:
-        'РћС‚РєСЂРѕР№С‚Рµ РїСЂРёР»РѕР¶РµРЅРёРµ РІ РЅСѓР¶РЅРѕРј СЃРѕРѕР±С‰РµСЃС‚РІРµ VK, Р·Р°С‚РµРј РІРµСЂРЅРёС‚РµСЃСЊ РЅР° СЌРєСЂР°РЅ Р°РєС‚РёРІР°С†РёРё Рё РѕРїР»Р°С‚РёС‚Рµ РґРѕСЃС‚СѓРї.',
+        'Не удалось открыть выбор сообщества автоматически. Откройте приложение из нужной группы VK и повторите установку там.',
     });
   };
 
