@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import bridge, {
   parseURLSearchParamsForGetLaunchParams,
   type GetLaunchParamsResponse,
@@ -64,15 +64,15 @@ export interface AdminProfile {
 }
 
 const FALLBACK_PROFILE: AdminProfile = {
-  firstName: 'Админ',
-  lastName: 'сообщества',
+  firstName: 'РђРґРјРёРЅ',
+  lastName: 'СЃРѕРѕР±С‰РµСЃС‚РІР°',
   nickname: '@vk_calc_admin',
 };
 
 const getProfileLabel = (profile: AdminProfile) =>
   [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim() ||
   profile.nickname ||
-  'Администратор';
+  'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ';
 
 const getPublicCalculatorUrl = (publicId: string) => {
   if (typeof window === 'undefined') {
@@ -478,7 +478,7 @@ const App = () => {
     if (!isSuperAdmin || !adminProfile.id || targetGroupId <= 0) {
       return {
         ok: false,
-        message: 'Недостаточно прав для выдачи доступа.',
+        message: 'РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ РїСЂР°РІ РґР»СЏ РІС‹РґР°С‡Рё РґРѕСЃС‚СѓРїР°.',
       };
     }
 
@@ -499,7 +499,7 @@ const App = () => {
         | null;
 
       if (!response.ok || !payload?.ok || !payload.data) {
-        throw new Error(payload?.error || 'Не удалось выдать доступ Про.');
+        throw new Error(payload?.error || 'РќРµ СѓРґР°Р»РѕСЃСЊ РІС‹РґР°С‚СЊ РґРѕСЃС‚СѓРї РџСЂРѕ.');
       }
 
       if (targetGroupId === currentGroupId) {
@@ -508,12 +508,12 @@ const App = () => {
 
       return {
         ok: true,
-        message: `Доступ Про выдан для группы ${targetGroupId}.`,
+        message: `Р”РѕСЃС‚СѓРї РџСЂРѕ РІС‹РґР°РЅ РґР»СЏ РіСЂСѓРїРїС‹ ${targetGroupId}.`,
       };
     } catch (error) {
       return {
         ok: false,
-        message: error instanceof Error ? error.message : 'Не удалось выдать доступ Про.',
+        message: error instanceof Error ? error.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ РІС‹РґР°С‚СЊ РґРѕСЃС‚СѓРї РџСЂРѕ.',
       };
     }
   };
@@ -577,7 +577,7 @@ const App = () => {
         setPaymentStatus({
           tone: 'success',
           message:
-            'Приложение добавлено в сообщество. Откройте его внутри группы и завершите активацию на этом экране.',
+            'РџСЂРёР»РѕР¶РµРЅРёРµ РґРѕР±Р°РІР»РµРЅРѕ РІ СЃРѕРѕР±С‰РµСЃС‚РІРѕ. РћС‚РєСЂРѕР№С‚Рµ РµРіРѕ РІРЅСѓС‚СЂРё РіСЂСѓРїРїС‹ Рё Р·Р°РІРµСЂС€РёС‚Рµ Р°РєС‚РёРІР°С†РёСЋ РЅР° СЌС‚РѕРј СЌРєСЂР°РЅРµ.',
         });
         return;
       } catch {
@@ -591,7 +591,7 @@ const App = () => {
     setPaymentStatus({
       tone: 'neutral',
       message:
-        'Откройте приложение в нужном сообществе VK, затем вернитесь на экран активации и оплатите доступ.',
+        'РћС‚РєСЂРѕР№С‚Рµ РїСЂРёР»РѕР¶РµРЅРёРµ РІ РЅСѓР¶РЅРѕРј СЃРѕРѕР±С‰РµСЃС‚РІРµ VK, Р·Р°С‚РµРј РІРµСЂРЅРёС‚РµСЃСЊ РЅР° СЌРєСЂР°РЅ Р°РєС‚РёРІР°С†РёРё Рё РѕРїР»Р°С‚РёС‚Рµ РґРѕСЃС‚СѓРї.',
     });
   };
 
@@ -601,7 +601,7 @@ const App = () => {
     }
 
     setHomeSection('payments');
-    setPaymentStatus({ tone: 'neutral', message: 'Создаём платёж YooKassa...' });
+    setPaymentStatus({ tone: 'neutral', message: 'РЎРѕР·РґР°С‘Рј РїР»Р°С‚С‘Р¶ YooKassa...' });
     setIsProcessingPayment(true);
 
     try {
@@ -629,7 +629,7 @@ const App = () => {
         | null;
 
       if (!response.ok || !payload?.ok || !payload.data?.payment?.confirmationUrl) {
-        throw new Error(payload?.error || 'Не удалось создать платёж YooKassa');
+        throw new Error(payload?.error || 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ РїР»Р°С‚С‘Р¶ YooKassa');
       }
 
       window.localStorage.setItem(
@@ -644,7 +644,7 @@ const App = () => {
     } catch (error) {
       setPaymentStatus({
         tone: 'error',
-        message: error instanceof Error ? error.message : 'Не удалось создать платёж YooKassa',
+        message: error instanceof Error ? error.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ РїР»Р°С‚С‘Р¶ YooKassa',
       });
       setIsProcessingPayment(false);
     }
@@ -676,7 +676,7 @@ const App = () => {
       setActiveView('home');
       setHomeSection('payments');
       setIsProcessingPayment(true);
-      setPaymentStatus({ tone: 'neutral', message: 'Проверяем статус оплаты YooKassa...' });
+      setPaymentStatus({ tone: 'neutral', message: 'РџСЂРѕРІРµСЂСЏРµРј СЃС‚Р°С‚СѓСЃ РѕРїР»Р°С‚С‹ YooKassa...' });
 
       try {
         const response = await fetch('/api/yookassa?action=check', {
@@ -702,7 +702,7 @@ const App = () => {
           | null;
 
         if (!response.ok || !payload?.ok) {
-          throw new Error(payload?.error || 'Не удалось проверить платёж YooKassa');
+          throw new Error(payload?.error || 'РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕРІРµСЂРёС‚СЊ РїР»Р°С‚С‘Р¶ YooKassa');
         }
 
         if (isCancelled) {
@@ -721,14 +721,14 @@ const App = () => {
           window.localStorage.removeItem(PENDING_YOOKASSA_PAYMENT_KEY);
           setPaymentStatus({
             tone: 'success',
-            message: `Оплата прошла. Доступ активирован до ${new Date(
+            message: `РћРїР»Р°С‚Р° РїСЂРѕС€Р»Р°. Р”РѕСЃС‚СѓРї Р°РєС‚РёРІРёСЂРѕРІР°РЅ РґРѕ ${new Date(
               payload.data.subscription.paidUntil || buildNextPaidUntil(),
             ).toLocaleDateString('ru-RU')}.`,
           });
         } else {
           setPaymentStatus({
             tone: 'neutral',
-            message: 'Платёж ещё не подтверждён. Попробуйте обновить страницу через минуту.',
+            message: 'РџР»Р°С‚С‘Р¶ РµС‰С‘ РЅРµ РїРѕРґС‚РІРµСЂР¶РґС‘РЅ. РџРѕРїСЂРѕР±СѓР№С‚Рµ РѕР±РЅРѕРІРёС‚СЊ СЃС‚СЂР°РЅРёС†Сѓ С‡РµСЂРµР· РјРёРЅСѓС‚Сѓ.',
           });
         }
       } catch (error) {
@@ -736,7 +736,7 @@ const App = () => {
           setPaymentStatus({
             tone: 'error',
             message:
-              error instanceof Error ? error.message : 'Не удалось проверить платёж YooKassa',
+              error instanceof Error ? error.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕРІРµСЂРёС‚СЊ РїР»Р°С‚С‘Р¶ YooKassa',
           });
         }
       } finally {
@@ -789,11 +789,11 @@ const App = () => {
 
     const now = new Date().toISOString();
     const normalizedBaseTitle = clampTemplateTitle(template.title).replace(
-      /\s+\(копия(?:\s+\d+)?\)$/u,
+      /\s+\(РєРѕРїРёСЏ(?:\s+\d+)?\)$/u,
       '',
     );
     const duplicatePattern = new RegExp(
-      `^${normalizedBaseTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\(копия(?: (\\d+))?\\)$`,
+      `^${normalizedBaseTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\(РєРѕРїРёСЏ(?: (\\d+))?\\)$`,
       'u',
     );
     const highestCopyNumber = templates.reduce((max, item) => {
@@ -807,7 +807,7 @@ const App = () => {
     }, 0);
     const nextCopyNumber = highestCopyNumber + 1;
     const duplicateSuffix =
-      nextCopyNumber === 1 ? ' (копия)' : ` (копия ${nextCopyNumber})`;
+      nextCopyNumber === 1 ? ' (РєРѕРїРёСЏ)' : ` (РєРѕРїРёСЏ ${nextCopyNumber})`;
     const trimmedBaseTitle = normalizedBaseTitle.slice(
       0,
       Math.max(0, MAX_TEMPLATE_TITLE_LENGTH - duplicateSuffix.length),
@@ -929,7 +929,7 @@ const App = () => {
     const now = new Date().toISOString();
     const folder: CalculatorFolder = {
       id: crypto.randomUUID(),
-      name: 'Новая папка',
+      name: 'РќРѕРІР°СЏ РїР°РїРєР°',
       createdAt: now,
       updatedAt: now,
     };
@@ -957,7 +957,7 @@ const App = () => {
 
     const nextFolder: CalculatorFolder = {
       ...current,
-      name: clampFolderName(name.trim() || 'Новая папка'),
+      name: clampFolderName(name.trim() || 'РќРѕРІР°СЏ РїР°РїРєР°'),
       updatedAt: new Date().toISOString(),
     };
 
@@ -1062,17 +1062,19 @@ const App = () => {
                 <div className="calculator-page__shell">
                   <div className="calculator-page__hero-copy calculator-page__hero-copy_empty">
                     <div className="calculator-page__eyebrow">
-                      {currentGroupId > 0 ? '��������� ������' : '����������� ����������'}
+                      {currentGroupId > 0
+                        ? '\u041f\u0443\u0431\u043b\u0438\u0447\u043d\u0430\u044f \u0432\u0435\u0440\u0441\u0438\u044f'
+                        : '\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f'}
                     </div>
                     <h1 className="calculator-page__title">
                       {currentGroupId > 0
-                        ? '����������� ���� �� �����������'
-                        : '���������� ���������� � ����������'}
+                        ? '\u041a\u0430\u043b\u044c\u043a\u0443\u043b\u044f\u0442\u043e\u0440 \u043f\u043e\u043a\u0430 \u043d\u0435 \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d'
+                        : '\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0432 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e'}
                     </h1>
                     <p className="calculator-page__description">
                       {currentGroupId > 0
-                        ? '����� ���������� ��������� ����������� �������� ����� ��� ������� �������� ����������.'
-                        : '������ ���������� ������� ��� ������ VK. ����� ���������� ������� �����������, ������� �������� ���������� � ���������� ���������� ����.'}
+                        ? '\u041f\u043e\u0441\u043b\u0435 \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438 \u0441\u043e\u0431\u0440\u0430\u043d\u043d\u044b\u0439 \u043a\u0430\u043b\u044c\u043a\u0443\u043b\u044f\u0442\u043e\u0440 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u0437\u0434\u0435\u0441\u044c \u043a\u0430\u043a \u0433\u043b\u0430\u0432\u043d\u0430\u044f \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0430 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f.'
+                        : '\u0421\u0435\u0439\u0447\u0430\u0441 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u043e\u0442\u043a\u0440\u044b\u0442\u043e \u0432\u043d\u0435 \u0433\u0440\u0443\u043f\u043f\u044b VK. \u0427\u0442\u043e\u0431\u044b \u043f\u043e\u0441\u0435\u0442\u0438\u0442\u0435\u043b\u0438 \u0443\u0432\u0438\u0434\u0435\u043b\u0438 \u043a\u0430\u043b\u044c\u043a\u0443\u043b\u044f\u0442\u043e\u0440, \u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e \u0438 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0442\u0443\u0434\u0430.'}
                     </p>
                     {currentGroupId === 0 ? (
                       <button
@@ -1080,7 +1082,7 @@ const App = () => {
                         type="button"
                         onClick={openCommunityInstall}
                       >
-                        ���������� � ����������
+                        {'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u0432 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e'}
                       </button>
                     ) : isViewerGroupAdmin ? (
                       <button
@@ -1088,7 +1090,7 @@ const App = () => {
                         type="button"
                         onClick={openAdminHome}
                       >
-                        ������� �������
+                        {'\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0430\u0434\u043c\u0438\u043d\u043a\u0443'}
                       </button>
                     ) : null}
                   </div>
@@ -1103,4 +1105,5 @@ const App = () => {
 };
 
 export default App;
+
 
