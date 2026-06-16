@@ -14,6 +14,7 @@ import {
   CURRENT_TEMPLATE_SCHEMA_VERSION,
 } from '../../entities/calculator/model';
 import { createDefaultSubscriptionSettings } from '../subscription';
+import { getStorageItem, setStorageItem } from './safeStorage';
 
 const BASE_PREFIX = 'vk-community-calculator';
 const DEMO_TEMPLATE_IDS = ['manicure', 'delivery', 'apartment-repair', 'printing'];
@@ -63,7 +64,7 @@ const ensureScopedStorageInitialized = (groupId = activeStorageGroupId) => {
   const normalizedGroupId = normalizeStorageGroupId(groupId);
   const seededKey = buildStorageKey('seeded', normalizedGroupId);
 
-  if (localStorage.getItem(seededKey)) {
+  if (getStorageItem(seededKey)) {
     return;
   }
 
@@ -85,64 +86,64 @@ const ensureScopedStorageInitialized = (groupId = activeStorageGroupId) => {
   const settingsKey = buildStorageKey('settings', normalizedGroupId);
 
   if (normalizedGroupId > 0) {
-    if (!localStorage.getItem(templatesKey)) {
-      localStorage.setItem(
+    if (!getStorageItem(templatesKey)) {
+      setStorageItem(
         templatesKey,
-        localStorage.getItem(getLegacyStorageKey('templates')) ?? JSON.stringify(defaults.templates),
+        getStorageItem(getLegacyStorageKey('templates')) ?? JSON.stringify(defaults.templates),
       );
     }
 
-    if (!localStorage.getItem(foldersKey)) {
-      localStorage.setItem(
+    if (!getStorageItem(foldersKey)) {
+      setStorageItem(
         foldersKey,
-        localStorage.getItem(getLegacyStorageKey('folders')) ?? JSON.stringify(defaults.folders),
+        getStorageItem(getLegacyStorageKey('folders')) ?? JSON.stringify(defaults.folders),
       );
     }
 
-    if (!localStorage.getItem(requestsKey)) {
-      localStorage.setItem(
+    if (!getStorageItem(requestsKey)) {
+      setStorageItem(
         requestsKey,
-        localStorage.getItem(getLegacyStorageKey('requests')) ?? JSON.stringify(defaults.requests),
+        getStorageItem(getLegacyStorageKey('requests')) ?? JSON.stringify(defaults.requests),
       );
     }
 
-    if (!localStorage.getItem(supportTicketsKey)) {
-      localStorage.setItem(
+    if (!getStorageItem(supportTicketsKey)) {
+      setStorageItem(
         supportTicketsKey,
-        localStorage.getItem(getLegacyStorageKey('support-tickets')) ??
+        getStorageItem(getLegacyStorageKey('support-tickets')) ??
           JSON.stringify(defaults.supportTickets),
       );
     }
 
-    if (!localStorage.getItem(settingsKey)) {
-      localStorage.setItem(
+    if (!getStorageItem(settingsKey)) {
+      setStorageItem(
         settingsKey,
-        localStorage.getItem(getLegacyStorageKey('settings')) ?? JSON.stringify(defaults.settings),
+        getStorageItem(getLegacyStorageKey('settings')) ?? JSON.stringify(defaults.settings),
       );
     }
   } else {
-    if (!localStorage.getItem(templatesKey)) {
-      localStorage.setItem(templatesKey, JSON.stringify(defaults.templates));
+    if (!getStorageItem(templatesKey)) {
+      setStorageItem(templatesKey, JSON.stringify(defaults.templates));
     }
 
-    if (!localStorage.getItem(foldersKey)) {
-      localStorage.setItem(foldersKey, JSON.stringify(defaults.folders));
+    if (!getStorageItem(foldersKey)) {
+      setStorageItem(foldersKey, JSON.stringify(defaults.folders));
     }
 
-    if (!localStorage.getItem(requestsKey)) {
-      localStorage.setItem(requestsKey, JSON.stringify(defaults.requests));
+    if (!getStorageItem(requestsKey)) {
+      setStorageItem(requestsKey, JSON.stringify(defaults.requests));
     }
 
-    if (!localStorage.getItem(supportTicketsKey)) {
-      localStorage.setItem(supportTicketsKey, JSON.stringify(defaults.supportTickets));
+    if (!getStorageItem(supportTicketsKey)) {
+      setStorageItem(supportTicketsKey, JSON.stringify(defaults.supportTickets));
     }
 
-    if (!localStorage.getItem(settingsKey)) {
-      localStorage.setItem(settingsKey, JSON.stringify(defaults.settings));
+    if (!getStorageItem(settingsKey)) {
+      setStorageItem(settingsKey, JSON.stringify(defaults.settings));
     }
   }
 
-  localStorage.setItem(seededKey, '1');
+  setStorageItem(seededKey, '1');
 };
 
 export const setStorageGroupScope = (groupId?: number | string | null) => {
@@ -302,7 +303,7 @@ export const normalizeTemplateRecord = (template: CalculatorTemplate): Calculato
 export const getTemplates = (): CalculatorTemplate[] => {
   ensureScopedStorageInitialized();
   const templates = parseJson<CalculatorTemplate[]>(
-    localStorage.getItem(buildStorageKey('templates')),
+    getStorageItem(buildStorageKey('templates')),
     [],
   );
   const sanitizedTemplates = sanitizeTemplates(templates);
@@ -315,7 +316,7 @@ export const getTemplates = (): CalculatorTemplate[] => {
 };
 
 export const saveTemplates = (templates: CalculatorTemplate[]) => {
-  localStorage.setItem(buildStorageKey('templates'), JSON.stringify(sanitizeTemplates(templates)));
+  setStorageItem(buildStorageKey('templates'), JSON.stringify(sanitizeTemplates(templates)));
 };
 
 export const upsertTemplate = (template: CalculatorTemplate) => {
@@ -331,11 +332,11 @@ export const upsertTemplate = (template: CalculatorTemplate) => {
 
 export const getFolders = (): CalculatorFolder[] => {
   ensureScopedStorageInitialized();
-  return parseJson<CalculatorFolder[]>(localStorage.getItem(buildStorageKey('folders')), []);
+  return parseJson<CalculatorFolder[]>(getStorageItem(buildStorageKey('folders')), []);
 };
 
 export const saveFolders = (folders: CalculatorFolder[]) => {
-  localStorage.setItem(buildStorageKey('folders'), JSON.stringify(folders));
+  setStorageItem(buildStorageKey('folders'), JSON.stringify(folders));
 };
 
 export const upsertFolder = (folder: CalculatorFolder) => {
@@ -350,20 +351,20 @@ export const upsertFolder = (folder: CalculatorFolder) => {
 
 export const getRequests = (): CalculatorRequest[] => {
   ensureScopedStorageInitialized();
-  return parseJson<CalculatorRequest[]>(localStorage.getItem(buildStorageKey('requests')), []);
+  return parseJson<CalculatorRequest[]>(getStorageItem(buildStorageKey('requests')), []);
 };
 
 export const addRequest = (request: CalculatorRequest) => {
   const requests = getRequests();
   const next = [request, ...requests];
-  localStorage.setItem(buildStorageKey('requests'), JSON.stringify(next));
+  setStorageItem(buildStorageKey('requests'), JSON.stringify(next));
   return next;
 };
 
 export const getAdminSettings = (): CalculatorAdminSettings => {
   ensureScopedStorageInitialized();
   const settings = parseJson<Partial<CalculatorAdminSettings>>(
-    localStorage.getItem(buildStorageKey('settings')),
+    getStorageItem(buildStorageKey('settings')),
     {},
   );
   const defaultSubscription = createDefaultSubscriptionSettings();
@@ -385,14 +386,14 @@ export const getAdminSettings = (): CalculatorAdminSettings => {
 };
 
 export const saveAdminSettings = (settings: CalculatorAdminSettings) => {
-  localStorage.setItem(buildStorageKey('settings'), JSON.stringify(settings));
+  setStorageItem(buildStorageKey('settings'), JSON.stringify(settings));
 };
 
 export const getSupportTickets = (): CalculatorSupportTicket[] => {
   ensureScopedStorageInitialized();
   const storageKey = buildStorageKey('support-tickets');
   const tickets = parseJson<CalculatorSupportTicket[]>(
-    localStorage.getItem(storageKey),
+    getStorageItem(storageKey),
     [],
   );
   const normalized = tickets
@@ -404,7 +405,7 @@ export const getSupportTickets = (): CalculatorSupportTicket[] => {
     .filter((ticket) => !isSupportTicketExpired(ticket));
 
   if (normalized.length !== tickets.length) {
-    localStorage.setItem(storageKey, JSON.stringify(normalized));
+    setStorageItem(storageKey, JSON.stringify(normalized));
   }
 
   return normalized;
@@ -413,12 +414,12 @@ export const getSupportTickets = (): CalculatorSupportTicket[] => {
 export const addSupportTicket = (ticket: CalculatorSupportTicket) => {
   const tickets = getSupportTickets();
   const next = [ticket, ...tickets];
-  localStorage.setItem(buildStorageKey('support-tickets'), JSON.stringify(next));
+  setStorageItem(buildStorageKey('support-tickets'), JSON.stringify(next));
   return next;
 };
 
 export const replaceSupportTickets = (tickets: CalculatorSupportTicket[]) => {
-  localStorage.setItem(buildStorageKey('support-tickets'), JSON.stringify(tickets));
+  setStorageItem(buildStorageKey('support-tickets'), JSON.stringify(tickets));
   return tickets;
 };
 
@@ -428,7 +429,7 @@ export const updateSupportTicketStatus = (
 ) => {
   const tickets = getSupportTickets();
   const next = tickets.map((ticket) => (ticket.id === ticketId ? { ...ticket, status } : ticket));
-  localStorage.setItem(buildStorageKey('support-tickets'), JSON.stringify(next));
+  setStorageItem(buildStorageKey('support-tickets'), JSON.stringify(next));
   return next;
 };
 
@@ -437,6 +438,6 @@ export const updateSupportTicketComment = (ticketId: string, managerComment: str
   const next = tickets.map((ticket) =>
     ticket.id === ticketId ? { ...ticket, managerComment } : ticket,
   );
-  localStorage.setItem(buildStorageKey('support-tickets'), JSON.stringify(next));
+  setStorageItem(buildStorageKey('support-tickets'), JSON.stringify(next));
   return next;
 };

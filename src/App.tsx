@@ -33,8 +33,12 @@ import {
   buildNextPaidUntil,
   createDefaultSubscriptionSettings,
   isSubscriptionActive,
-  PENDING_YOOKASSA_PAYMENT_KEY,
 } from './shared/subscription';
+import {
+  clearPendingPayment,
+  readPendingPayment,
+  writePendingPayment,
+} from './shared/storage/pendingPaymentStorage';
 import type {
   CalculatorPublicationStatus,
   CalculatorAdminSettings,
@@ -632,12 +636,7 @@ const App = () => {
         throw new Error(payload?.error || 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ РїР»Р°С‚С‘Р¶ YooKassa');
       }
 
-      window.localStorage.setItem(
-        PENDING_YOOKASSA_PAYMENT_KEY,
-        JSON.stringify({
-          paymentId: payload.data.payment.id,
-        }),
-      );
+      writePendingPayment(payload.data.payment.id);
 
       await openExternalPaymentUrl(payload.data.payment.confirmationUrl);
       setIsProcessingPayment(false);
@@ -657,10 +656,7 @@ const App = () => {
 
     const searchParams = new URLSearchParams(window.location.search);
     const paymentIdFromUrl = searchParams.get('paymentId');
-    const pendingRaw = window.localStorage.getItem(PENDING_YOOKASSA_PAYMENT_KEY);
-    const pendingPayment = pendingRaw
-      ? (JSON.parse(pendingRaw) as { paymentId?: string })
-      : null;
+    const pendingPayment = readPendingPayment();
     const paymentId =
       paymentIdFromUrl && paymentIdFromUrl !== 'return'
         ? paymentIdFromUrl
@@ -718,7 +714,7 @@ const App = () => {
             },
           };
           persistAdminSettings(nextSettings);
-          window.localStorage.removeItem(PENDING_YOOKASSA_PAYMENT_KEY);
+          clearPendingPayment();
           setPaymentStatus({
             tone: 'success',
             message: `РћРїР»Р°С‚Р° РїСЂРѕС€Р»Р°. Р”РѕСЃС‚СѓРї Р°РєС‚РёРІРёСЂРѕРІР°РЅ РґРѕ ${new Date(
