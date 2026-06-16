@@ -1,7 +1,9 @@
+import type { CalculatorSubscriptionPlan } from '../types/calculator';
 import { getStorageItem, removeStorageItem, setStorageItem } from './safeStorage';
 
 type PendingPaymentRecord = {
   paymentId?: string;
+  plan?: CalculatorSubscriptionPlan;
 };
 
 export const PENDING_PAYMENT_STORAGE_KEY = 'vk-community-calculator/pending-yookassa-payment';
@@ -20,8 +22,8 @@ export const readPendingPayment = (): PendingPaymentRecord | null => {
   }
 };
 
-export const writePendingPayment = (paymentId: string) => {
-  setStorageItem(PENDING_PAYMENT_STORAGE_KEY, JSON.stringify({ paymentId }));
+export const writePendingPayment = (paymentId: string, plan: CalculatorSubscriptionPlan) => {
+  setStorageItem(PENDING_PAYMENT_STORAGE_KEY, JSON.stringify({ paymentId, plan }));
 };
 
 export const clearPendingPayment = () => {

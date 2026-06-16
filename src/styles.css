@@ -5628,6 +5628,14 @@ body::-webkit-scrollbar-thumb:hover,
   filter: brightness(1.06);
 }
 
+.result-card__branding {
+  margin-top: 12px;
+  color: #8f7d6d;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
 
 .error-text {
   color: #c53030;

@@ -13,7 +13,7 @@ import {
   createTemplatePublicId,
   CURRENT_TEMPLATE_SCHEMA_VERSION,
 } from '../../entities/calculator/model';
-import { createDefaultSubscriptionSettings } from '../subscription';
+import { createDefaultSubscriptionSettings, getSubscriptionPlanConfig } from '../subscription';
 import { getStorageItem, setStorageItem } from './safeStorage';
 
 const BASE_PREFIX = 'vk-community-calculator';
@@ -304,6 +304,18 @@ const sanitizeFolders = (folders: CalculatorFolder[]) =>
     name: hasMojibake(folder.name) ? getDefaultFolderName() : folder.name,
   }));
 
+const sanitizeRequests = (requests: CalculatorRequest[]) =>
+  requests.map((request) => ({
+    ...request,
+    status:
+      request.status === 'in_progress' ||
+      request.status === 'done' ||
+      request.status === 'rejected' ||
+      request.status === 'new'
+        ? request.status
+        : 'new',
+  }));
+
 export const normalizeTemplateRecord = (template: CalculatorTemplate): CalculatorTemplate =>
   sanitizeTemplates([template])[0] ?? migrateTemplateRecord(template);
 
@@ -365,13 +377,36 @@ export const upsertFolder = (folder: CalculatorFolder) => {
 
 export const getRequests = (): CalculatorRequest[] => {
   ensureScopedStorageInitialized();
-  return parseJson<CalculatorRequest[]>(getStorageItem(buildStorageKey('requests')), []);
+  const requests = parseJson<CalculatorRequest[]>(getStorageItem(buildStorageKey('requests')), []);
+  const sanitizedRequests = sanitizeRequests(requests);
+
+  if (JSON.stringify(sanitizedRequests) !== JSON.stringify(requests)) {
+    saveRequests(sanitizedRequests);
+  }
+
+  return sanitizedRequests;
 };
 
 export const addRequest = (request: CalculatorRequest) => {
   const requests = getRequests();
-  const next = [request, ...requests];
+  const next = sanitizeRequests([request, ...requests]);
   setStorageItem(buildStorageKey('requests'), JSON.stringify(next));
+  return next;
+};
+
+export const saveRequests = (requests: CalculatorRequest[]) => {
+  setStorageItem(buildStorageKey('requests'), JSON.stringify(sanitizeRequests(requests)));
+};
+
+export const updateRequestStatus = (
+  requestId: string,
+  status: CalculatorRequest['status'],
+) => {
+  const requests = getRequests();
+  const next = requests.map((request) =>
+    request.id === requestId ? { ...request, status } : request,
+  );
+  saveRequests(next);
   return next;
 };
 
@@ -388,8 +423,10 @@ export const getAdminSettings = (): CalculatorAdminSettings => {
     subscription: {
       ...defaultSubscription,
       ...(settings.subscription ?? {}),
-      priceRub: Number(settings.subscription?.priceRub) || defaultSubscription.priceRub,
-      plan: settings.subscription?.plan ?? defaultSubscription.plan,
+      priceRub:
+        Number(settings.subscription?.priceRub) ||
+        getSubscriptionPlanConfig(settings.subscription?.plan ?? defaultSubscription.plan).monthlyPriceRub,
+      plan: getSubscriptionPlanConfig(settings.subscription?.plan ?? defaultSubscription.plan).id,
       status: settings.subscription?.status ?? defaultSubscription.status,
       paidUntil: settings.subscription?.paidUntil ?? defaultSubscription.paidUntil,
       provider: settings.subscription?.provider ?? defaultSubscription.provider,

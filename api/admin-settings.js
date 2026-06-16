@@ -1,6 +1,10 @@
 import { sendJson } from '../server/http.js';
 import { getServerAdminSettings, saveServerAdminSettings } from '../server/settings-store.js';
-import { buildNextPaidUntil, createDefaultSubscriptionSettings } from '../server/subscription-config.js';
+import {
+  buildNextPaidUntil,
+  createDefaultSubscriptionSettings,
+  getSubscriptionPlanConfig,
+} from '../server/subscription-config.js';
 
 const DEFAULT_SUPER_ADMIN_IDS = ['139346496'];
 
@@ -49,9 +53,12 @@ export default async function handler(request, response) {
         }
 
         const currentSettings = await getServerAdminSettings(targetGroupId);
+        const proPlan = getSubscriptionPlanConfig('pro');
         const baseSubscription = {
           ...createDefaultSubscriptionSettings(),
           ...currentSettings.subscription,
+          plan: proPlan.id,
+          priceRub: proPlan.monthlyPriceRub,
         };
         const paidUntil = buildNextPaidUntil(
           baseSubscription.status === 'active' ? baseSubscription.paidUntil : '',
@@ -76,6 +83,8 @@ export default async function handler(request, response) {
             ...currentSettings,
             subscription: {
               ...baseSubscription,
+              plan: proPlan.id,
+              priceRub: proPlan.monthlyPriceRub,
               status: 'active',
               provider: 'super-admin',
               externalPaymentId: '',

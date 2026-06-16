@@ -1,12 +1,46 @@
-export const SUBSCRIPTION_PRICE_RUB = 490;
 export const SUBSCRIPTION_DURATION_DAYS = 30;
-export const SUBSCRIPTION_PLAN = 'calcpro_30_days';
-export const SUBSCRIPTION_TITLE = 'Доступ CalcPro на 30 дней для сообщества';
+export const DEFAULT_SUBSCRIPTION_PLAN = 'free';
+
+export const SUBSCRIPTION_PLANS = {
+  free: {
+    id: 'free',
+    name: 'Free',
+    monthlyPriceRub: 0,
+    calculatorLimit: 1,
+    monthlyRequestLimit: 20,
+    paymentTitle: 'Бесплатный тариф CalcPro',
+  },
+  start: {
+    id: 'start',
+    name: 'Start',
+    monthlyPriceRub: 299,
+    calculatorLimit: 3,
+    monthlyRequestLimit: 100,
+    paymentTitle: 'Тариф Start на 30 дней для сообщества',
+  },
+  pro: {
+    id: 'pro',
+    name: 'Pro',
+    monthlyPriceRub: 699,
+    calculatorLimit: null,
+    monthlyRequestLimit: null,
+    paymentTitle: 'Тариф Pro на 30 дней для сообщества',
+  },
+};
+
+export function getSubscriptionPlanConfig(plan) {
+  if (plan === 'start' || plan === 'pro' || plan === 'free') {
+    return SUBSCRIPTION_PLANS[plan];
+  }
+
+  return SUBSCRIPTION_PLANS[DEFAULT_SUBSCRIPTION_PLAN];
+}
 
 export function createDefaultSubscriptionSettings() {
+  const freePlan = getSubscriptionPlanConfig(DEFAULT_SUBSCRIPTION_PLAN);
   return {
-    plan: SUBSCRIPTION_PLAN,
-    priceRub: SUBSCRIPTION_PRICE_RUB,
+    plan: freePlan.id,
+    priceRub: freePlan.monthlyPriceRub,
     status: 'inactive',
     paidUntil: '',
     provider: '',
@@ -34,10 +68,10 @@ export function buildNextPaidUntil(currentPaidUntil = '') {
   return next.toISOString();
 }
 
-export function normalizeSubscriptionAmount(value) {
+export function normalizeSubscriptionAmount(value, plan = DEFAULT_SUBSCRIPTION_PLAN) {
   const amountRub = Number(value);
   if (!Number.isFinite(amountRub) || amountRub <= 0) {
-    return SUBSCRIPTION_PRICE_RUB;
+    return getSubscriptionPlanConfig(plan).monthlyPriceRub;
   }
 
   return amountRub;

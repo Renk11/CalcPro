@@ -32,12 +32,15 @@ import {
   updateSupportTicketComment,
   updateSupportTicketStatus,
 } from '../shared/storage/localStorage';
-import { formatSubscriptionDate, parseSubscriptionDate } from '../shared/subscription';
+import type { SubscriptionPlanConfig } from '../shared/subscription';
+import { SUBSCRIPTION_PLANS, formatSubscriptionDate, parseSubscriptionDate } from '../shared/subscription';
 import type {
   CalculatorAdminSettings,
   CalculatorFolder,
   CalculatorPublicationStatus,
   CalculatorRequest,
+  CalculatorRequestStatus,
+  CalculatorSubscriptionPlan,
   CalculatorSupportTicket,
   CalculatorSupportTicketStatus,
   CalculatorSupportTicketType,
@@ -56,6 +59,10 @@ interface HomePageProps {
   currentSection: AdminSection;
   onSectionChange: (section: AdminSection) => void;
   onSaveAdminSettings: (settings: CalculatorAdminSettings) => void;
+  onUpdateRequestStatus: (
+    requestId: string,
+    status: CalculatorRequestStatus,
+  ) => void;
   onToggleAdminNav: () => void;
   onCreateFolder: () => void;
   onDeleteFolder: (folderId: string) => void;
@@ -73,12 +80,21 @@ interface HomePageProps {
     publicationStatus: CalculatorPublicationStatus,
   ) => void;
   onCopyTemplateLink: (template: CalculatorTemplate) => Promise<void>;
+  currentPlan: SubscriptionPlanConfig;
+  configuredPlan: SubscriptionPlanConfig;
   hasActiveSubscription: boolean;
   isSuperAdmin: boolean;
   currentGroupId: number;
   canCreateMoreTemplates: boolean;
-  templateLimit: number;
-  onStartPayment: () => void;
+  canCreateMoreRequests: boolean;
+  monthlyRequestsUsed: number;
+  requestLimit: number | null;
+  canUseTemplates: boolean;
+  canUseAnalytics: boolean;
+  canUseNotifications: boolean;
+  canUseRequestStatuses: boolean;
+  canUseFolders: boolean;
+  onStartPayment: (plan: CalculatorSubscriptionPlan) => void;
   onInstallInCommunity: () => void;
   onGrantProAccess: (
     targetGroupId: number,
@@ -118,6 +134,13 @@ const supportStatusLabels: Record<CalculatorSupportTicketStatus, string> = {
   pending: 'На рассмотрении',
   reviewed: 'Рассмотрено',
   rejected: 'Отклонено',
+};
+
+const requestStatusLabels: Record<CalculatorRequestStatus, string> = {
+  new: 'Новая',
+  in_progress: 'В работе',
+  done: 'Закрыта',
+  rejected: 'Отклонена',
 };
 
 const SUPPORT_SUBJECT_MAX_LENGTH = 60;
@@ -580,7 +603,7 @@ const formatCurrency = (value: number) => `${currencyFormatter.format(Math.round
 const formatPercent = (value: number) => `${percentFormatter.format(value)}%`;
 const formatDayLabel = (date: Date) =>
   date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
-const monthlyServicePrice = 490;
+const paidPlanOrder: CalculatorSubscriptionPlan[] = ['start', 'pro'];
 
 const describeTemplateType = (type: CalculatorTemplate['type']) => {
   switch (type) {
@@ -687,7 +710,7 @@ const TemplatePresetCard = ({
       disabled={disabled}
       onClick={() => onUse(preset.id)}
     >
-      {disabled ? 'Доступно в Про' : 'Использовать'}
+      {disabled ? 'Доступно в Start' : 'Использовать'}
     </button>
   </article>
 );
@@ -704,6 +727,7 @@ export const HomePage = ({
   currentSection,
   onSectionChange,
   onSaveAdminSettings,
+  onUpdateRequestStatus,
   onToggleAdminNav,
   onCreateFolder,
   onDeleteFolder,
@@ -718,11 +742,20 @@ export const HomePage = ({
   onMoveTemplateToFolder,
   onUpdateTemplateStatus,
   onCopyTemplateLink,
+  currentPlan,
+  configuredPlan,
   hasActiveSubscription,
   isSuperAdmin,
   currentGroupId,
   canCreateMoreTemplates,
-  templateLimit,
+  canCreateMoreRequests,
+  monthlyRequestsUsed,
+  requestLimit,
+  canUseTemplates,
+  canUseAnalytics,
+  canUseNotifications,
+  canUseRequestStatuses,
+  canUseFolders,
   onStartPayment,
   onInstallInCommunity,
   onGrantProAccess,
@@ -733,9 +766,10 @@ export const HomePage = ({
   isCommunityContext,
 }: HomePageProps) => {
   const isSectionLocked = (section: AdminSection) =>
-    !hasActiveSubscription &&
-    (section === 'analytics' || section === 'integrations' || section === 'templates');
-  const showCreateCalculatorLimitHint = !hasActiveSubscription && !canCreateMoreTemplates;
+    (section === 'analytics' && !canUseAnalytics) ||
+    (section === 'integrations' && !canUseNotifications) ||
+    (section === 'templates' && !canUseTemplates);
+  const showCreateCalculatorLimitHint = !canCreateMoreTemplates;
 
   const handleSectionSelect = (section: AdminSection) => {
     onSectionChange(isSectionLocked(section) ? 'payments' : section);
@@ -886,6 +920,13 @@ export const HomePage = ({
     () => faqTopics.find((topic) => topic.id === selectedFaqTopicId) ?? faqTopics[0],
     [selectedFaqTopicId],
   );
+  const latestRequests = useMemo(
+    () =>
+      [...requests]
+        .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+        .slice(0, 8),
+    [requests],
+  );
   const subscriptionPaidUntilLabel = formatSubscriptionDate(adminSettings.subscription.paidUntil);
   const subscriptionDaysLeft = useMemo(() => {
     const paidUntil = parseSubscriptionDate(adminSettings.subscription.paidUntil);
@@ -904,6 +945,10 @@ export const HomePage = ({
     subscriptionDaysLeft > 0
       ? `${subscriptionDaysLeft} дн. осталось`
       : 'Срок не активен';
+  const requestQuotaLabel =
+    requestLimit == null
+      ? 'Безлимит заявок'
+      : `${monthlyRequestsUsed} / ${requestLimit} заявок в этом месяце${canCreateMoreRequests ? '' : ' · лимит исчерпан'}`;
   const activationSteps = isCommunityContext
     ? [
         'Оплатите доступ через YooKassa на этом экране.',
@@ -1134,15 +1179,15 @@ export const HomePage = ({
               className="admin-home__icon-button"
               type="button"
               aria-label="Создать папку"
-              disabled={!hasActiveSubscription}
+              disabled={!canUseFolders}
               onClick={onCreateFolder}
             >
               <Icon20Add />
             </button>
           </div>
-          {!hasActiveSubscription ? (
+          {!canUseFolders ? (
             <div className="create-calculator-tile__tooltip">
-              Папки доступны на тарифе Про.
+              Папки доступны на тарифах Start и Pro.
             </div>
           ) : null}
 
@@ -1157,9 +1202,6 @@ export const HomePage = ({
             <span className="folder-card__side">
               <span className="folder-card__count">{allTemplates.length}</span>
             </span>
-            {/*
-                Базовый план: до {templateLimit} калькулятора
-            */}
           </button>
 
           {folders.map((folder) => (
@@ -1198,7 +1240,7 @@ export const HomePage = ({
                   role="button"
                   tabIndex={0}
                   onClick={(event) => {
-                    if (!hasActiveSubscription) {
+                    if (!canUseFolders) {
                       return;
                     }
                     event.stopPropagation();
@@ -1206,7 +1248,7 @@ export const HomePage = ({
                     setDraftFolderName(folder.name);
                   }}
                   onKeyDown={(event) => {
-                    if (!hasActiveSubscription) {
+                    if (!canUseFolders) {
                       return;
                     }
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -1224,14 +1266,14 @@ export const HomePage = ({
                   role="button"
                   tabIndex={0}
                   onClick={(event) => {
-                    if (!hasActiveSubscription) {
+                    if (!canUseFolders) {
                       return;
                     }
                     event.stopPropagation();
                     setPendingDeleteFolder(folder);
                   }}
                   onKeyDown={(event) => {
-                    if (!hasActiveSubscription) {
+                    if (!canUseFolders) {
                       return;
                     }
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -1275,7 +1317,9 @@ export const HomePage = ({
             </button>
             {showCreateCalculatorLimitHint ? (
               <div className="create-calculator-tile__tooltip">
-                Базовый план: до {templateLimit} калькулятора
+                {currentPlan.calculatorLimit == null
+                  ? 'Лимит по калькуляторам снят.'
+                  : `${currentPlan.name}: до ${currentPlan.calculatorLimit} калькуляторов`}
               </div>
             ) : null}
           </div>
@@ -1285,8 +1329,8 @@ export const HomePage = ({
               key={template.id}
               template={template}
               folders={folders}
-              canDuplicate={hasActiveSubscription}
-              canUseFolders={hasActiveSubscription}
+              canDuplicate={canUseTemplates}
+              canUseFolders={canUseFolders}
               onOpen={onOpen}
               onEdit={onEdit}
               onDuplicate={onDuplicateTemplate}
@@ -1362,7 +1406,7 @@ export const HomePage = ({
               key={preset.id}
               preset={preset}
               onUse={onUsePreset}
-              disabled={!hasActiveSubscription}
+              disabled={!canUseTemplates}
             />
           ))}
 
@@ -1678,39 +1722,51 @@ export const HomePage = ({
           </div>
 
           <div className="payments-price-card">
-            <div className="payments-price-card__label">К оплате</div>
-            <div className="payments-price-card__value">{formatCurrency(monthlyServicePrice)}</div>
-            <div className="payments-price-card__caption">
-              {hasActiveSubscription ? 'Продление доступа на 30 дней' : '1 месяц доступа'}
-            </div>
-            <button
-              className="payments-price-card__button"
-              type="button"
-              onClick={onStartPayment}
-              disabled={isProcessingPayment}
-            >
-              {isProcessingPayment
-                ? 'Переходим к оплате...'
-                : hasActiveSubscription
-                  ? 'Продлить на 30 дней'
-                  : 'Оплатить доступ'}
-            </button>
+            <div className="payments-price-card__label">Текущий тариф</div>
+            <div className="payments-price-card__value">{currentPlan.name}</div>
+            <div className="payments-price-card__caption">{requestQuotaLabel}</div>
+            {paidPlanOrder.map((planId) => {
+              const plan = SUBSCRIPTION_PLANS[planId];
+              const isCurrentConfiguredPlan = configuredPlan.id === plan.id;
+
+              return (
+                <button
+                  key={plan.id}
+                  className="payments-price-card__button"
+                  type="button"
+                  onClick={() => onStartPayment(plan.id)}
+                  disabled={isProcessingPayment}
+                >
+                  {isProcessingPayment
+                    ? 'Переходим к оплате...'
+                    : `${isCurrentConfiguredPlan && hasActiveSubscription ? 'Продлить' : 'Выбрать'} ${plan.name} за ${formatCurrency(plan.monthlyPriceRub)}`}
+                </button>
+              );
+            })}
             <div className="payments-price-card__meta-row">
               <div className="payments-price-card__meta-label">Статус</div>
               <div className="payments-price-card__meta-value">
-                {hasActiveSubscription ? 'Подписка активна' : 'Требуется активация'}
+                {hasActiveSubscription && currentPlan.id !== 'free' ? 'Подписка активна' : 'Бесплатный тариф'}
               </div>
             </div>
             <div className="payments-price-card__meta-row">
               <div className="payments-price-card__meta-label">План</div>
               <div className="payments-price-card__meta-value">
-                {hasActiveSubscription ? 'Про' : 'Базовый'}
+                {currentPlan.name}
               </div>
             </div>
             <div className="payments-price-card__meta-row">
               <div className="payments-price-card__meta-label">Доступ</div>
               <div className="payments-price-card__meta-value">
-                {subscriptionPaidUntilLabel ? `до ${subscriptionPaidUntilLabel}` : 'откроется после оплаты'}
+                {subscriptionPaidUntilLabel && currentPlan.id !== 'free'
+                  ? `до ${subscriptionPaidUntilLabel}`
+                  : 'включён сразу'}
+              </div>
+            </div>
+            <div className="payments-price-card__meta-row">
+              <div className="payments-price-card__meta-label">Уведомления</div>
+              <div className="payments-price-card__meta-value">
+                {canUseNotifications ? 'Включены' : 'Доступны только на Pro'}
               </div>
             </div>
             {paymentStatus ? (
@@ -1956,13 +2012,13 @@ export const HomePage = ({
               inputMode="text"
               placeholder="Например: 123456789"
               value={managerVkId}
-              disabled={!hasActiveSubscription}
+              disabled={!canUseNotifications}
               onChange={(event) => setManagerVkId(event.target.value.replace(/[^\d,\s;-]/g, ''))}
             />
           </label>
 
           <div className="settings-form__hint">
-            {hasActiveSubscription
+            {canUseNotifications
               ? 'Укажите VK ID сотрудника, которому будут приходить заявки из калькуляторов.'
               : 'Отправка заявок менеджерам доступна на тарифе Про.'}
           </div>
@@ -1970,7 +2026,7 @@ export const HomePage = ({
           <button
             className="settings-form__button"
             type="button"
-            disabled={!hasActiveSubscription}
+            disabled={!canUseNotifications}
             onClick={() =>
               onSaveAdminSettings({
                 ...adminSettings,
@@ -1980,6 +2036,73 @@ export const HomePage = ({
           >
             Сохранить
           </button>
+        </article>
+
+        <article className="settings-card">
+          <div className="settings-card__eyebrow">Заявки</div>
+          <h2 className="settings-card__title">Статусы и обработка обращений</h2>
+          <p className="settings-card__text">
+            На тарифах Start и Pro можно отмечать новые, активные и закрытые заявки, чтобы не
+            терять обработку лидов.
+          </p>
+
+          {!canUseRequestStatuses ? (
+            <div className="settings-form__hint">
+              Статусы заявок доступны на тарифах Start и Pro.
+            </div>
+          ) : latestRequests.length === 0 ? (
+            <div className="settings-form__hint">Пока нет заявок, которые можно разобрать по статусам.</div>
+          ) : (
+            <div className="settings-support__tickets">
+              {latestRequests.map((request) => (
+                <div key={request.id} className="settings-support__ticket">
+                  <div className="settings-support__ticket-head">
+                    <div className="settings-support__ticket-head-main">
+                      <strong>{request.templateTitle}</strong>
+                      <span
+                        className={`settings-support__status settings-support__status_${request.status === 'done' ? 'reviewed' : request.status === 'rejected' ? 'rejected' : 'pending'}`}
+                      >
+                        {requestStatusLabels[request.status]}
+                      </span>
+                    </div>
+                    <span>
+                      {new Date(request.createdAt).toLocaleDateString('ru-RU')}{' '}
+                      {new Date(request.createdAt).toLocaleTimeString('ru-RU', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                  <div className="settings-support__note">
+                    {request.name} · {request.phone}
+                  </div>
+                  <div className="settings-support__note">
+                    Сумма: {formatCurrency(request.amount)}
+                  </div>
+                  {request.comment ? (
+                    <div className="settings-support__ticket-message settings-support__ticket-message_expanded">
+                      {request.comment}
+                    </div>
+                  ) : null}
+                  <label className="settings-support__status-control">
+                    <span className="settings-support__label">Статус</span>
+                    <select
+                      className="settings-support__input"
+                      value={request.status}
+                      onChange={(event) =>
+                        onUpdateRequestStatus(request.id, event.target.value as CalculatorRequestStatus)
+                      }
+                    >
+                      <option value="new">Новая</option>
+                      <option value="in_progress">В работе</option>
+                      <option value="done">Закрыта</option>
+                      <option value="rejected">Отклонена</option>
+                    </select>
+                  </label>
+                </div>
+              ))}
+            </div>
+          )}
         </article>
 
         {isSuperAdmin ? (
@@ -2298,11 +2421,11 @@ export const HomePage = ({
       </div>
 
       <section className="admin-placeholder">
-        <div className="admin-placeholder__eyebrow">Доступно на тарифе Про</div>
+        <div className="admin-placeholder__eyebrow">Доступно на платном тарифе</div>
         <h2 className="admin-placeholder__title">{feature} откроется после апгрейда</h2>
         <p className="admin-placeholder__text">
-          Базовый тариф подходит для одного калькулятора. Перейдите на Про, чтобы получить
-          безлимитные калькуляторы, аналитику, интеграции и бронирование.
+          Бесплатный тариф подходит для быстрого старта. Перейдите на Start или Pro, чтобы
+          расширить лимиты и открыть дополнительные возможности.
         </p>
         <button className="admin-nav__plan-button" type="button" onClick={() => onSectionChange('payments')}>
           Перейти к оплате
@@ -2358,15 +2481,15 @@ export const HomePage = ({
               <div>
                 <div className="admin-nav__plan-label">Тариф</div>
                 <div className="admin-nav__plan-name">
-                  {hasActiveSubscription ? 'Про' : 'Базовый'}
+                  {currentPlan.name}
                 </div>
               </div>
               <span className="admin-nav__plan-icon">
-                {hasActiveSubscription ? <Icon20CrownVerified /> : <Icon20WalletOutline />}
+                {currentPlan.id !== 'free' ? <Icon20CrownVerified /> : <Icon20WalletOutline />}
               </span>
             </div>
             {isDesktopClient && !isCompactViewport ? (
-              hasActiveSubscription ? (
+              hasActiveSubscription && currentPlan.id !== 'free' ? (
                 <div className="admin-nav__plan-meta">{subscriptionDaysLeftLabel}</div>
               ) : (
                 <button
@@ -2379,7 +2502,7 @@ export const HomePage = ({
               )
             ) : (
               <div className="admin-nav__plan-meta">
-                {hasActiveSubscription ? subscriptionDaysLeftLabel : 'Базовый'}
+                {hasActiveSubscription && currentPlan.id !== 'free' ? subscriptionDaysLeftLabel : currentPlan.name}
               </div>
             )}
           </div>
@@ -2411,11 +2534,11 @@ export const HomePage = ({
       {currentSection === 'calculators'
         ? renderCalculatorsSection()
         : currentSection === 'analytics'
-          ? hasActiveSubscription
+          ? canUseAnalytics
             ? renderAnalyticsSection()
             : renderPlanLockedSection('Аналитика', 'Аналитика')
         : currentSection === 'integrations'
-          ? hasActiveSubscription
+          ? canUseNotifications
             ? renderPlaceholderSection()
             : renderPlanLockedSection('Интеграции', 'Интеграции')
         : currentSection === 'payments'
@@ -2423,7 +2546,7 @@ export const HomePage = ({
         : currentSection === 'settings'
           ? renderSettingsSection()
         : currentSection === 'templates'
-          ? hasActiveSubscription
+          ? canUseTemplates
             ? renderTemplatesSection()
             : renderPlanLockedSection('Шаблоны', 'Каталог шаблонов')
         : currentSection === 'faq'

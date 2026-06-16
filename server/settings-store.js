@@ -1,6 +1,7 @@
 import {
   createDefaultAdminSettings,
   createDefaultSubscriptionSettings,
+  getSubscriptionPlanConfig,
 } from './subscription-config.js';
 import { supabaseSelect, supabaseUpsert } from './supabase.js';
 
@@ -21,12 +22,13 @@ function getAdminSettingsKey(groupId) {
 
 function normalizeSubscription(subscription = {}) {
   const defaults = createDefaultSubscriptionSettings();
+  const planConfig = getSubscriptionPlanConfig(subscription.plan || defaults.plan);
 
   return {
     ...defaults,
     ...subscription,
-    plan: String(subscription.plan || defaults.plan),
-    priceRub: Number(subscription.priceRub) || defaults.priceRub,
+    plan: planConfig.id,
+    priceRub: Number(subscription.priceRub) || planConfig.monthlyPriceRub,
     status: subscription.status === 'active' ? 'active' : 'inactive',
     paidUntil: String(subscription.paidUntil || defaults.paidUntil),
     provider: String(subscription.provider || defaults.provider),

@@ -44,6 +44,8 @@ export type ResultFieldFormat = 'plain' | 'space';
 export type ResultDisplayMode = 'auto' | 'after_button';
 export type CalculatorPublicationStatus = 'draft' | 'published' | 'hidden' | 'archived';
 export type CalculatorSubscriptionStatus = 'inactive' | 'active';
+export type CalculatorSubscriptionPlan = 'free' | 'start' | 'pro';
+export type CalculatorRequestStatus = 'new' | 'in_progress' | 'done' | 'rejected';
 
 export type CalculatorOptionValue = string | number;
 
@@ -202,7 +204,7 @@ export interface CalculatorFolder {
 export interface CalculatorAdminSettings {
   managerVkId: string;
   subscription: {
-    plan: string;
+    plan: CalculatorSubscriptionPlan;
     priceRub: number;
     status: CalculatorSubscriptionStatus;
     paidUntil?: string;
@@ -268,6 +270,7 @@ export interface CalculatorRequest {
   id: string;
   templateId: string;
   templateTitle: string;
+  status: CalculatorRequestStatus;
   name: string;
   phone: string;
   comment: string;

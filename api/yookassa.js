@@ -7,10 +7,10 @@ import {
 import { normalizeYooKassaPayment, requestYooKassa } from '../server/yookassa.js';
 import {
   buildNextPaidUntil,
+  DEFAULT_SUBSCRIPTION_PLAN,
+  getSubscriptionPlanConfig,
   isSubscriptionAmountValid,
   normalizeSubscriptionAmount,
-  SUBSCRIPTION_PLAN,
-  SUBSCRIPTION_TITLE,
 } from '../server/subscription-config.js';
 
 function parseGroupId(rawValue) {
@@ -37,8 +37,9 @@ function buildReturnUrl(request) {
 async function createPayment(request, response) {
   const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
   const settings = await getServerAdminSettings(groupId);
-  const plan = String(request.body?.plan || settings.subscription.plan || SUBSCRIPTION_PLAN);
-  const amountRub = normalizeSubscriptionAmount(settings.subscription.priceRub);
+  const plan = String(request.body?.plan || settings.subscription.plan || DEFAULT_SUBSCRIPTION_PLAN);
+  const planConfig = getSubscriptionPlanConfig(plan);
+  const amountRub = normalizeSubscriptionAmount(planConfig.monthlyPriceRub, planConfig.id);
   const idempotenceKey = `calcpro_${Date.now()}`;
   const returnUrl = buildReturnUrl(request);
 
@@ -55,11 +56,11 @@ async function createPayment(request, response) {
         type: 'redirect',
         return_url: returnUrl,
       },
-      description: SUBSCRIPTION_TITLE,
+      description: planConfig.paymentTitle,
       metadata: {
-        plan,
+        plan: planConfig.id,
         expectedAmountRub: String(amountRub),
-        product: 'calcpro_subscription_30_days',
+        product: `calcpro_${planConfig.id}_30_days`,
         groupId: String(groupId || ''),
       },
     },
@@ -70,7 +71,7 @@ async function createPayment(request, response) {
     id: payment.id,
     status: payment.status || 'pending',
     amountRub,
-    description: SUBSCRIPTION_TITLE,
+    description: planConfig.paymentTitle,
     paymentUrl: payment.confirmationUrl,
   });
 
@@ -96,9 +97,13 @@ async function checkPayment(request, response) {
 
   const rawPayment = await requestYooKassa(`/payments/${encodeURIComponent(paymentId)}`);
   const payment = normalizeYooKassaPayment(rawPayment);
-  const expectedAmountRub = normalizeSubscriptionAmount(rawPayment?.metadata?.expectedAmountRub);
   const groupId = parseGroupId(rawPayment?.metadata?.groupId || request.body?.groupId);
   const settings = await getServerAdminSettings(groupId);
+  const rawPlan = String(
+    rawPayment?.metadata?.plan || request.body?.plan || settings.subscription.plan || DEFAULT_SUBSCRIPTION_PLAN,
+  );
+  const planConfig = getSubscriptionPlanConfig(rawPlan);
+  const expectedAmountRub = normalizeSubscriptionAmount(rawPayment?.metadata?.expectedAmountRub, planConfig.id);
 
   if (settings.subscription.externalPaymentId === payment.id) {
     return sendJson(response, 200, {
@@ -120,7 +125,7 @@ async function checkPayment(request, response) {
       id: payment.id,
       status: payment.status || 'pending',
       amountRub: payment.amountRub,
-      description: SUBSCRIPTION_TITLE,
+      description: planConfig.paymentTitle,
       paymentUrl: payment.confirmationUrl,
     });
 
@@ -135,7 +140,7 @@ async function checkPayment(request, response) {
 
   const nextSettings = await updateServerSubscription(
     {
-      plan: String(rawPayment?.metadata?.plan || request.body?.plan || settings.subscription.plan),
+      plan: planConfig.id,
       priceRub: expectedAmountRub,
       status: 'active',
       paidUntil: buildNextPaidUntil(settings.subscription.paidUntil),
@@ -148,7 +153,7 @@ async function checkPayment(request, response) {
     id: payment.id,
     status: payment.status || 'succeeded',
     amountRub: payment.amountRub,
-    description: SUBSCRIPTION_TITLE,
+    description: planConfig.paymentTitle,
     paymentUrl: payment.confirmationUrl,
     paidAt: new Date().toISOString(),
   });
@@ -175,7 +180,9 @@ async function handleWebhook(request, response) {
 
   const rawPayment = await requestYooKassa(`/payments/${encodeURIComponent(paymentId)}`);
   const payment = normalizeYooKassaPayment(rawPayment);
-  const expectedAmountRub = normalizeSubscriptionAmount(rawPayment?.metadata?.expectedAmountRub);
+  const rawPlan = String(rawPayment?.metadata?.plan || DEFAULT_SUBSCRIPTION_PLAN);
+  const planConfig = getSubscriptionPlanConfig(rawPlan);
+  const expectedAmountRub = normalizeSubscriptionAmount(rawPayment?.metadata?.expectedAmountRub, planConfig.id);
   const groupId = parseGroupId(rawPayment?.metadata?.groupId);
 
   if (
@@ -186,7 +193,7 @@ async function handleWebhook(request, response) {
     if (settings.subscription.externalPaymentId !== payment.id) {
       await updateServerSubscription(
         {
-          plan: String(rawPayment?.metadata?.plan || settings.subscription.plan),
+          plan: planConfig.id,
           priceRub: expectedAmountRub,
           status: 'active',
           paidUntil: buildNextPaidUntil(settings.subscription.paidUntil),
@@ -202,7 +209,7 @@ async function handleWebhook(request, response) {
     id: payment.id,
     status: payment.status || (payment.paid ? 'succeeded' : 'pending'),
     amountRub: payment.amountRub,
-    description: SUBSCRIPTION_TITLE,
+    description: planConfig.paymentTitle,
     paymentUrl: payment.confirmationUrl,
     paidAt: payment.paid ? new Date().toISOString() : '',
   });

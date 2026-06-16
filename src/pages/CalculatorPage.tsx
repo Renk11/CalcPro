@@ -22,6 +22,10 @@ interface CalculatorPageProps {
   template: CalculatorTemplate;
   onOpenAdmin?: () => void;
   currentGroupId?: number;
+  canSubmitRequests?: boolean;
+  requestLimit?: number | null;
+  requestsUsedThisMonth?: number;
+  showBranding?: boolean;
   onRequestCreated: (request: CalculatorRequest) => void;
 }
 
@@ -252,6 +256,10 @@ export const CalculatorPage = ({
   template,
   onOpenAdmin,
   currentGroupId = 0,
+  canSubmitRequests = true,
+  requestLimit = null,
+  requestsUsedThisMonth = 0,
+  showBranding = true,
   onRequestCreated,
 }: CalculatorPageProps) => {
   const [values, setValues] = useState<CalculatorValues>(() => createInitialValues(template));
@@ -348,7 +356,8 @@ export const CalculatorPage = ({
         ? 'Все данные заполнены, можно отправить заявку.'
         : 'Результат расчета обновляется автоматически.';
 
-  const isRequestSubmitDisabled = !name || !phone || Boolean(phoneError) || isSubmitting;
+  const isRequestSubmitDisabled =
+    !canSubmitRequests || !name || !phone || Boolean(phoneError) || isSubmitting;
   const shouldShowResultDetails = !template.requestForm.enabled || missingRequestItems.length === 0;
 
   const validate = () => {
@@ -387,6 +396,14 @@ export const CalculatorPage = ({
   );
 
   const handleSubmit = async () => {
+    if (!canSubmitRequests) {
+      setStatus(
+        requestLimit == null
+          ? 'Отправка заявок временно недоступна.'
+          : `Лимит заявок на этот месяц исчерпан: ${requestsUsedThisMonth} из ${requestLimit}.`,
+      );
+      return;
+    }
     if (!validate()) {
       setStatus('Заполните обязательные поля');
       return;
@@ -409,6 +426,7 @@ export const CalculatorPage = ({
       id: crypto.randomUUID(),
       templateId: template.id,
       templateTitle: template.title,
+      status: 'new',
       name,
       phone,
       comment,
@@ -606,6 +624,12 @@ export const CalculatorPage = ({
                   </span>
                 </label>
 
+                {!canSubmitRequests && requestLimit != null ? (
+                  <div className="calc-field__hint">
+                    Лимит заявок исчерпан: {requestsUsedThisMonth} из {requestLimit} в этом месяце.
+                  </div>
+                ) : null}
+
                 <label className={`calculator-request__consent ${consentError ? 'calculator-request__consent_error' : ''}`}>
                   <span className="calculator-request__consent-row">
                     <input
@@ -690,6 +714,9 @@ export const CalculatorPage = ({
                   >
                     {template.requestForm.submitButtonText}
                   </button>
+                ) : null}
+                {showBranding ? (
+                  <div className="result-card__branding">Работает на CalcPro</div>
                 ) : null}
               </div>
             </aside>

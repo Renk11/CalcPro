@@ -26,12 +26,15 @@ import {
   saveFolders,
   saveTemplates,
   setStorageGroupScope,
+  updateRequestStatus,
   upsertFolder,
   upsertTemplate,
 } from './shared/storage/localStorage';
 import {
   buildNextPaidUntil,
   createDefaultSubscriptionSettings,
+  getEffectiveSubscriptionPlan,
+  getSubscriptionPlanConfig,
   isSubscriptionActive,
 } from './shared/subscription';
 import {
@@ -44,6 +47,7 @@ import type {
   CalculatorAdminSettings,
   CalculatorFolder,
   CalculatorRequest,
+  CalculatorSubscriptionPlan,
   CalculatorTemplate,
 } from './shared/types/calculator';
 
@@ -87,7 +91,6 @@ const getPublicCalculatorUrl = (publicId: string) => {
   url.searchParams.set('calculator', publicId);
   return url.toString();
 };
-const BASIC_TEMPLATE_LIMIT = 1;
 const SUPER_ADMIN_IDS = new Set([139346496]);
 
 type PaymentStatusTone = 'neutral' | 'success' | 'error';
@@ -103,6 +106,16 @@ const DEFAULT_FOLDER_NAME = 'Новая папка';
 const parsePositiveInteger = (rawValue: string | null | undefined) => {
   const value = Number(rawValue);
   return Number.isInteger(value) && value > 0 ? value : 0;
+};
+
+const getMonthRequestCount = (requests: CalculatorRequest[], date = new Date()) => {
+  const month = date.getMonth();
+  const year = date.getFullYear();
+
+  return requests.filter((request) => {
+    const createdAt = new Date(request.createdAt);
+    return createdAt.getMonth() === month && createdAt.getFullYear() === year;
+  }).length;
 };
 
 const getFallbackGroupIdFromLocation = () => {
@@ -163,7 +176,27 @@ const App = () => {
     () => isSubscriptionActive(adminSettings.subscription),
     [adminSettings.subscription],
   );
-  const canCreateMoreTemplates = hasActiveSubscription || templates.length < BASIC_TEMPLATE_LIMIT;
+  const currentPlan = useMemo(
+    () => getEffectiveSubscriptionPlan(adminSettings.subscription),
+    [adminSettings.subscription],
+  );
+  const paidPlanConfig = useMemo(
+    () => getSubscriptionPlanConfig(adminSettings.subscription.plan),
+    [adminSettings.subscription.plan],
+  );
+  const monthlyRequestsUsed = useMemo(() => getMonthRequestCount(requests), [requests]);
+  const requestLimit = currentPlan.monthlyRequestLimit;
+  const canCreateMoreRequests = requestLimit == null || monthlyRequestsUsed < requestLimit;
+  const canCreateMoreTemplates =
+    currentPlan.calculatorLimit == null || templates.length < currentPlan.calculatorLimit;
+  const canUseTemplates = currentPlan.features.templates;
+  const canUseAnalytics = currentPlan.features.analytics;
+  const canUseAdvancedFormulas = currentPlan.features.advancedFormulas;
+  const canUseNotifications = currentPlan.features.notifications;
+  const canUseRequestStatuses = currentPlan.features.requestStatuses;
+  const canUseFolders = currentPlan.features.folders;
+  const canHideBranding = currentPlan.features.hideBranding;
+  const canUseBooking = currentPlan.features.booking;
   const fallbackGroupId = getFallbackGroupIdFromLocation();
   const currentGroupId = Number(launchParams?.vk_group_id ?? 0) || fallbackGroupId;
   const viewerGroupRole = launchParams?.vk_viewer_group_role ?? 'none';
@@ -410,7 +443,7 @@ const App = () => {
       return;
     }
 
-    if (!hasActiveSubscription) {
+    if (!canUseTemplates) {
       setHomeSection('payments');
       setActiveView('home');
       return;
@@ -548,6 +581,14 @@ const App = () => {
     });
   };
 
+  const handleUpdateRequestStatus = (
+    requestId: string,
+    status: CalculatorRequest['status'],
+  ) => {
+    const next = updateRequestStatus(requestId, status);
+    setRequests(next);
+  };
+
   const clearPaymentIdFromUrl = () => {
     if (typeof window === 'undefined') {
       return;
@@ -600,13 +641,17 @@ const App = () => {
     });
   };
 
-  const startSubscriptionPayment = async () => {
+  const startSubscriptionPayment = async (plan: CalculatorSubscriptionPlan) => {
     if (typeof window === 'undefined' || isProcessingPayment) {
       return;
     }
 
+    const planConfig = getSubscriptionPlanConfig(plan);
     setHomeSection('payments');
-    setPaymentStatus({ tone: 'neutral', message: 'Создаём платёж YooKassa...' });
+    setPaymentStatus({
+      tone: 'neutral',
+      message: `Создаём платёж за тариф ${planConfig.name}...`,
+    });
     setIsProcessingPayment(true);
 
     try {
@@ -616,7 +661,7 @@ const App = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          plan: adminSettings.subscription.plan,
+          plan,
           groupId: currentGroupId,
         }),
       });
@@ -637,7 +682,7 @@ const App = () => {
         throw new Error(payload?.error || 'Не удалось создать платёж YooKassa');
       }
 
-      writePendingPayment(payload.data.payment.id);
+      writePendingPayment(payload.data.payment.id, plan);
 
       await openExternalPaymentUrl(payload.data.payment.confirmationUrl);
       setIsProcessingPayment(false);
@@ -683,7 +728,7 @@ const App = () => {
           },
           body: JSON.stringify({
             paymentId,
-            plan: adminSettings.subscription.plan,
+            plan: pendingPayment?.plan ?? paidPlanConfig.id,
             groupId: currentGroupId,
           }),
         });
@@ -772,7 +817,7 @@ const App = () => {
       return;
     }
 
-    if (!hasActiveSubscription) {
+    if (!canUseTemplates) {
       setHomeSection('payments');
       setActiveView('home');
       return;
@@ -892,7 +937,7 @@ const App = () => {
       return;
     }
 
-    if (!hasActiveSubscription) {
+    if (!canUseFolders) {
       setHomeSection('payments');
       setActiveView('home');
       return;
@@ -917,7 +962,7 @@ const App = () => {
       return;
     }
 
-    if (!hasActiveSubscription) {
+    if (!canUseFolders) {
       setHomeSection('payments');
       setActiveView('home');
       return;
@@ -941,7 +986,7 @@ const App = () => {
       return;
     }
 
-    if (!hasActiveSubscription) {
+    if (!canUseFolders) {
       setHomeSection('payments');
       setActiveView('home');
       return;
@@ -967,7 +1012,7 @@ const App = () => {
       return;
     }
 
-    if (!hasActiveSubscription) {
+    if (!canUseFolders) {
       setHomeSection('payments');
       setActiveView('home');
       return;
@@ -1005,6 +1050,7 @@ const App = () => {
                 requests={requests}
                 onSectionChange={setHomeSection}
                 onSaveAdminSettings={handleSaveAdminSettings}
+                onUpdateRequestStatus={handleUpdateRequestStatus}
                 onToggleAdminNav={() => setIsAdminNavOpen((current) => !current)}
                 onCreateFolder={createFolder}
                 onDeleteFolder={deleteFolder}
@@ -1019,13 +1065,22 @@ const App = () => {
                 onMoveTemplateToFolder={moveTemplateToFolder}
                 onUpdateTemplateStatus={updateTemplatePublicationStatus}
                 onCopyTemplateLink={handleCopyTemplateLink}
+                currentPlan={currentPlan}
+                configuredPlan={paidPlanConfig}
                 hasActiveSubscription={hasActiveSubscription}
                 isSuperAdmin={isSuperAdmin}
                 currentGroupId={currentGroupId}
                 canCreateMoreTemplates={canCreateMoreTemplates}
-                templateLimit={BASIC_TEMPLATE_LIMIT}
+                canCreateMoreRequests={canCreateMoreRequests}
+                monthlyRequestsUsed={monthlyRequestsUsed}
                 onStartPayment={startSubscriptionPayment}
                 onInstallInCommunity={openCommunityInstall}
+                requestLimit={requestLimit}
+                canUseTemplates={canUseTemplates}
+                canUseAnalytics={canUseAnalytics}
+                canUseNotifications={canUseNotifications}
+                canUseRequestStatuses={canUseRequestStatuses}
+                canUseFolders={canUseFolders}
                 onGrantProAccess={handleGrantProAccess}
                 isProcessingPayment={isProcessingPayment}
                 paymentStatus={paymentStatus}
@@ -1040,8 +1095,8 @@ const App = () => {
               initialTemplate={selectedTemplate}
               onBack={() => setActiveView('home')}
               onSave={handleSaveTemplate}
-              canUseBooking={hasActiveSubscription}
-              canUseProFeatures={hasActiveSubscription}
+              canUseBooking={canUseBooking}
+              canUseProFeatures={canUseAdvancedFormulas}
             />
           </Panel>
           <Panel id="calculator">
@@ -1050,6 +1105,10 @@ const App = () => {
                 template={selectedTemplate}
                 onOpenAdmin={isViewerGroupAdmin ? openAdminHome : undefined}
                 currentGroupId={currentGroupId}
+                canSubmitRequests={canCreateMoreRequests}
+                requestLimit={requestLimit}
+                requestsUsedThisMonth={monthlyRequestsUsed}
+                showBranding={!canHideBranding}
                 onRequestCreated={(request) =>
                   setRequests((current) => [request, ...current.filter((item) => item.id !== request.id)])
                 }
