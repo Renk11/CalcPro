@@ -37,6 +37,7 @@ const isSupportTicketExpired = (ticket: CalculatorSupportTicket) => {
 };
 
 const hasMojibake = (value?: string) => Boolean(value && MOJIBAKE_PATTERN.test(value));
+const getDefaultFolderName = () => 'Новая папка';
 
 const parseJson = <T,>(raw: string | null, fallback: T): T => {
   if (!raw) {
@@ -297,6 +298,12 @@ const sanitizeTemplates = (templates: CalculatorTemplate[]) =>
     .filter((template) => !DEMO_TEMPLATE_IDS.includes(template.id))
     .map((template) => migrateTemplateRecord(template));
 
+const sanitizeFolders = (folders: CalculatorFolder[]) =>
+  folders.map((folder) => ({
+    ...folder,
+    name: hasMojibake(folder.name) ? getDefaultFolderName() : folder.name,
+  }));
+
 export const normalizeTemplateRecord = (template: CalculatorTemplate): CalculatorTemplate =>
   sanitizeTemplates([template])[0] ?? migrateTemplateRecord(template);
 
@@ -332,11 +339,18 @@ export const upsertTemplate = (template: CalculatorTemplate) => {
 
 export const getFolders = (): CalculatorFolder[] => {
   ensureScopedStorageInitialized();
-  return parseJson<CalculatorFolder[]>(getStorageItem(buildStorageKey('folders')), []);
+  const folders = parseJson<CalculatorFolder[]>(getStorageItem(buildStorageKey('folders')), []);
+  const sanitizedFolders = sanitizeFolders(folders);
+
+  if (JSON.stringify(sanitizedFolders) !== JSON.stringify(folders)) {
+    saveFolders(sanitizedFolders);
+  }
+
+  return sanitizedFolders;
 };
 
 export const saveFolders = (folders: CalculatorFolder[]) => {
-  setStorageItem(buildStorageKey('folders'), JSON.stringify(folders));
+  setStorageItem(buildStorageKey('folders'), JSON.stringify(sanitizeFolders(folders)));
 };
 
 export const upsertFolder = (folder: CalculatorFolder) => {

@@ -1740,21 +1740,25 @@ body,
 .analytics-donut-legend {
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .analytics-donut-legend__row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   color: #5c5146;
   font-size: 13px;
+  min-width: 0;
 }
 
 .analytics-donut-legend__label {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .analytics-donut-legend__dot {
@@ -1762,6 +1766,11 @@ body,
   height: 10px;
   border-radius: 999px;
   flex-shrink: 0;
+}
+
+.analytics-donut-legend__row strong {
+  justify-self: end;
+  white-space: nowrap;
 }
 
 .analytics-map {

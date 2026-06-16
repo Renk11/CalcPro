@@ -68,15 +68,15 @@ export interface AdminProfile {
 }
 
 const FALLBACK_PROFILE: AdminProfile = {
-  firstName: 'РђРґРјРёРЅ',
-  lastName: 'СЃРѕРѕР±С‰РµСЃС‚РІР°',
+  firstName: 'Админ',
+  lastName: 'сообщества',
   nickname: '@vk_calc_admin',
 };
 
 const getProfileLabel = (profile: AdminProfile) =>
   [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim() ||
   profile.nickname ||
-  'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ';
+  'Администратор';
 
 const getPublicCalculatorUrl = (publicId: string) => {
   if (typeof window === 'undefined') {
@@ -98,6 +98,7 @@ type PaymentStatus = {
 };
 
 const COMMUNITY_ADMIN_ROLES = new Set(['admin', 'editor', 'moder']);
+const DEFAULT_FOLDER_NAME = 'Новая папка';
 
 const parsePositiveInteger = (rawValue: string | null | undefined) => {
   const value = Number(rawValue);
@@ -482,7 +483,7 @@ const App = () => {
     if (!isSuperAdmin || !adminProfile.id || targetGroupId <= 0) {
       return {
         ok: false,
-        message: 'РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ РїСЂР°РІ РґР»СЏ РІС‹РґР°С‡Рё РґРѕСЃС‚СѓРїР°.',
+        message: 'Недостаточно прав для выдачи доступа.',
       };
     }
 
@@ -503,7 +504,7 @@ const App = () => {
         | null;
 
       if (!response.ok || !payload?.ok || !payload.data) {
-        throw new Error(payload?.error || 'РќРµ СѓРґР°Р»РѕСЃСЊ РІС‹РґР°С‚СЊ РґРѕСЃС‚СѓРї РџСЂРѕ.');
+        throw new Error(payload?.error || 'Не удалось выдать доступ Про.');
       }
 
       if (targetGroupId === currentGroupId) {
@@ -512,12 +513,12 @@ const App = () => {
 
       return {
         ok: true,
-        message: `Р”РѕСЃС‚СѓРї РџСЂРѕ РІС‹РґР°РЅ РґР»СЏ РіСЂСѓРїРїС‹ ${targetGroupId}.`,
+        message: `Доступ Про выдан для группы ${targetGroupId}.`,
       };
     } catch (error) {
       return {
         ok: false,
-        message: error instanceof Error ? error.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ РІС‹РґР°С‚СЊ РґРѕСЃС‚СѓРї РџСЂРѕ.',
+        message: error instanceof Error ? error.message : 'Не удалось выдать доступ Про.',
       };
     }
   };
@@ -605,7 +606,7 @@ const App = () => {
     }
 
     setHomeSection('payments');
-    setPaymentStatus({ tone: 'neutral', message: 'РЎРѕР·РґР°С‘Рј РїР»Р°С‚С‘Р¶ YooKassa...' });
+    setPaymentStatus({ tone: 'neutral', message: 'Создаём платёж YooKassa...' });
     setIsProcessingPayment(true);
 
     try {
@@ -633,7 +634,7 @@ const App = () => {
         | null;
 
       if (!response.ok || !payload?.ok || !payload.data?.payment?.confirmationUrl) {
-        throw new Error(payload?.error || 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ РїР»Р°С‚С‘Р¶ YooKassa');
+        throw new Error(payload?.error || 'Не удалось создать платёж YooKassa');
       }
 
       writePendingPayment(payload.data.payment.id);
@@ -643,7 +644,7 @@ const App = () => {
     } catch (error) {
       setPaymentStatus({
         tone: 'error',
-        message: error instanceof Error ? error.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ РїР»Р°С‚С‘Р¶ YooKassa',
+        message: error instanceof Error ? error.message : 'Не удалось создать платёж YooKassa',
       });
       setIsProcessingPayment(false);
     }
@@ -672,7 +673,7 @@ const App = () => {
       setActiveView('home');
       setHomeSection('payments');
       setIsProcessingPayment(true);
-      setPaymentStatus({ tone: 'neutral', message: 'РџСЂРѕРІРµСЂСЏРµРј СЃС‚Р°С‚СѓСЃ РѕРїР»Р°С‚С‹ YooKassa...' });
+      setPaymentStatus({ tone: 'neutral', message: 'Проверяем статус оплаты YooKassa...' });
 
       try {
         const response = await fetch('/api/yookassa?action=check', {
@@ -698,7 +699,7 @@ const App = () => {
           | null;
 
         if (!response.ok || !payload?.ok) {
-          throw new Error(payload?.error || 'РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕРІРµСЂРёС‚СЊ РїР»Р°С‚С‘Р¶ YooKassa');
+          throw new Error(payload?.error || 'Не удалось проверить платёж YooKassa');
         }
 
         if (isCancelled) {
@@ -717,14 +718,14 @@ const App = () => {
           clearPendingPayment();
           setPaymentStatus({
             tone: 'success',
-            message: `РћРїР»Р°С‚Р° РїСЂРѕС€Р»Р°. Р”РѕСЃС‚СѓРї Р°РєС‚РёРІРёСЂРѕРІР°РЅ РґРѕ ${new Date(
+            message: `Оплата прошла. Доступ активирован до ${new Date(
               payload.data.subscription.paidUntil || buildNextPaidUntil(),
             ).toLocaleDateString('ru-RU')}.`,
           });
         } else {
           setPaymentStatus({
             tone: 'neutral',
-            message: 'РџР»Р°С‚С‘Р¶ РµС‰С‘ РЅРµ РїРѕРґС‚РІРµСЂР¶РґС‘РЅ. РџРѕРїСЂРѕР±СѓР№С‚Рµ РѕР±РЅРѕРІРёС‚СЊ СЃС‚СЂР°РЅРёС†Сѓ С‡РµСЂРµР· РјРёРЅСѓС‚Сѓ.',
+            message: 'Платёж ещё не подтверждён. Попробуйте обновить страницу через минуту.',
           });
         }
       } catch (error) {
@@ -732,7 +733,7 @@ const App = () => {
           setPaymentStatus({
             tone: 'error',
             message:
-              error instanceof Error ? error.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕРІРµСЂРёС‚СЊ РїР»Р°С‚С‘Р¶ YooKassa',
+              error instanceof Error ? error.message : 'Не удалось проверить платёж YooKassa',
           });
         }
       } finally {
@@ -925,7 +926,7 @@ const App = () => {
     const now = new Date().toISOString();
     const folder: CalculatorFolder = {
       id: crypto.randomUUID(),
-      name: 'РќРѕРІР°СЏ РїР°РїРєР°',
+      name: DEFAULT_FOLDER_NAME,
       createdAt: now,
       updatedAt: now,
     };
@@ -953,7 +954,7 @@ const App = () => {
 
     const nextFolder: CalculatorFolder = {
       ...current,
-      name: clampFolderName(name.trim() || 'РќРѕРІР°СЏ РїР°РїРєР°'),
+      name: clampFolderName(name.trim() || DEFAULT_FOLDER_NAME),
       updatedAt: new Date().toISOString(),
     };
 
