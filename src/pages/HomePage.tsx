@@ -1934,13 +1934,17 @@ export const HomePage = ({
                     : 'Сейчас приложение запущено вне контекста сообщества. Чтобы посетители могли оставлять заявки, а администраторы управлять настройками, подключите его к нужной группе и завершите активацию по инструкции ниже.'}
                 </p>
               </div>
-              <button
-                className="payments-activation-card__button"
-                type="button"
-                onClick={onInstallInCommunity}
-              >
-                Установить в сообщество
-              </button>
+              {isCommunityContext ? (
+                <div className="payments-activation-card__connected">Сервис уже подключён</div>
+              ) : (
+                <button
+                  className="payments-activation-card__button"
+                  type="button"
+                  onClick={onInstallInCommunity}
+                >
+                  Установить в сообщество
+                </button>
+              )}
             </div>
 
             <div className="payments-activation-banner">

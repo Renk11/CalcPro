@@ -1032,6 +1032,21 @@ body,
   box-shadow: 0 12px 24px rgba(255, 151, 71, 0.18);
 }
 
+.payments-activation-card__connected {
+  min-height: 52px;
+  padding: 0 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(92, 201, 136, 0.22);
+  border-radius: 18px;
+  background: rgba(92, 201, 136, 0.1);
+  color: #9de2b7;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .payments-activation-card__button:hover {
   transform: translateY(-1px);
   filter: brightness(1.04);
