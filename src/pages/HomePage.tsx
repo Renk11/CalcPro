@@ -85,7 +85,6 @@ interface HomePageProps {
     template: CalculatorTemplate,
     publicationStatus: CalculatorPublicationStatus,
   ) => void;
-  onCopyTemplateLink: (template: CalculatorTemplate) => Promise<void>;
   currentPlan: SubscriptionPlanConfig;
   configuredPlan: SubscriptionPlanConfig;
   hasActiveSubscription: boolean;
@@ -820,7 +819,6 @@ export const HomePage = ({
   onMoveTemplateToFolder,
   onTransferTemplateToCommunity,
   onUpdateTemplateStatus,
-  onCopyTemplateLink,
   currentPlan,
   configuredPlan,
   hasActiveSubscription,
@@ -1575,7 +1573,6 @@ export const HomePage = ({
               onMoveToFolder={onMoveTemplateToFolder}
               onTransferToCommunity={onTransferTemplateToCommunity}
               onUpdateStatus={onUpdateTemplateStatus}
-              onCopyLink={onCopyTemplateLink}
             />
           ))}
         </div>

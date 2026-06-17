@@ -103,15 +103,6 @@ const getProfileLabel = (profile: AdminProfile) =>
   profile.nickname ||
   'Администратор';
 
-const getPublicCalculatorUrl = (publicId: string) => {
-  if (typeof window === 'undefined') {
-    return `?calculator=${publicId}`;
-  }
-
-  const url = new URL(window.location.href);
-  url.searchParams.set('calculator', publicId);
-  return url.toString();
-};
 const SUPER_ADMIN_IDS = new Set([139346496]);
 
 type PaymentStatusTone = 'neutral' | 'success' | 'error';
@@ -1183,18 +1174,6 @@ const App = () => {
     }
   };
 
-  const handleCopyTemplateLink = async (template: CalculatorTemplate) => {
-    if (!isViewerGroupAdmin) {
-      return;
-    }
-
-    if (typeof navigator === 'undefined' || !navigator.clipboard) {
-      return;
-    }
-
-    await navigator.clipboard.writeText(getPublicCalculatorUrl(template.publicId));
-  };
-
   const moveTemplateToFolder = (template: CalculatorTemplate, folderId?: string) => {
     if (!isViewerGroupAdmin) {
       return;
@@ -1427,7 +1406,6 @@ const App = () => {
                   onMoveTemplateToFolder={moveTemplateToFolder}
                   onTransferTemplateToCommunity={handleTransferTemplateToCommunity}
                   onUpdateTemplateStatus={updateTemplatePublicationStatus}
-                  onCopyTemplateLink={handleCopyTemplateLink}
                   currentPlan={currentPlan}
                   configuredPlan={paidPlanConfig}
                   hasActiveSubscription={hasActiveSubscription}

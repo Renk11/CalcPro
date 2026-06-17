@@ -23,7 +23,6 @@ interface TemplateCardProps {
     template: CalculatorTemplate,
     publicationStatus: CalculatorPublicationStatus,
   ) => void;
-  onCopyLink: (template: CalculatorTemplate) => Promise<void>;
 }
 
 const publicationStatusLabels: Record<CalculatorPublicationStatus, string> = {
@@ -34,12 +33,12 @@ const publicationStatusLabels: Record<CalculatorPublicationStatus, string> = {
 };
 
 const hasMojibake = (value?: string) =>
-  Boolean(value) &&
-  (value!.includes('Р') ||
-    value!.includes('Ð') ||
-    value!.includes('Ñ') ||
-    value!.includes('вЂ') ||
-    value!.includes('Â'));
+  typeof value === 'string' &&
+  (value.includes('Р ') ||
+    value.includes('Гђ') ||
+    value.includes('Г‘') ||
+    value.includes('РІР‚') ||
+    value.includes('Г‚'));
 
 const formatTemplateDate = (value?: string) =>
   value
@@ -64,12 +63,10 @@ export const TemplateCard = ({
   onMoveToFolder,
   onTransferToCommunity,
   onUpdateStatus,
-  onCopyLink,
 }: TemplateCardProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
   const [isCommunityPickerOpen, setIsCommunityPickerOpen] = useState(false);
-  const [copyStatus, setCopyStatus] = useState('');
   const menuRef = useRef<HTMLDivElement | null>(null);
   const transferTargets = communities.filter((community) => community.groupId !== currentGroupId);
   const safeTitle = hasMojibake(template.title) ? 'Новый калькулятор' : template.title;
@@ -95,27 +92,15 @@ export const TemplateCard = ({
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [isMenuOpen]);
 
-  useEffect(() => {
-    if (!copyStatus) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => setCopyStatus(''), 1800);
-    return () => window.clearTimeout(timeoutId);
-  }, [copyStatus]);
-
-  const handleCopyLink = async () => {
-    await onCopyLink(template);
-    setCopyStatus('Ссылка скопирована');
-  };
-
   return (
     <article className="template-card">
       <div className="template-card__content">
         <div className="template-card__header">
           <div className="template-card__head-row">
             <div className="template-card__head-copy">
-              <div className={`template-card__status template-card__status_${template.publicationStatus}`}>
+              <div
+                className={`template-card__status template-card__status_${template.publicationStatus}`}
+              >
                 {publicationStatusLabels[template.publicationStatus]}
               </div>
               <h3 className="template-card__title">{safeTitle}</h3>
@@ -132,7 +117,7 @@ export const TemplateCard = ({
                   setIsCommunityPickerOpen(false);
                 }}
               >
-                …
+                ...
               </button>
 
               {isMenuOpen ? (
@@ -239,7 +224,9 @@ export const TemplateCard = ({
                       setIsFolderPickerOpen(false);
                     }}
                   >
-                    {transferTargets.length ? 'Перенести в сообщество' : 'Нет других сообществ'}
+                    {transferTargets.length
+                      ? 'Перенести в сообщество'
+                      : 'Нет других сообществ'}
                   </button>
 
                   {isCommunityPickerOpen && transferTargets.length ? (
@@ -261,17 +248,6 @@ export const TemplateCard = ({
                     </div>
                   ) : null}
 
-                  <button
-                    className="template-card__menu-action"
-                    type="button"
-                    disabled={template.publicationStatus !== 'published'}
-                    onClick={async () => {
-                      await handleCopyLink();
-                      setIsMenuOpen(false);
-                    }}
-                  >
-                    Копировать ссылку
-                  </button>
                   <button
                     className="template-card__menu-action template-card__menu-action_danger"
                     type="button"
@@ -296,8 +272,6 @@ export const TemplateCard = ({
             </span>
             <span className="template-card__meta-item">Изменил: {safeLastModifiedBy}</span>
           </div>
-
-          {copyStatus ? <div className="template-card__copy-status">{copyStatus}</div> : null}
         </div>
 
         <div className="template-card__actions">
@@ -314,14 +288,6 @@ export const TemplateCard = ({
             onClick={() => onEdit(template)}
           >
             Редактировать
-          </button>
-          <button
-            className="template-card__button template-card__button_ghost"
-            type="button"
-            disabled={template.publicationStatus !== 'published'}
-            onClick={handleCopyLink}
-          >
-            Копировать ссылку
           </button>
         </div>
       </div>
