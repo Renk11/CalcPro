@@ -14,7 +14,6 @@ import {
   MAX_TEMPLATE_TITLE_LENGTH,
 } from './entities/calculator/model';
 import { createTemplateFromPreset } from './entities/calculator/templateCatalog';
-import { CalculatorPage } from './pages/CalculatorPage';
 import {
   getAdminSettings,
   getFolders,
@@ -54,10 +53,16 @@ import type {
 } from './shared/types/calculator';
 
 const preloadHomePage = () => import('./pages/HomePage');
+const preloadCalculatorPage = () => import('./pages/CalculatorPage');
 
 const HomePage = lazy(async () => {
   const module = await preloadHomePage();
   return { default: module.HomePage };
+});
+
+const CalculatorPage = lazy(async () => {
+  const module = await preloadCalculatorPage();
+  return { default: module.CalculatorPage };
 });
 
 const BuilderPage = lazy(async () => {
@@ -124,6 +129,20 @@ const AdminPageFallback = ({ title }: { title: string }) => (
         <h1 className="calculator-page__title">{title}</h1>
         <p className="calculator-page__description">
           Загружаем интерфейс и данные сообщества.
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
+const CalculatorPageFallback = () => (
+  <div className="calculator-page calculator-page_empty">
+    <div className="calculator-page__shell">
+      <div className="calculator-page__hero-copy calculator-page__hero-copy_empty">
+        <div className="calculator-page__eyebrow">Calculator</div>
+        <h1 className="calculator-page__title">Загружаем калькулятор</h1>
+        <p className="calculator-page__description">
+          Подготавливаем форму и расчёт для текущего шаблона.
         </p>
       </div>
     </div>
@@ -290,6 +309,12 @@ const App = () => {
       void preloadHomePage().catch(() => undefined);
     }
   }, [isViewerGroupAdmin]);
+
+  useEffect(() => {
+    if (selectedTemplate) {
+      void preloadCalculatorPage().catch(() => undefined);
+    }
+  }, [selectedTemplate]);
 
   useEffect(() => {
     if (activeView === 'home') {
@@ -1447,18 +1472,20 @@ const App = () => {
           </Panel>
           <Panel id="calculator">
             {selectedTemplate ? (
-              <CalculatorPage
-                template={selectedTemplate}
-                onOpenAdmin={isViewerGroupAdmin ? openAdminHome : undefined}
-                currentGroupId={currentGroupId}
-                canSubmitRequests={canCreateMoreRequests}
-                requestLimit={requestLimit}
-                requestsUsedThisMonth={monthlyRequestsUsed}
-                showBranding={!canHideBranding}
-                onRequestCreated={(request) =>
-                  setRequests((current) => [request, ...current.filter((item) => item.id !== request.id)])
-                }
-              />
+              <Suspense fallback={<CalculatorPageFallback />}>
+                <CalculatorPage
+                  template={selectedTemplate}
+                  onOpenAdmin={isViewerGroupAdmin ? openAdminHome : undefined}
+                  currentGroupId={currentGroupId}
+                  canSubmitRequests={canCreateMoreRequests}
+                  requestLimit={requestLimit}
+                  requestsUsedThisMonth={monthlyRequestsUsed}
+                  showBranding={!canHideBranding}
+                  onRequestCreated={(request) =>
+                    setRequests((current) => [request, ...current.filter((item) => item.id !== request.id)])
+                  }
+                />
+              </Suspense>
             ) : (
               <div className="calculator-page calculator-page_empty">
                 <div className="calculator-page__shell">
