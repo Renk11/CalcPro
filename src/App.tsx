@@ -298,6 +298,7 @@ const App = () => {
               groupId: currentGroupId,
               name: `Сообщество ${currentGroupId}`,
               role: viewerGroupRole,
+              workspacePlan: currentPlan.id,
             }),
           });
           const connectedPayload = (await connectedResponse.json().catch(() => null)) as
@@ -328,7 +329,7 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [adminProfile.id, currentGroupId, viewerGroupRole]);
+  }, [adminProfile.id, currentGroupId, currentPlan.id, viewerGroupRole]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -679,13 +680,25 @@ const App = () => {
   };
 
   const openCommunityInstall = async () => {
+    let addedGroupId = 0;
+
     try {
       const result = (await bridge.send('VKWebAppAddToCommunity' as never, {
         hide_success_modal: false,
       } as never)) as { group_id?: number };
-      const addedGroupId =
+      addedGroupId =
         Number(result?.group_id) || Number(launchParams?.vk_group_id ?? 0) || currentGroupId;
+    } catch {
+      setHomeSection('payments');
+      setPaymentStatus({
+        tone: 'neutral',
+        message:
+          'Не удалось открыть выбор сообщества автоматически. Откройте приложение из нужной группы VK и повторите установку там.',
+      });
+      return;
+    }
 
+    try {
       if (adminProfile.id && addedGroupId > 0) {
         const response = await fetch('/api/communities', {
           method: 'POST',
@@ -696,15 +709,21 @@ const App = () => {
             viewerId: adminProfile.id,
             groupId: addedGroupId,
             role: viewerGroupRole,
+            workspacePlan: currentPlan.id,
           }),
         });
         const payload = (await response.json().catch(() => null)) as
-          | { ok?: boolean; data?: CalculatorConnectedCommunity[] }
+          | { ok?: boolean; data?: CalculatorConnectedCommunity[]; error?: string }
           | null;
 
-        if (response.ok && payload?.ok && Array.isArray(payload.data)) {
-          setConnectedCommunities(payload.data);
+        if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+          throw new Error(
+            payload?.error ||
+              `Сервис добавлен в группу ID ${addedGroupId}, но не удалось сохранить её в кабинете.`,
+          );
         }
+
+        setConnectedCommunities(payload.data);
       }
 
       setHomeSection('payments');
@@ -715,17 +734,16 @@ const App = () => {
             ? `Приложение добавлено в сообщество ID ${addedGroupId}. Откройте его внутри группы и завершите активацию на этом экране.`
             : 'Приложение добавлено в сообщество. Откройте его внутри группы и завершите активацию на этом экране.',
       });
-      return;
-    } catch {
-      // Fall back to guidance when the native community picker is unavailable.
+    } catch (error) {
+      setHomeSection('payments');
+      setPaymentStatus({
+        tone: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Не удалось подключить сообщество к кабинету.',
+      });
     }
-
-    setHomeSection('payments');
-    setPaymentStatus({
-      tone: 'neutral',
-      message:
-        'Не удалось открыть выбор сообщества автоматически. Откройте приложение из нужной группы VK и повторите установку там.',
-    });
   };
 
   const startSubscriptionPayment = async (plan: CalculatorSubscriptionPlan) => {

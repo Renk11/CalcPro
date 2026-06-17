@@ -16,6 +16,10 @@ function parseViewerId(rawValue) {
   return viewerId ? viewerId : '';
 }
 
+function parseWorkspacePlan(rawValue) {
+  return rawValue === 'free' || rawValue === 'start' || rawValue === 'pro' ? rawValue : undefined;
+}
+
 export default async function handler(request, response) {
   try {
     const action = String(request.query?.action || request.body?.action || '').toLowerCase();
@@ -54,8 +58,9 @@ export default async function handler(request, response) {
         photoUrl: request.body?.photoUrl,
         role: request.body?.role,
       };
+      const workspacePlan = parseWorkspacePlan(request.body?.workspacePlan);
 
-      const communities = await connectViewerCommunity(viewerId, community);
+      const communities = await connectViewerCommunity(viewerId, community, workspacePlan);
       return sendJson(response, 200, { ok: true, data: communities });
     }
 

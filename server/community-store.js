@@ -110,7 +110,7 @@ export async function saveViewerCommunities(viewerId, communities) {
   return normalized;
 }
 
-export async function connectViewerCommunity(viewerId, community) {
+export async function connectViewerCommunity(viewerId, community, workspacePlanId) {
   const normalizedViewerId = normalizeViewerId(viewerId);
   const baseCommunity = normalizeCommunityEntry(community);
 
@@ -140,7 +140,9 @@ export async function connectViewerCommunity(viewerId, community) {
 
   const currentList = await getViewerCommunities(normalizedViewerId);
   const groupSettings = await getServerAdminSettings(normalizedCommunity.groupId);
-  const activePlan = getSubscriptionPlanConfig(groupSettings.subscription.plan);
+  const activePlan = workspacePlanId
+    ? getSubscriptionPlanConfig(workspacePlanId)
+    : getSubscriptionPlanConfig(groupSettings.subscription.plan);
   const communityLimit = activePlan.communityLimit;
 
   const existingIndex = currentList.findIndex(
