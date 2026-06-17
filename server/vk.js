@@ -71,3 +71,28 @@ export async function sendVkMessageEventAnswer(eventId, userId, peerId, eventDat
     event_data: eventData,
   });
 }
+
+export async function getVkCommunityInfo(groupId) {
+  const normalizedGroupId = Number(groupId);
+
+  if (!Number.isInteger(normalizedGroupId) || normalizedGroupId <= 0) {
+    throw new Error('Valid groupId is required');
+  }
+
+  const response = await requestVk('groups.getById', {
+    group_id: normalizedGroupId,
+    fields: 'screen_name,photo_100,photo_200',
+  });
+  const group = Array.isArray(response) ? response[0] : response?.groups?.[0] || response;
+
+  if (!group) {
+    throw new Error('VK group not found');
+  }
+
+  return {
+    groupId: normalizedGroupId,
+    name: String(group.name || `Сообщество ${normalizedGroupId}`),
+    screenName: String(group.screen_name || ''),
+    photoUrl: String(group.photo_200 || group.photo_100 || ''),
+  };
+}

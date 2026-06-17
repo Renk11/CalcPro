@@ -164,6 +164,7 @@ export interface CalculatorField {
 export interface CalculatorTemplate {
   schemaVersion?: number;
   id: string;
+  groupId?: number;
   folderId?: string;
   title: string;
   description: string;
@@ -196,12 +197,14 @@ export interface CalculatorTemplate {
 
 export interface CalculatorFolder {
   id: string;
+  groupId?: number;
   name: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CalculatorAdminSettings {
+  groupId?: number;
   managerVkId: string;
   subscription: {
     plan: CalculatorSubscriptionPlan;
@@ -211,6 +214,16 @@ export interface CalculatorAdminSettings {
     provider?: string;
     externalPaymentId?: string;
   };
+}
+
+export interface CalculatorConnectedCommunity {
+  groupId: number;
+  name: string;
+  screenName?: string;
+  photoUrl?: string;
+  role?: string;
+  addedAt: string;
+  lastUsedAt: string;
 }
 
 export type CalculatorSupportTicketType = 'message' | 'bug' | 'suggestion';

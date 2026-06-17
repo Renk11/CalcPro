@@ -45,6 +45,7 @@ import {
 import type {
   CalculatorPublicationStatus,
   CalculatorAdminSettings,
+  CalculatorConnectedCommunity,
   CalculatorFolder,
   CalculatorRequest,
   CalculatorSubscriptionPlan,
@@ -55,10 +56,12 @@ type AppView = 'home' | 'builder' | 'calculator';
 type ActiveFolderId = 'all' | string;
 
 export type AdminSection =
+  | 'communities'
   | 'calculators'
   | 'templates'
   | 'analytics'
   | 'integrations'
+  | 'requests'
   | 'payments'
   | 'faq'
   | 'settings';
@@ -155,6 +158,8 @@ const App = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<CalculatorTemplate | undefined>();
   const [activeFolderId, setActiveFolderId] = useState<ActiveFolderId>('all');
   const [adminProfile, setAdminProfile] = useState<AdminProfile>(FALLBACK_PROFILE);
+  const [connectedCommunities, setConnectedCommunities] = useState<CalculatorConnectedCommunity[]>([]);
+  const [activeAdminGroupId, setActiveAdminGroupId] = useState(0);
   const [isAdminNavOpen, setIsAdminNavOpen] = useState(false);
   const [homeSection, setHomeSection] = useState<AdminSection>('calculators');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -199,19 +204,26 @@ const App = () => {
   const canUseBooking = currentPlan.features.booking;
   const fallbackGroupId = getFallbackGroupIdFromLocation();
   const currentGroupId = Number(launchParams?.vk_group_id ?? 0) || fallbackGroupId;
+  const effectiveAdminGroupId = activeAdminGroupId || currentGroupId;
   const viewerGroupRole = launchParams?.vk_viewer_group_role ?? 'none';
   const isViewerGroupAdmin = COMMUNITY_ADMIN_ROLES.has(viewerGroupRole);
   const isSuperAdmin = Boolean(adminProfile.id && SUPER_ADMIN_IDS.has(adminProfile.id));
 
   useEffect(() => {
-    setStorageGroupScope(currentGroupId);
+    setStorageGroupScope(effectiveAdminGroupId);
     setTemplates(getTemplates());
     setFolders(getFolders());
     setRequests(getRequests());
     setAdminSettings(getAdminSettings());
     setSelectedTemplate(undefined);
     setActiveFolderId('all');
-  }, [currentGroupId]);
+  }, [effectiveAdminGroupId]);
+
+  useEffect(() => {
+    if (currentGroupId > 0 && activeAdminGroupId === 0) {
+      setActiveAdminGroupId(currentGroupId);
+    }
+  }, [activeAdminGroupId, currentGroupId]);
 
   useEffect(() => {
     bridge
@@ -265,11 +277,65 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    const viewerId = adminProfile.id;
+
+    if (!viewerId) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const syncCommunities = async () => {
+      try {
+        if (currentGroupId > 0) {
+          const connectedResponse = await fetch('/api/communities', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              viewerId,
+              groupId: currentGroupId,
+              name: `Сообщество ${currentGroupId}`,
+              role: viewerGroupRole,
+            }),
+          });
+          const connectedPayload = (await connectedResponse.json().catch(() => null)) as
+            | { ok?: boolean; data?: CalculatorConnectedCommunity[] }
+            | null;
+
+          if (!isCancelled && connectedResponse.ok && connectedPayload?.ok && Array.isArray(connectedPayload.data)) {
+            setConnectedCommunities(connectedPayload.data);
+            return;
+          }
+        }
+
+        const response = await fetch(`/api/communities?viewerId=${viewerId}`);
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; data?: CalculatorConnectedCommunity[] }
+          | null;
+
+        if (!isCancelled && response.ok && payload?.ok && Array.isArray(payload.data)) {
+          setConnectedCommunities(payload.data);
+        }
+      } catch {
+        // Keep the local communities list empty when the API is unavailable.
+      }
+    };
+
+    syncCommunities();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [adminProfile.id, currentGroupId, viewerGroupRole]);
+
+  useEffect(() => {
     let isCancelled = false;
 
     const syncAdminSettings = async () => {
       try {
-        const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
+        const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
         const response = await fetch(`/api/admin-settings${query}`);
         const payload = (await response.json().catch(() => null)) as
           | { ok?: boolean; data?: CalculatorAdminSettings }
@@ -291,14 +357,14 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [currentGroupId]);
+  }, [effectiveAdminGroupId]);
 
   useEffect(() => {
     let isCancelled = false;
 
     const syncTemplatesFromServer = async () => {
       try {
-        const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
+        const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
         const response = await fetch(`/api/templates${query}`);
         const payload = (await response.json().catch(() => null)) as
           | { ok?: boolean; data?: CalculatorTemplate[] }
@@ -324,7 +390,7 @@ const App = () => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              groupId: currentGroupId,
+              groupId: effectiveAdminGroupId,
               templates: nextTemplates,
             }),
           }).catch(() => {
@@ -341,7 +407,7 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [currentGroupId]);
+  }, [effectiveAdminGroupId]);
 
   const sortedTemplates = useMemo(
     () =>
@@ -499,7 +565,7 @@ const App = () => {
   const handleSaveAdminSettings = (settings: CalculatorAdminSettings) => {
     persistAdminSettings(settings);
 
-    const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
+    const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
 
     fetch(`/api/admin-settings${query}`, {
       method: 'POST',
@@ -540,7 +606,7 @@ const App = () => {
         throw new Error(payload?.error || 'Не удалось выдать доступ Про.');
       }
 
-      if (targetGroupId === currentGroupId) {
+      if (targetGroupId === effectiveAdminGroupId) {
         persistAdminSettings(payload.data);
       }
 
@@ -565,7 +631,7 @@ const App = () => {
     saveTemplates(nextTemplates);
     setTemplates(nextTemplates);
 
-    const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
+    const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
 
     fetch(`/api/templates${query}`, {
       method: 'POST',
@@ -573,7 +639,7 @@ const App = () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        groupId: currentGroupId,
+        groupId: effectiveAdminGroupId,
         templates: nextTemplates,
       }),
     }).catch(() => {
@@ -620,6 +686,27 @@ const App = () => {
       const addedGroupId =
         Number(result?.group_id) || Number(launchParams?.vk_group_id ?? 0) || currentGroupId;
 
+      if (adminProfile.id && addedGroupId > 0) {
+        const response = await fetch('/api/communities', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            viewerId: adminProfile.id,
+            groupId: addedGroupId,
+            role: viewerGroupRole,
+          }),
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; data?: CalculatorConnectedCommunity[] }
+          | null;
+
+        if (response.ok && payload?.ok && Array.isArray(payload.data)) {
+          setConnectedCommunities(payload.data);
+        }
+      }
+
       setHomeSection('payments');
       setPaymentStatus({
         tone: 'success',
@@ -662,7 +749,7 @@ const App = () => {
         },
         body: JSON.stringify({
           plan,
-          groupId: currentGroupId,
+          groupId: effectiveAdminGroupId,
         }),
       });
       const payload = (await response.json().catch(() => null)) as
@@ -729,7 +816,7 @@ const App = () => {
           body: JSON.stringify({
             paymentId,
             plan: pendingPayment?.plan ?? paidPlanConfig.id,
-            groupId: currentGroupId,
+            groupId: effectiveAdminGroupId,
           }),
         });
         const payload = (await response.json().catch(() => null)) as
@@ -794,7 +881,7 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [adminSettings, effectiveAdminGroupId, paidPlanConfig.id]);
 
   const handleSaveTemplate = (template: CalculatorTemplate) => {
     if (!isViewerGroupAdmin) {
@@ -957,6 +1044,61 @@ const App = () => {
     }
   };
 
+  const handleTransferTemplateToCommunity = async (
+    template: CalculatorTemplate,
+    targetGroupId: number,
+  ) => {
+    if (!isViewerGroupAdmin || targetGroupId <= 0 || targetGroupId === effectiveAdminGroupId) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/templates?action=transfer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          templateId: template.id,
+          fromGroupId: effectiveAdminGroupId,
+          toGroupId: targetGroupId,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            ok?: boolean;
+            data?: {
+              sourceTemplates?: CalculatorTemplate[];
+            };
+            error?: string;
+          }
+        | null;
+
+      if (!response.ok || !payload?.ok || !Array.isArray(payload.data?.sourceTemplates)) {
+        throw new Error(payload?.error || 'Не удалось перенести калькулятор');
+      }
+
+      const nextSourceTemplates = payload.data.sourceTemplates.map((item) =>
+        normalizeTemplateRecord(item),
+      );
+      persistTemplates(nextSourceTemplates);
+
+      if (selectedTemplate?.id === template.id) {
+        setSelectedTemplate(undefined);
+      }
+
+      setPaymentStatus({
+        tone: 'success',
+        message: `Калькулятор перенесён в сообщество ID ${targetGroupId}. В новой группе он сохранён как черновик.`,
+      });
+    } catch (error) {
+      setPaymentStatus({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Не удалось перенести калькулятор',
+      });
+    }
+  };
+
   const createFolder = () => {
     if (!isViewerGroupAdmin) {
       return;
@@ -1032,6 +1174,51 @@ const App = () => {
     }
   };
 
+  const handleSelectAdminGroup = (groupId: number) => {
+    setActiveAdminGroupId(groupId);
+
+    if (adminProfile.id && groupId > 0) {
+      fetch('/api/communities?action=touch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          viewerId: adminProfile.id,
+          groupId,
+        }),
+      }).catch(() => {
+        // The selected group remains active locally even if the touch request fails.
+      });
+    }
+  };
+
+  const handleDisconnectCommunity = (groupId: number) => {
+    if (!adminProfile.id || groupId <= 0 || groupId === activeAdminGroupId) {
+      return;
+    }
+
+    fetch('/api/communities?action=disconnect', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        viewerId: adminProfile.id,
+        groupId,
+      }),
+    })
+      .then((response) => response.json().catch(() => null))
+      .then((payload: { ok?: boolean; data?: CalculatorConnectedCommunity[] } | null) => {
+        if (payload?.ok && Array.isArray(payload.data)) {
+          setConnectedCommunities(payload.data);
+        }
+      })
+      .catch(() => {
+        // Keep the current communities list when disconnect sync fails.
+      });
+  };
+
   return (
     <SplitLayout>
       <SplitCol width="100%" maxWidth="100%">
@@ -1039,6 +1226,7 @@ const App = () => {
           <Panel id="home">
             {isViewerGroupAdmin ? (
               <HomePage
+                connectedCommunities={connectedCommunities}
                 folders={folders}
                 activeFolderId={activeFolderId}
                 allTemplates={sortedTemplates}
@@ -1063,16 +1251,20 @@ const App = () => {
                 onDuplicateTemplate={duplicateTemplate}
                 onDeleteTemplate={deleteTemplate}
                 onMoveTemplateToFolder={moveTemplateToFolder}
+                onTransferTemplateToCommunity={handleTransferTemplateToCommunity}
                 onUpdateTemplateStatus={updateTemplatePublicationStatus}
                 onCopyTemplateLink={handleCopyTemplateLink}
                 currentPlan={currentPlan}
                 configuredPlan={paidPlanConfig}
                 hasActiveSubscription={hasActiveSubscription}
                 isSuperAdmin={isSuperAdmin}
-                currentGroupId={currentGroupId}
+                currentGroupId={effectiveAdminGroupId}
+                launchGroupId={currentGroupId}
                 canCreateMoreTemplates={canCreateMoreTemplates}
                 canCreateMoreRequests={canCreateMoreRequests}
                 monthlyRequestsUsed={monthlyRequestsUsed}
+                onSelectAdminGroup={handleSelectAdminGroup}
+                onDisconnectCommunity={handleDisconnectCommunity}
                 onStartPayment={startSubscriptionPayment}
                 onInstallInCommunity={openCommunityInstall}
                 requestLimit={requestLimit}

@@ -1,4 +1,6 @@
 import { supabaseSelect, supabaseUpsert } from './supabase.js';
+import { getServerAdminSettings } from './settings-store.js';
+import { getSubscriptionPlanConfig } from './subscription-config.js';
 
 const TEMPLATES_KEY = 'calcpro:templates';
 const GROUP_TEMPLATES_KEY_PREFIX = 'calcpro:templates:group:';
@@ -15,6 +17,16 @@ function getTemplatesKey(groupId) {
 
 function normalizeTemplates(templates = []) {
   return Array.isArray(templates) ? templates : [];
+}
+
+function createTemplateId() {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `template-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createTemplatePublicId() {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
 async function readSettingRow(key) {
@@ -73,4 +85,65 @@ export async function saveServerTemplates(templates, groupId) {
   const normalized = normalizeTemplates(templates);
   await writeSettingRow(getTemplatesKey(groupId), normalized);
   return normalized;
+}
+
+export async function transferServerTemplate(templateId, fromGroupId, toGroupId) {
+  const normalizedTemplateId = String(templateId || '').trim();
+  const sourceGroupId = Number(fromGroupId) || 0;
+  const targetGroupId = Number(toGroupId) || 0;
+
+  if (!normalizedTemplateId) {
+    throw new Error('templateId is required');
+  }
+
+  if (sourceGroupId <= 0 || targetGroupId <= 0) {
+    throw new Error('Both fromGroupId and toGroupId are required');
+  }
+
+  if (sourceGroupId === targetGroupId) {
+    throw new Error('Target community must differ from the current one');
+  }
+
+  const sourceTemplates = await getServerTemplates(sourceGroupId);
+  const targetTemplates = await getServerTemplates(targetGroupId);
+  const sourceTemplate = sourceTemplates.find((template) => String(template.id) === normalizedTemplateId);
+
+  if (!sourceTemplate) {
+    throw new Error('Template not found in the source community');
+  }
+
+  const targetSettings = await getServerAdminSettings(targetGroupId);
+  const targetPlan = getSubscriptionPlanConfig(targetSettings.subscription.plan);
+  const targetLimit = targetPlan.calculatorLimit;
+
+  if (targetLimit != null && targetTemplates.length >= targetLimit) {
+    throw new Error(`Лимит калькуляторов в сообществе назначения: ${targetLimit}`);
+  }
+
+  const now = new Date().toISOString();
+  const movedTemplate = {
+    ...sourceTemplate,
+    id: createTemplateId(),
+    publicId: createTemplatePublicId(),
+    groupId: targetGroupId,
+    folderId: undefined,
+    publicationStatus: 'draft',
+    publishedAt: '',
+    updatedAt: now,
+    lastModifiedBy: sourceTemplate.lastModifiedBy || 'Администратор',
+  };
+
+  const nextSourceTemplates = sourceTemplates.filter(
+    (template) => String(template.id) !== normalizedTemplateId,
+  );
+  const nextTargetTemplates = [movedTemplate, ...targetTemplates];
+
+  await saveServerTemplates(nextSourceTemplates, sourceGroupId);
+  await saveServerTemplates(nextTargetTemplates, targetGroupId);
+
+  return {
+    movedTemplate,
+    sourceTemplates: nextSourceTemplates,
+    targetTemplates: nextTargetTemplates,
+  };
 }

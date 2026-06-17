@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type {
+  CalculatorConnectedCommunity,
   CalculatorFolder,
   CalculatorPublicationStatus,
   CalculatorTemplate,
@@ -8,6 +9,8 @@ import type {
 interface TemplateCardProps {
   template: CalculatorTemplate;
   folders: CalculatorFolder[];
+  communities: CalculatorConnectedCommunity[];
+  currentGroupId: number;
   canDuplicate: boolean;
   canUseFolders: boolean;
   onOpen: (template: CalculatorTemplate) => void;
@@ -15,6 +18,7 @@ interface TemplateCardProps {
   onDuplicate: (template: CalculatorTemplate) => void;
   onDelete: (template: CalculatorTemplate) => void;
   onMoveToFolder: (template: CalculatorTemplate, folderId?: string) => void;
+  onTransferToCommunity: (template: CalculatorTemplate, groupId: number) => void;
   onUpdateStatus: (
     template: CalculatorTemplate,
     publicationStatus: CalculatorPublicationStatus,
@@ -49,6 +53,8 @@ const formatTemplateDate = (value?: string) =>
 export const TemplateCard = ({
   template,
   folders,
+  communities,
+  currentGroupId,
   canDuplicate,
   canUseFolders,
   onOpen,
@@ -56,13 +62,16 @@ export const TemplateCard = ({
   onDuplicate,
   onDelete,
   onMoveToFolder,
+  onTransferToCommunity,
   onUpdateStatus,
   onCopyLink,
 }: TemplateCardProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
+  const [isCommunityPickerOpen, setIsCommunityPickerOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const transferTargets = communities.filter((community) => community.groupId !== currentGroupId);
   const safeTitle = hasMojibake(template.title) ? 'Новый калькулятор' : template.title;
   const safeDescription = hasMojibake(template.description) ? '' : template.description;
   const safeLastModifiedBy = hasMojibake(template.lastModifiedBy)
@@ -78,6 +87,7 @@ export const TemplateCard = ({
       if (!menuRef.current?.contains(event.target as Node)) {
         setIsMenuOpen(false);
         setIsFolderPickerOpen(false);
+        setIsCommunityPickerOpen(false);
       }
     };
 
@@ -119,6 +129,7 @@ export const TemplateCard = ({
                 onClick={() => {
                   setIsMenuOpen((current) => !current);
                   setIsFolderPickerOpen(false);
+                  setIsCommunityPickerOpen(false);
                 }}
               >
                 …
@@ -181,7 +192,10 @@ export const TemplateCard = ({
                     className="template-card__menu-action"
                     type="button"
                     disabled={!canUseFolders}
-                    onClick={() => setIsFolderPickerOpen((current) => !current)}
+                    onClick={() => {
+                      setIsFolderPickerOpen((current) => !current);
+                      setIsCommunityPickerOpen(false);
+                    }}
                   >
                     {canUseFolders ? 'Перенести в папку' : 'Папки (Про)'}
                   </button>
@@ -211,6 +225,37 @@ export const TemplateCard = ({
                           }}
                         >
                           {folder.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <button
+                    className="template-card__menu-action"
+                    type="button"
+                    disabled={!transferTargets.length}
+                    onClick={() => {
+                      setIsCommunityPickerOpen((current) => !current);
+                      setIsFolderPickerOpen(false);
+                    }}
+                  >
+                    {transferTargets.length ? 'Перенести в сообщество' : 'Нет других сообществ'}
+                  </button>
+
+                  {isCommunityPickerOpen && transferTargets.length ? (
+                    <div className="template-card__folder-picker">
+                      {transferTargets.map((community) => (
+                        <button
+                          key={community.groupId}
+                          className="template-card__folder-option"
+                          type="button"
+                          onClick={() => {
+                            onTransferToCommunity(template, community.groupId);
+                            setIsMenuOpen(false);
+                            setIsCommunityPickerOpen(false);
+                          }}
+                        >
+                          {community.name}
                         </button>
                       ))}
                     </div>

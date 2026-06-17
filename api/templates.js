@@ -1,5 +1,9 @@
 import { sendJson } from '../server/http.js';
-import { getServerTemplates, saveServerTemplates } from '../server/template-store.js';
+import {
+  getServerTemplates,
+  saveServerTemplates,
+  transferServerTemplate,
+} from '../server/template-store.js';
 
 function parseGroupId(rawValue) {
   const groupId = Number(rawValue);
@@ -16,6 +20,17 @@ export default async function handler(request, response) {
     }
 
     if (request.method === 'POST') {
+      const action = String(request.query?.action || request.body?.action || '').toLowerCase();
+
+      if (action === 'transfer') {
+        const result = await transferServerTemplate(
+          request.body?.templateId,
+          request.body?.fromGroupId,
+          request.body?.toGroupId,
+        );
+        return sendJson(response, 200, { ok: true, data: result });
+      }
+
       const incomingTemplates = Array.isArray(request.body)
         ? request.body
         : request.body?.templates;

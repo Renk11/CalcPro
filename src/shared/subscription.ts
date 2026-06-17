@@ -20,6 +20,7 @@ export type SubscriptionPlanConfig = {
   id: CalculatorSubscriptionPlan;
   name: string;
   monthlyPriceRub: number;
+  communityLimit: number | null;
   calculatorLimit: number | null;
   monthlyRequestLimit: number | null;
   features: SubscriptionPlanFeatures;
@@ -42,6 +43,7 @@ export const SUBSCRIPTION_PLANS: Record<CalculatorSubscriptionPlan, Subscription
     id: 'free',
     name: 'Free',
     monthlyPriceRub: 0,
+    communityLimit: 1,
     calculatorLimit: 1,
     monthlyRequestLimit: 20,
     paymentTitle: 'Бесплатный тариф CalcPro',
@@ -53,6 +55,7 @@ export const SUBSCRIPTION_PLANS: Record<CalculatorSubscriptionPlan, Subscription
     id: 'start',
     name: 'Start',
     monthlyPriceRub: 299,
+    communityLimit: 3,
     calculatorLimit: 3,
     monthlyRequestLimit: 100,
     paymentTitle: 'Тариф Start на 30 дней для сообщества',
@@ -67,6 +70,7 @@ export const SUBSCRIPTION_PLANS: Record<CalculatorSubscriptionPlan, Subscription
     id: 'pro',
     name: 'Pro',
     monthlyPriceRub: 699,
+    communityLimit: null,
     calculatorLimit: null,
     monthlyRequestLimit: null,
     paymentTitle: 'Тариф Pro на 30 дней для сообщества',

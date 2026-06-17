@@ -36,6 +36,7 @@ import type { SubscriptionPlanConfig } from '../shared/subscription';
 import { SUBSCRIPTION_PLANS, formatSubscriptionDate, parseSubscriptionDate } from '../shared/subscription';
 import type {
   CalculatorAdminSettings,
+  CalculatorConnectedCommunity,
   CalculatorFolder,
   CalculatorPublicationStatus,
   CalculatorRequest,
@@ -48,6 +49,7 @@ import type {
 } from '../shared/types/calculator';
 
 interface HomePageProps {
+  connectedCommunities: CalculatorConnectedCommunity[];
   folders: CalculatorFolder[];
   activeFolderId: 'all' | string;
   allTemplates: CalculatorTemplate[];
@@ -75,6 +77,7 @@ interface HomePageProps {
   onDuplicateTemplate: (template: CalculatorTemplate) => void;
   onDeleteTemplate: (template: CalculatorTemplate) => void;
   onMoveTemplateToFolder: (template: CalculatorTemplate, folderId?: string) => void;
+  onTransferTemplateToCommunity: (template: CalculatorTemplate, groupId: number) => void;
   onUpdateTemplateStatus: (
     template: CalculatorTemplate,
     publicationStatus: CalculatorPublicationStatus,
@@ -85,6 +88,7 @@ interface HomePageProps {
   hasActiveSubscription: boolean;
   isSuperAdmin: boolean;
   currentGroupId: number;
+  launchGroupId: number;
   canCreateMoreTemplates: boolean;
   canCreateMoreRequests: boolean;
   monthlyRequestsUsed: number;
@@ -94,6 +98,8 @@ interface HomePageProps {
   canUseNotifications: boolean;
   canUseRequestStatuses: boolean;
   canUseFolders: boolean;
+  onSelectAdminGroup: (groupId: number) => void;
+  onDisconnectCommunity: (groupId: number) => void;
   onStartPayment: (plan: CalculatorSubscriptionPlan) => void;
   onInstallInCommunity: () => void;
   onGrantProAccess: (
@@ -560,14 +566,38 @@ const navItems: Array<{
   label: string;
   icon: typeof Icon20HomeOutline;
 }> = [
+  { key: 'communities', label: 'Мои сообщества', icon: Icon20HomeOutline },
   { key: 'calculators', label: 'Мои калькуляторы', icon: Icon20HomeOutline },
   { key: 'templates', label: 'Шаблоны', icon: Icon20ArticleOutline },
   { key: 'analytics', label: 'Аналитика Pro', icon: Icon20GraphOutline },
   { key: 'integrations', label: 'Интеграции Pro', icon: Icon20ServicesOutline },
+  { key: 'requests', label: 'Заявки', icon: Icon20WriteOutline },
   { key: 'payments', label: 'Платежи', icon: Icon20PaymentCardOutline },
   { key: 'faq', label: 'FAQ', icon: Icon20QuestionOutline },
   { key: 'settings', label: 'Настройки', icon: Icon20GearOutline },
 ];
+
+const tariffOverview = [
+  {
+    planId: 'free' as const,
+    title: 'Free',
+    items: ['1 калькулятор', 'до 20 заявок в месяц', 'базовые поля', 'логотип CalcPro'],
+  },
+  {
+    planId: 'start' as const,
+    title: 'Start',
+    items: ['3 калькулятора', 'до 100 заявок', 'статусы заявок', 'шаблоны'],
+  },
+  {
+    planId: 'pro' as const,
+    title: 'Pro',
+    items: ['безлимитные калькуляторы', 'сложные формулы', 'уведомления', 'аналитика'],
+  },
+] satisfies Array<{
+  planId: CalculatorSubscriptionPlan;
+  title: string;
+  items: string[];
+}>;
 
 const categoryLabels: Record<'all' | TemplateCatalogCategory, string> = {
   all: 'Все',
@@ -716,6 +746,7 @@ const TemplatePresetCard = ({
 );
 
 export const HomePage = ({
+  connectedCommunities,
   folders,
   activeFolderId,
   allTemplates,
@@ -740,6 +771,7 @@ export const HomePage = ({
   onDuplicateTemplate,
   onDeleteTemplate,
   onMoveTemplateToFolder,
+  onTransferTemplateToCommunity,
   onUpdateTemplateStatus,
   onCopyTemplateLink,
   currentPlan,
@@ -747,6 +779,7 @@ export const HomePage = ({
   hasActiveSubscription,
   isSuperAdmin,
   currentGroupId,
+  launchGroupId,
   canCreateMoreTemplates,
   canCreateMoreRequests,
   monthlyRequestsUsed,
@@ -756,6 +789,8 @@ export const HomePage = ({
   canUseNotifications,
   canUseRequestStatuses,
   canUseFolders,
+  onSelectAdminGroup,
+  onDisconnectCommunity,
   onStartPayment,
   onInstallInCommunity,
   onGrantProAccess,
@@ -949,6 +984,14 @@ export const HomePage = ({
     requestLimit == null
       ? 'Безлимит заявок'
       : `${monthlyRequestsUsed} / ${requestLimit} заявок в этом месяце${canCreateMoreRequests ? '' : ' · лимит исчерпан'}`;
+  const selectedCommunity =
+    connectedCommunities.find((community) => community.groupId === currentGroupId) ?? null;
+  const communityLimitLabel =
+    currentPlan.communityLimit == null
+      ? 'Безлимит сообществ'
+      : `${connectedCommunities.length} / ${currentPlan.communityLimit} сообществ`;
+  const isCommunityLimitReached =
+    currentPlan.communityLimit != null && connectedCommunities.length >= currentPlan.communityLimit;
   const activationSteps = isCommunityContext
     ? [
         'Оплатите доступ через YooKassa на этом экране.',
@@ -976,6 +1019,145 @@ export const HomePage = ({
       return matchesCategory && matchesSearch;
     });
   }, [templateCategory, templateSearch]);
+
+  const renderCommunitiesSection = () => (
+    <main className="admin-home__content admin-home__content_wide">
+      <div className="admin-home__content-head">
+        <div className="admin-home__title-wrap">
+          <h1 className="admin-home__title">Мои сообщества</h1>
+        </div>
+        <div className="admin-home__role-badge">WORKSPACE</div>
+      </div>
+
+      <section className="communities-layout">
+        <article className="communities-hero">
+          <div className="communities-hero__eyebrow">Мультигрупповой кабинет</div>
+          <h2 className="communities-hero__title">Один кабинет для разных сообществ</h2>
+          <p className="communities-hero__text">
+            Переключайте активную группу и работайте с её калькуляторами, заявками и настройками
+            в одном интерфейсе. Тариф, лимиты и данные подгружаются для выбранного сообщества.
+          </p>
+        </article>
+
+        <article className="communities-card">
+          <div className="communities-card__head">
+            <div>
+              <div className="communities-card__eyebrow">Подключённые группы</div>
+              <h3 className="communities-card__title">Список сообществ</h3>
+            </div>
+            <div className="communities-card__head-actions">
+              <div className="communities-card__meta">{communityLimitLabel}</div>
+              <button
+                className="communities-card__add-button"
+                type="button"
+                onClick={onInstallInCommunity}
+                disabled={isCommunityLimitReached}
+              >
+                Подключить сообщество
+              </button>
+            </div>
+          </div>
+
+          {isCommunityLimitReached ? (
+            <div className="communities-card__limit-banner">
+              Лимит сообществ для тарифа {currentPlan.name} достигнут. Чтобы подключить ещё одну
+              группу, перейдите на более высокий тариф.
+            </div>
+          ) : null}
+
+          <div className="communities-list">
+            {connectedCommunities.length ? (
+              connectedCommunities.map((community) => {
+                const isActive = community.groupId === currentGroupId;
+
+                return (
+                  <button
+                    key={community.groupId}
+                    className={`community-row ${isActive ? 'community-row_active' : ''}`}
+                    type="button"
+                    onClick={() => onSelectAdminGroup(community.groupId)}
+                  >
+                    <div className="community-row__media">
+                      {community.photoUrl ? (
+                        <img
+                          className="community-row__avatar"
+                          src={community.photoUrl}
+                          alt={community.name}
+                        />
+                      ) : (
+                        <div className="community-row__avatar community-row__avatar_fallback">
+                          {community.name.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="community-row__body">
+                      <div className="community-row__name">{community.name}</div>
+                      <div className="community-row__meta">
+                        ID {community.groupId}
+                        {community.screenName ? ` · @${community.screenName}` : ''}
+                        {community.role ? ` · роль: ${community.role}` : ''}
+                      </div>
+                    </div>
+                    <div className="community-row__side">
+                      <span
+                        className={`community-row__badge ${isActive ? 'community-row__badge_active' : ''}`}
+                      >
+                        {isActive ? 'Текущая группа' : 'Сделать активной'}
+                      </span>
+                      {!isActive ? (
+                        <button
+                          className="community-row__remove"
+                          type="button"
+                          aria-label={`Отключить ${community.name}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDisconnectCommunity(community.groupId);
+                          }}
+                        >
+                          <Icon20TrashSimpleOutline />
+                        </button>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="communities-card__empty">
+                Пока нет подключённых сообществ. Откройте приложение внутри нужной группы VK или
+                используйте установку через экран оплаты.
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article className="communities-card">
+          <div className="communities-card__head">
+            <div>
+              <div className="communities-card__eyebrow">Активный контекст</div>
+              <h3 className="communities-card__title">
+                {selectedCommunity?.name || (currentGroupId > 0 ? `Сообщество ${currentGroupId}` : 'Группа не выбрана')}
+              </h3>
+            </div>
+          </div>
+
+          <div className="communities-summary">
+            <div className="communities-summary__row">
+              <span>Рабочая группа</span>
+              <strong>{currentGroupId > 0 ? `ID ${currentGroupId}` : 'Не выбрана'}</strong>
+            </div>
+            <div className="communities-summary__row">
+              <span>Контекст запуска</span>
+              <strong>{launchGroupId > 0 ? `ID ${launchGroupId}` : 'Вне сообщества'}</strong>
+            </div>
+            <div className="communities-summary__row">
+              <span>Тариф</span>
+              <strong>{currentPlan.name}</strong>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  );
 
   const analytics = useMemo(() => {
     const now = new Date();
@@ -1329,6 +1511,8 @@ export const HomePage = ({
               key={template.id}
               template={template}
               folders={folders}
+              communities={connectedCommunities}
+              currentGroupId={currentGroupId}
               canDuplicate={canUseTemplates}
               canUseFolders={canUseFolders}
               onOpen={onOpen}
@@ -1336,6 +1520,7 @@ export const HomePage = ({
               onDuplicate={onDuplicateTemplate}
               onDelete={setPendingDeleteTemplate}
               onMoveToFolder={onMoveTemplateToFolder}
+              onTransferToCommunity={onTransferTemplateToCommunity}
               onUpdateStatus={onUpdateTemplateStatus}
               onCopyLink={onCopyTemplateLink}
             />
@@ -1725,6 +1910,35 @@ export const HomePage = ({
             <div className="payments-price-card__label">Текущий тариф</div>
             <div className="payments-price-card__value">{currentPlan.name}</div>
             <div className="payments-price-card__caption">{requestQuotaLabel}</div>
+            <div className="payments-price-card__plans">
+              {tariffOverview.map((plan) => {
+                const planConfig = SUBSCRIPTION_PLANS[plan.planId];
+                const isActivePlan = currentPlan.id === plan.planId;
+
+                return (
+                  <div
+                    key={plan.planId}
+                    className={`payments-plan-info ${isActivePlan ? 'payments-plan-info_active' : ''}`}
+                  >
+                    <div className="payments-plan-info__head">
+                      <div className="payments-plan-info__name">{plan.title}</div>
+                      <div className="payments-plan-info__price">
+                        {planConfig.monthlyPriceRub > 0
+                          ? `${formatCurrency(planConfig.monthlyPriceRub)}/мес`
+                          : 'бесплатно'}
+                      </div>
+                    </div>
+                    <div className="payments-plan-info__items">
+                      {plan.items.map((item) => (
+                        <div key={item} className="payments-plan-info__item">
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
             {paidPlanOrder.map((planId) => {
               const plan = SUBSCRIPTION_PLANS[planId];
               const isCurrentConfiguredPlan = configuredPlan.id === plan.id;
@@ -1987,58 +2201,16 @@ export const HomePage = ({
     setSuperAdminStatus(result.message);
   };
 
-  const renderSettingsSection = () => (
+  const renderRequestsSection = () => (
     <main className="admin-home__content admin-home__content_wide">
       <div className="admin-home__content-head">
         <div className="admin-home__title-wrap">
-          <h1 className="admin-home__title">Настройки</h1>
+          <h1 className="admin-home__title">Заявки</h1>
         </div>
       </div>
 
       <section className="settings-section">
-        <article className="settings-card">
-          <div className="settings-card__eyebrow">Менеджер заявок</div>
-          <h2 className="settings-card__title">ID менеджера для отправки заявок</h2>
-          <p className="settings-card__text">
-            Если для кнопки выбрано действие <strong>Отправить заявку</strong>, заявка будет
-            отправлена менеджеру, которого вы указали в настройках.
-          </p>
-
-          <label className="settings-form__field">
-            <span className="settings-form__label">ID менеджера</span>
-            <input
-              className="settings-form__input"
-              type="text"
-              inputMode="text"
-              placeholder="Например: 123456789"
-              value={managerVkId}
-              disabled={!canUseNotifications}
-              onChange={(event) => setManagerVkId(event.target.value.replace(/[^\d,\s;-]/g, ''))}
-            />
-          </label>
-
-          <div className="settings-form__hint">
-            {canUseNotifications
-              ? 'Укажите VK ID сотрудника, которому будут приходить заявки из калькуляторов.'
-              : 'Отправка заявок менеджерам доступна на тарифе Про.'}
-          </div>
-
-          <button
-            className="settings-form__button"
-            type="button"
-            disabled={!canUseNotifications}
-            onClick={() =>
-              onSaveAdminSettings({
-                ...adminSettings,
-                managerVkId: managerVkId.trim(),
-              })
-            }
-          >
-            Сохранить
-          </button>
-        </article>
-
-        <article className="settings-card">
+        <article className="settings-card settings-card_requests">
           <div className="settings-card__eyebrow">Заявки</div>
           <h2 className="settings-card__title">Статусы и обработка обращений</h2>
           <p className="settings-card__text">
@@ -2051,7 +2223,9 @@ export const HomePage = ({
               Статусы заявок доступны на тарифах Start и Pro.
             </div>
           ) : latestRequests.length === 0 ? (
-            <div className="settings-form__hint">Пока нет заявок, которые можно разобрать по статусам.</div>
+            <div className="settings-form__hint">
+              Пока нет заявок, которые можно разобрать по статусам.
+            </div>
           ) : (
             <div className="settings-support__tickets">
               {latestRequests.map((request) => (
@@ -2104,6 +2278,60 @@ export const HomePage = ({
             </div>
           )}
         </article>
+      </section>
+    </main>
+  );
+
+  const renderSettingsSection = () => (
+    <main className="admin-home__content admin-home__content_wide">
+      <div className="admin-home__content-head">
+        <div className="admin-home__title-wrap">
+          <h1 className="admin-home__title">Настройки</h1>
+        </div>
+      </div>
+
+      <section className="settings-section">
+        <article className="settings-card">
+          <div className="settings-card__eyebrow">Менеджер заявок</div>
+          <h2 className="settings-card__title">ID менеджера для отправки заявок</h2>
+          <p className="settings-card__text">
+            Если для кнопки выбрано действие <strong>Отправить заявку</strong>, заявка будет
+            отправлена менеджеру, которого вы указали в настройках.
+          </p>
+
+          <label className="settings-form__field">
+            <span className="settings-form__label">ID менеджера</span>
+            <input
+              className="settings-form__input"
+              type="text"
+              inputMode="text"
+              placeholder="Например: 123456789"
+              value={managerVkId}
+              disabled={!canUseNotifications}
+              onChange={(event) => setManagerVkId(event.target.value.replace(/[^\d,\s;-]/g, ''))}
+            />
+          </label>
+
+          <div className="settings-form__hint">
+            {canUseNotifications
+              ? 'Укажите VK ID сотрудника, которому будут приходить заявки из калькуляторов.'
+              : 'Отправка заявок менеджерам доступна на тарифе Про.'}
+          </div>
+
+          <button
+            className="settings-form__button"
+            type="button"
+            disabled={!canUseNotifications}
+            onClick={() =>
+              onSaveAdminSettings({
+                ...adminSettings,
+                managerVkId: managerVkId.trim(),
+              })
+            }
+          >
+            Сохранить
+          </button>
+        </article>
 
         {isSuperAdmin ? (
           <article className="settings-card">
@@ -2143,9 +2371,7 @@ export const HomePage = ({
                 ? `Текущая группа: ${currentGroupId}. Можно выдать Про ей или ввести другой ID.`
                 : 'Откройте приложение внутри сообщества или введите ID группы вручную.'}
             </div>
-            {superAdminStatus ? (
-              <div className="settings-form__hint">{superAdminStatus}</div>
-            ) : null}
+            {superAdminStatus ? <div className="settings-form__hint">{superAdminStatus}</div> : null}
 
             <button className="settings-form__button" type="button" onClick={handleGrantProSubmit}>
               Выдать Про группе
@@ -2451,6 +2677,37 @@ export const HomePage = ({
           <div className="admin-nav__title">АДМИН</div>
         </div>
 
+        <div className="admin-nav__community-switcher">
+          <div className="admin-nav__community-label">Активная группа</div>
+          <select
+            className="admin-nav__community-select"
+            value={currentGroupId > 0 ? String(currentGroupId) : ''}
+            onChange={(event) => {
+              const nextGroupId = Number(event.target.value) || 0;
+              if (nextGroupId > 0) {
+                onSelectAdminGroup(nextGroupId);
+              }
+            }}
+          >
+            {connectedCommunities.length ? (
+              connectedCommunities.map((community) => (
+                <option key={community.groupId} value={community.groupId}>
+                  {community.name} · ID {community.groupId}
+                </option>
+              ))
+            ) : (
+              <option value="">Нет подключённых групп</option>
+            )}
+          </select>
+          <button
+            className="admin-nav__community-manage"
+            type="button"
+            onClick={() => handleSectionSelect('communities')}
+          >
+            Управлять сообществами
+          </button>
+        </div>
+
         <nav className="admin-nav__menu" aria-label="Разделы администратора">
           {navItems
             .filter((item) => isDesktopClient || item.key !== 'payments')
@@ -2488,6 +2745,7 @@ export const HomePage = ({
                 {currentPlan.id !== 'free' ? <Icon20CrownVerified /> : <Icon20WalletOutline />}
               </span>
             </div>
+            <div className="admin-nav__plan-usage">{requestQuotaLabel}</div>
             {isDesktopClient && !isCompactViewport ? (
               hasActiveSubscription && currentPlan.id !== 'free' ? (
                 <div className="admin-nav__plan-meta">{subscriptionDaysLeftLabel}</div>
@@ -2531,7 +2789,9 @@ export const HomePage = ({
         </div>
       </aside>
 
-      {currentSection === 'calculators'
+      {currentSection === 'communities'
+        ? renderCommunitiesSection()
+        : currentSection === 'calculators'
         ? renderCalculatorsSection()
         : currentSection === 'analytics'
           ? canUseAnalytics
@@ -2541,6 +2801,8 @@ export const HomePage = ({
           ? canUseNotifications
             ? renderPlaceholderSection()
             : renderPlanLockedSection('Интеграции', 'Интеграции')
+        : currentSection === 'requests'
+          ? renderRequestsSection()
         : currentSection === 'payments'
           ? renderPaymentsSection()
         : currentSection === 'settings'

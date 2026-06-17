@@ -160,6 +160,49 @@ body,
   letter-spacing: 0.08em;
 }
 
+.admin-nav__community-switcher {
+  display: grid;
+  gap: 10px;
+  margin: 0 8px 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.admin-nav__community-label {
+  color: #c6b8a8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-nav__community-select {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 179, 107, 0.18);
+  border-radius: 14px;
+  background: rgba(31, 37, 44, 0.92);
+  color: #f4efe7;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-nav__community-manage {
+  min-height: 36px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f4d7b5;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .admin-nav__menu {
   display: grid;
   gap: 4px;
@@ -267,6 +310,13 @@ body,
   color: #9ea497;
   font-size: 12px;
   font-weight: 600;
+}
+
+.admin-nav__plan-usage {
+  color: #d8c7b2;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .admin-nav__plan-button {
@@ -808,6 +858,68 @@ body,
   font-weight: 600;
 }
 
+.payments-price-card__plans {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.payments-plan-info {
+  padding: 14px 14px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 10px;
+}
+
+.payments-plan-info_active {
+  border-color: rgba(255, 179, 107, 0.34);
+  background:
+    linear-gradient(180deg, rgba(255, 179, 107, 0.12) 0%, rgba(255, 179, 107, 0.04) 100%),
+    rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px rgba(255, 179, 107, 0.08);
+}
+
+.payments-plan-info__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.payments-plan-info__name {
+  color: #f5efe6;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.payments-plan-info__price {
+  color: #ffb36b;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-align: right;
+}
+
+.payments-plan-info__items {
+  display: grid;
+  gap: 6px;
+}
+
+.payments-plan-info__item {
+  color: #cfd6de;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.payments-plan-info__item::before {
+  content: '•';
+  margin-right: 8px;
+  color: #72a7ff;
+}
+
 .payments-price-card__button {
   min-height: 48px;
   margin-top: 8px;
@@ -1094,6 +1206,236 @@ body,
   line-height: 1.5;
 }
 
+.communities-layout {
+  display: grid;
+  gap: 22px;
+}
+
+.communities-hero,
+.communities-card {
+  padding: 24px 26px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, #242c34 0%, #1d2329 100%);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
+}
+
+.communities-hero__eyebrow,
+.communities-card__eyebrow {
+  color: #ffb36b;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.communities-hero__title,
+.communities-card__title {
+  margin: 10px 0 0;
+  color: #f7f0e5;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.communities-hero__text {
+  max-width: 72ch;
+  margin: 14px 0 0;
+  color: #c6b8a8;
+  line-height: 1.6;
+}
+
+.communities-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.communities-card__head-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.communities-card__meta {
+  color: #72a7ff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.communities-card__add-button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffb36b 0%, #ff9747 100%);
+  color: #1e2329;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.communities-card__add-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  filter: saturate(0.8);
+}
+
+.communities-card__limit-banner {
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 179, 107, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 179, 107, 0.08);
+  color: #f4d7b5;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.communities-list {
+  display: grid;
+  gap: 12px;
+}
+
+.community-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #f4efe7;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.community-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 179, 107, 0.26);
+}
+
+.community-row_active {
+  border-color: rgba(255, 179, 107, 0.32);
+  background: linear-gradient(135deg, rgba(255, 153, 80, 0.14) 0%, rgba(255, 184, 109, 0.08) 100%);
+}
+
+.community-row__media {
+  flex-shrink: 0;
+}
+
+.community-row__avatar {
+  width: 48px;
+  height: 48px;
+  display: block;
+  border-radius: 14px;
+  object-fit: cover;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.community-row__avatar_fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3a4653 0%, #2a3139 100%);
+  color: #ffb36b;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.community-row__body {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.community-row__name {
+  color: #f7f0e5;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.community-row__meta,
+.communities-card__empty {
+  color: #9ea497;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.community-row__side {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.community-row__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(114, 167, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(114, 167, 255, 0.08);
+  color: #9ec1ff;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.community-row__badge_active {
+  border-color: rgba(255, 179, 107, 0.24);
+  background: rgba(255, 179, 107, 0.12);
+  color: #ffd8ac;
+}
+
+.community-row__remove {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffb4b4;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.community-row__remove:hover {
+  background: rgba(255, 99, 99, 0.12);
+  color: #ffd0d0;
+}
+
+.communities-summary {
+  display: grid;
+  gap: 12px;
+}
+
+.communities-summary__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  color: #9ea497;
+  font-size: 13px;
+}
+
+.communities-summary__row strong {
+  color: #f5efe6;
+  font-size: 14px;
+}
+
 .settings-section {
   display: grid;
   gap: 22px;
@@ -1108,6 +1450,13 @@ body,
 
 .settings-card_support {
   background: linear-gradient(180deg, #202830 0%, #1b2127 100%);
+}
+
+.settings-card_requests {
+  background:
+    linear-gradient(180deg, rgba(35, 44, 53, 0.96) 0%, rgba(27, 33, 39, 0.98) 100%),
+    linear-gradient(135deg, rgba(255, 179, 107, 0.1) 0%, rgba(255, 151, 71, 0.02) 100%);
+  border: 1px solid rgba(255, 179, 107, 0.16);
 }
 
 .settings-card__eyebrow {
@@ -5711,6 +6060,7 @@ body::-webkit-scrollbar-thumb:hover,
   .payments-guide {
     grid-template-columns: 1fr;
   }
+
 }
 
 @media (max-width: 900px) {
