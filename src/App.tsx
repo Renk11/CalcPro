@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy } from 'react';
 import bridge, {
   parseURLSearchParamsForGetLaunchParams,
   type GetLaunchParamsResponse,
@@ -13,9 +14,7 @@ import {
   MAX_TEMPLATE_TITLE_LENGTH,
 } from './entities/calculator/model';
 import { createTemplateFromPreset } from './entities/calculator/templateCatalog';
-import { BuilderPage } from './pages/BuilderPage';
 import { CalculatorPage } from './pages/CalculatorPage';
-import { HomePage } from './pages/HomePage';
 import {
   getAdminSettings,
   getFolders,
@@ -52,6 +51,16 @@ import type {
   CalculatorSubscriptionPlan,
   CalculatorTemplate,
 } from './shared/types/calculator';
+
+const HomePage = lazy(async () => {
+  const module = await import('./pages/HomePage');
+  return { default: module.HomePage };
+});
+
+const BuilderPage = lazy(async () => {
+  const module = await import('./pages/BuilderPage');
+  return { default: module.BuilderPage };
+});
 
 type AppView = 'home' | 'builder' | 'calculator';
 type ActiveFolderId = 'all' | string;
@@ -167,6 +176,8 @@ const App = () => {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [isDesktopClient, setIsDesktopClient] = useState(true);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [hasOpenedHome, setHasOpenedHome] = useState(false);
+  const [hasOpenedBuilder, setHasOpenedBuilder] = useState(false);
   const [launchParams, setLaunchParams] = useState<Partial<GetLaunchParamsResponse> | null>(() => {
     if (typeof window === 'undefined') {
       return null;
@@ -230,6 +241,16 @@ const App = () => {
       setActiveAdminGroupId(currentGroupId);
     }
   }, [activeAdminGroupId, currentGroupId]);
+
+  useEffect(() => {
+    if (activeView === 'home') {
+      setHasOpenedHome(true);
+    }
+
+    if (activeView === 'builder') {
+      setHasOpenedBuilder(true);
+    }
+  }, [activeView]);
 
   useEffect(() => {
     bridge
@@ -1242,73 +1263,79 @@ const App = () => {
       <SplitCol width="100%" maxWidth="100%">
         <View activePanel={activeView}>
           <Panel id="home">
-            {isViewerGroupAdmin ? (
-              <HomePage
-                connectedCommunities={connectedCommunities}
-                folders={folders}
-                activeFolderId={activeFolderId}
-                allTemplates={sortedTemplates}
-                templates={visibleTemplates}
-                adminSettings={adminSettings}
-                adminProfile={adminProfile}
-                vkAuthHeaders={vkAuthHeaders}
-                isAdminNavOpen={isAdminNavOpen}
-                currentSection={homeSection}
-                requests={requests}
-                onSectionChange={setHomeSection}
-                onSaveAdminSettings={handleSaveAdminSettings}
-                onUpdateRequestStatus={handleUpdateRequestStatus}
-                onToggleAdminNav={() => setIsAdminNavOpen((current) => !current)}
-                onCreateFolder={createFolder}
-                onDeleteFolder={deleteFolder}
-                onRenameFolder={renameFolder}
-                onSelectFolder={setActiveFolderId}
-                onCreate={createTemplateInActiveFolder}
-                onUsePreset={createTemplateFromCatalog}
-                onOpen={openCalculator}
-                onEdit={openBuilder}
-                onDuplicateTemplate={duplicateTemplate}
-                onDeleteTemplate={deleteTemplate}
-                onMoveTemplateToFolder={moveTemplateToFolder}
-                onTransferTemplateToCommunity={handleTransferTemplateToCommunity}
-                onUpdateTemplateStatus={updateTemplatePublicationStatus}
-                onCopyTemplateLink={handleCopyTemplateLink}
-                currentPlan={currentPlan}
-                configuredPlan={paidPlanConfig}
-                hasActiveSubscription={hasActiveSubscription}
-                isSuperAdmin={isSuperAdmin}
-                currentGroupId={effectiveAdminGroupId}
-                launchGroupId={currentGroupId}
-                canCreateMoreTemplates={canCreateMoreTemplates}
-                canCreateMoreRequests={canCreateMoreRequests}
-                monthlyRequestsUsed={monthlyRequestsUsed}
-                onSelectAdminGroup={handleSelectAdminGroup}
-                onDisconnectCommunity={handleDisconnectCommunity}
-                onStartPayment={startSubscriptionPayment}
-                onInstallInCommunity={openCommunityInstall}
-                requestLimit={requestLimit}
-                canUseTemplates={canUseTemplates}
-                canUseAnalytics={canUseAnalytics}
-                canUseNotifications={canUseNotifications}
-                canUseRequestStatuses={canUseRequestStatuses}
-                canUseFolders={canUseFolders}
-                onGrantProAccess={handleGrantProAccess}
-                isProcessingPayment={isProcessingPayment}
-                paymentStatus={paymentStatus}
-                isDesktopClient={isDesktopClient}
-                isCompactViewport={isCompactViewport}
-                isCommunityContext={currentGroupId > 0}
-              />
+            {isViewerGroupAdmin && (hasOpenedHome || activeView === 'home') ? (
+              <Suspense fallback={null}>
+                <HomePage
+                  connectedCommunities={connectedCommunities}
+                  folders={folders}
+                  activeFolderId={activeFolderId}
+                  allTemplates={sortedTemplates}
+                  templates={visibleTemplates}
+                  adminSettings={adminSettings}
+                  adminProfile={adminProfile}
+                  vkAuthHeaders={vkAuthHeaders}
+                  isAdminNavOpen={isAdminNavOpen}
+                  currentSection={homeSection}
+                  requests={requests}
+                  onSectionChange={setHomeSection}
+                  onSaveAdminSettings={handleSaveAdminSettings}
+                  onUpdateRequestStatus={handleUpdateRequestStatus}
+                  onToggleAdminNav={() => setIsAdminNavOpen((current) => !current)}
+                  onCreateFolder={createFolder}
+                  onDeleteFolder={deleteFolder}
+                  onRenameFolder={renameFolder}
+                  onSelectFolder={setActiveFolderId}
+                  onCreate={createTemplateInActiveFolder}
+                  onUsePreset={createTemplateFromCatalog}
+                  onOpen={openCalculator}
+                  onEdit={openBuilder}
+                  onDuplicateTemplate={duplicateTemplate}
+                  onDeleteTemplate={deleteTemplate}
+                  onMoveTemplateToFolder={moveTemplateToFolder}
+                  onTransferTemplateToCommunity={handleTransferTemplateToCommunity}
+                  onUpdateTemplateStatus={updateTemplatePublicationStatus}
+                  onCopyTemplateLink={handleCopyTemplateLink}
+                  currentPlan={currentPlan}
+                  configuredPlan={paidPlanConfig}
+                  hasActiveSubscription={hasActiveSubscription}
+                  isSuperAdmin={isSuperAdmin}
+                  currentGroupId={effectiveAdminGroupId}
+                  launchGroupId={currentGroupId}
+                  canCreateMoreTemplates={canCreateMoreTemplates}
+                  canCreateMoreRequests={canCreateMoreRequests}
+                  monthlyRequestsUsed={monthlyRequestsUsed}
+                  onSelectAdminGroup={handleSelectAdminGroup}
+                  onDisconnectCommunity={handleDisconnectCommunity}
+                  onStartPayment={startSubscriptionPayment}
+                  onInstallInCommunity={openCommunityInstall}
+                  requestLimit={requestLimit}
+                  canUseTemplates={canUseTemplates}
+                  canUseAnalytics={canUseAnalytics}
+                  canUseNotifications={canUseNotifications}
+                  canUseRequestStatuses={canUseRequestStatuses}
+                  canUseFolders={canUseFolders}
+                  onGrantProAccess={handleGrantProAccess}
+                  isProcessingPayment={isProcessingPayment}
+                  paymentStatus={paymentStatus}
+                  isDesktopClient={isDesktopClient}
+                  isCompactViewport={isCompactViewport}
+                  isCommunityContext={currentGroupId > 0}
+                />
+              </Suspense>
             ) : null}
           </Panel>
           <Panel id="builder">
-            <BuilderPage
-              initialTemplate={selectedTemplate}
-              onBack={() => setActiveView('home')}
-              onSave={handleSaveTemplate}
-              canUseBooking={canUseBooking}
-              canUseProFeatures={canUseAdvancedFormulas}
-            />
+            {hasOpenedBuilder || activeView === 'builder' ? (
+              <Suspense fallback={null}>
+                <BuilderPage
+                  initialTemplate={selectedTemplate}
+                  onBack={() => setActiveView('home')}
+                  onSave={handleSaveTemplate}
+                  canUseBooking={canUseBooking}
+                  canUseProFeatures={canUseAdvancedFormulas}
+                />
+              </Suspense>
+            ) : null}
           </Panel>
           <Panel id="calculator">
             {selectedTemplate ? (
