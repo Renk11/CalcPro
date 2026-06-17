@@ -41,6 +41,7 @@ import {
   readPendingPayment,
   writePendingPayment,
 } from './shared/storage/pendingPaymentStorage';
+import { isVkLaunchParamsError } from './shared/apiErrors';
 import { createVkAuthHeaders } from './shared/vkAuth';
 import type {
   CalculatorPublicationStatus,
@@ -119,6 +120,26 @@ const DEFAULT_FOLDER_NAME = 'Новая папка';
 const parsePositiveInteger = (rawValue: string | null | undefined) => {
   const value = Number(rawValue);
   return Number.isInteger(value) && value > 0 ? value : 0;
+};
+
+const createFallbackCommunity = (
+  groupId: number,
+  role: string,
+): CalculatorConnectedCommunity | null => {
+  if (groupId <= 0) {
+    return null;
+  }
+
+  const timestamp = new Date().toISOString();
+  return {
+    groupId,
+    name: `Сообщество ${groupId}`,
+    screenName: '',
+    photoUrl: '',
+    role,
+    addedAt: timestamp,
+    lastUsedAt: timestamp,
+  };
 };
 
 const getMonthRequestCount = (requests: CalculatorRequest[], date = new Date()) => {
@@ -221,10 +242,16 @@ const App = () => {
   const isViewerGroupAdmin = COMMUNITY_ADMIN_ROLES.has(viewerGroupRole);
   const isSuperAdmin = Boolean(adminProfile.id && SUPER_ADMIN_IDS.has(adminProfile.id));
   const vkAuthHeaders = useMemo(() => createVkAuthHeaders(launchParams), [launchParams]);
+  const fallbackCommunity = useMemo(
+    () => (isViewerGroupAdmin ? createFallbackCommunity(currentGroupId, viewerGroupRole) : null),
+    [currentGroupId, isViewerGroupAdmin, viewerGroupRole],
+  );
   const createJsonHeaders = () => ({
     'Content-Type': 'application/json',
     ...vkAuthHeaders,
   });
+  const isProtectedApiUnavailable = (payload?: { error?: string } | null, status?: number) =>
+    isVkLaunchParamsError(payload, status);
 
   useEffect(() => {
     setStorageGroupScope(effectiveAdminGroupId);
@@ -307,6 +334,9 @@ const App = () => {
     const viewerId = adminProfile.id;
 
     if (!viewerId) {
+      if (fallbackCommunity) {
+        setConnectedCommunities([fallbackCommunity]);
+      }
       return;
     }
 
@@ -326,8 +356,15 @@ const App = () => {
             }),
           });
           const connectedPayload = (await connectedResponse.json().catch(() => null)) as
-            | { ok?: boolean; data?: CalculatorConnectedCommunity[] }
+            | { ok?: boolean; data?: CalculatorConnectedCommunity[]; error?: string }
             | null;
+
+          if (isProtectedApiUnavailable(connectedPayload, connectedResponse.status)) {
+            if (!isCancelled && fallbackCommunity) {
+              setConnectedCommunities([fallbackCommunity]);
+            }
+            return;
+          }
 
           if (!isCancelled && connectedResponse.ok && connectedPayload?.ok && Array.isArray(connectedPayload.data)) {
             setConnectedCommunities(connectedPayload.data);
@@ -339,14 +376,25 @@ const App = () => {
           headers: vkAuthHeaders,
         });
         const payload = (await response.json().catch(() => null)) as
-          | { ok?: boolean; data?: CalculatorConnectedCommunity[] }
+          | { ok?: boolean; data?: CalculatorConnectedCommunity[]; error?: string }
           | null;
 
+        if (isProtectedApiUnavailable(payload, response.status)) {
+          if (!isCancelled && fallbackCommunity) {
+            setConnectedCommunities([fallbackCommunity]);
+          }
+          return;
+        }
+
         if (!isCancelled && response.ok && payload?.ok && Array.isArray(payload.data)) {
-          setConnectedCommunities(payload.data);
+          setConnectedCommunities(
+            payload.data.length === 0 && fallbackCommunity ? [fallbackCommunity] : payload.data,
+          );
         }
       } catch {
-        // Keep the local communities list empty when the API is unavailable.
+        if (!isCancelled && fallbackCommunity) {
+          setConnectedCommunities([fallbackCommunity]);
+        }
       }
     };
 
@@ -355,7 +403,7 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [adminProfile.id, currentGroupId, currentPlan.id, viewerGroupRole]);
+  }, [adminProfile.id, currentGroupId, currentPlan.id, viewerGroupRole, fallbackCommunity]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -367,8 +415,12 @@ const App = () => {
           headers: vkAuthHeaders,
         });
         const payload = (await response.json().catch(() => null)) as
-          | { ok?: boolean; data?: CalculatorAdminSettings }
+          | { ok?: boolean; data?: CalculatorAdminSettings; error?: string }
           | null;
+
+        if (isProtectedApiUnavailable(payload, response.status)) {
+          return;
+        }
 
         if (!response.ok || !payload?.ok || !payload.data || isCancelled) {
           return;
@@ -398,8 +450,12 @@ const App = () => {
           headers: vkAuthHeaders,
         });
         const payload = (await response.json().catch(() => null)) as
-          | { ok?: boolean; data?: CalculatorTemplate[] }
+          | { ok?: boolean; data?: CalculatorTemplate[]; error?: string }
           | null;
+
+        if (isProtectedApiUnavailable(payload, response.status)) {
+          return;
+        }
 
         if (!response.ok || !payload?.ok || !Array.isArray(payload.data) || isCancelled) {
           return;
@@ -626,6 +682,13 @@ const App = () => {
         | { ok?: boolean; data?: CalculatorAdminSettings; error?: string }
         | null;
 
+      if (isProtectedApiUnavailable(payload, response.status)) {
+        return {
+          ok: false,
+          message: '',
+        };
+      }
+
       if (!response.ok || !payload?.ok || !payload.data) {
         throw new Error(payload?.error || 'Не удалось выдать доступ Про.');
       }
@@ -734,6 +797,11 @@ const App = () => {
           | { ok?: boolean; data?: CalculatorConnectedCommunity[]; error?: string }
           | null;
 
+        if (isProtectedApiUnavailable(payload, response.status)) {
+          setPaymentStatus(null);
+          return;
+        }
+
         if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
           throw new Error(
             payload?.error ||
@@ -798,6 +866,12 @@ const App = () => {
             error?: string;
           }
         | null;
+
+      if (isProtectedApiUnavailable(payload, response.status)) {
+        setPaymentStatus(null);
+        setIsProcessingPayment(false);
+        return;
+      }
 
       if (!response.ok || !payload?.ok || !payload.data?.payment?.confirmationUrl) {
         throw new Error(payload?.error || 'Не удалось создать платёж YooKassa');
@@ -870,6 +944,14 @@ const App = () => {
               error?: string;
             }
           | null;
+
+        if (isProtectedApiUnavailable(payload, response.status)) {
+          clearPendingPayment();
+          clearPaymentIdFromUrl();
+          setPaymentStatus(null);
+          setIsProcessingPayment(false);
+          return;
+        }
 
         if (!response.ok || !payload?.ok) {
           throw new Error(payload?.error || 'Не удалось проверить платёж YooKassa');
@@ -1118,6 +1200,10 @@ const App = () => {
             error?: string;
           }
         | null;
+
+      if (isProtectedApiUnavailable(payload, response.status)) {
+        return;
+      }
 
       if (!response.ok || !payload?.ok || !Array.isArray(payload.data?.sourceTemplates)) {
         throw new Error(payload?.error || 'Не удалось перенести калькулятор');

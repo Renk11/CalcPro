@@ -26,6 +26,7 @@ import {
   type TemplateCatalogPreset,
 } from '../entities/calculator/templateCatalog';
 import { clampFolderName, MAX_FOLDER_NAME_LENGTH } from '../entities/calculator/model';
+import { isVkLaunchParamsError } from '../shared/apiErrors';
 import {
   addSupportTicket,
   getSupportTickets,
@@ -902,8 +903,12 @@ export const HomePage = ({
         headers: vkAuthHeaders,
       });
       const payload = (await response.json().catch(() => null)) as
-        | { ok?: boolean; data?: CalculatorSupportTicket[] }
+        | { ok?: boolean; data?: CalculatorSupportTicket[]; error?: string }
         | null;
+
+      if (isVkLaunchParamsError(payload, response.status)) {
+        return;
+      }
 
       if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
         return;
@@ -2154,8 +2159,13 @@ export const HomePage = ({
         }),
       });
       const payload = (await response.json().catch(() => null)) as
-        | { ok?: boolean; message?: string; data?: CalculatorSupportTicket[] }
+        | { ok?: boolean; message?: string; data?: CalculatorSupportTicket[]; error?: string }
         | null;
+
+      if (isVkLaunchParamsError(payload, response.status)) {
+        setSupportStatus('');
+        return;
+      }
 
       if (response.ok && payload?.ok) {
         if (Array.isArray(payload.data)) {
@@ -2201,8 +2211,12 @@ export const HomePage = ({
           }),
         });
         const payload = (await response.json().catch(() => null)) as
-          | { ok?: boolean; data?: CalculatorSupportTicket[] }
+          | { ok?: boolean; data?: CalculatorSupportTicket[]; error?: string }
           | null;
+
+        if (isVkLaunchParamsError(payload, response.status)) {
+          return;
+        }
 
         if (response.ok && payload?.ok && Array.isArray(payload.data)) {
           setSupportTickets(replaceSupportTickets(payload.data));
@@ -2231,8 +2245,12 @@ export const HomePage = ({
           }),
         });
         const payload = (await response.json().catch(() => null)) as
-          | { ok?: boolean; data?: CalculatorSupportTicket[] }
+          | { ok?: boolean; data?: CalculatorSupportTicket[]; error?: string }
           | null;
+
+        if (isVkLaunchParamsError(payload, response.status)) {
+          return;
+        }
 
         if (response.ok && payload?.ok && Array.isArray(payload.data)) {
           setSupportTickets(replaceSupportTickets(payload.data));
