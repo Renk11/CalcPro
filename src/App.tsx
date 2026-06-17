@@ -42,6 +42,7 @@ import {
   readPendingPayment,
   writePendingPayment,
 } from './shared/storage/pendingPaymentStorage';
+import { createVkAuthHeaders } from './shared/vkAuth';
 import type {
   CalculatorPublicationStatus,
   CalculatorAdminSettings,
@@ -208,6 +209,11 @@ const App = () => {
   const viewerGroupRole = launchParams?.vk_viewer_group_role ?? 'none';
   const isViewerGroupAdmin = COMMUNITY_ADMIN_ROLES.has(viewerGroupRole);
   const isSuperAdmin = Boolean(adminProfile.id && SUPER_ADMIN_IDS.has(adminProfile.id));
+  const vkAuthHeaders = useMemo(() => createVkAuthHeaders(launchParams), [launchParams]);
+  const createJsonHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...vkAuthHeaders,
+  });
 
   useEffect(() => {
     setStorageGroupScope(effectiveAdminGroupId);
@@ -290,11 +296,8 @@ const App = () => {
         if (currentGroupId > 0) {
           const connectedResponse = await fetch('/api/communities', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: createJsonHeaders(),
             body: JSON.stringify({
-              viewerId,
               groupId: currentGroupId,
               name: `Сообщество ${currentGroupId}`,
               role: viewerGroupRole,
@@ -311,7 +314,9 @@ const App = () => {
           }
         }
 
-        const response = await fetch(`/api/communities?viewerId=${viewerId}`);
+        const response = await fetch('/api/communities', {
+          headers: vkAuthHeaders,
+        });
         const payload = (await response.json().catch(() => null)) as
           | { ok?: boolean; data?: CalculatorConnectedCommunity[] }
           | null;
@@ -337,7 +342,9 @@ const App = () => {
     const syncAdminSettings = async () => {
       try {
         const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
-        const response = await fetch(`/api/admin-settings${query}`);
+        const response = await fetch(`/api/admin-settings${query}`, {
+          headers: vkAuthHeaders,
+        });
         const payload = (await response.json().catch(() => null)) as
           | { ok?: boolean; data?: CalculatorAdminSettings }
           | null;
@@ -366,7 +373,9 @@ const App = () => {
     const syncTemplatesFromServer = async () => {
       try {
         const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
-        const response = await fetch(`/api/templates${query}`);
+        const response = await fetch(`/api/templates${query}`, {
+          headers: vkAuthHeaders,
+        });
         const payload = (await response.json().catch(() => null)) as
           | { ok?: boolean; data?: CalculatorTemplate[] }
           | null;
@@ -387,9 +396,7 @@ const App = () => {
         if (didMigrateServerTemplates) {
           fetch(`/api/templates${query}`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: createJsonHeaders(),
             body: JSON.stringify({
               groupId: effectiveAdminGroupId,
               templates: nextTemplates,
@@ -408,7 +415,7 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [effectiveAdminGroupId]);
+  }, [effectiveAdminGroupId, vkAuthHeaders]);
 
   const sortedTemplates = useMemo(
     () =>
@@ -570,9 +577,7 @@ const App = () => {
 
     fetch(`/api/admin-settings${query}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: createJsonHeaders(),
       body: JSON.stringify(settings),
     }).catch(() => {
       // Local settings remain saved even if the API request fails.
@@ -590,11 +595,8 @@ const App = () => {
     try {
       const response = await fetch('/api/admin-settings?action=grant-pro', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createJsonHeaders(),
         body: JSON.stringify({
-          viewerId: adminProfile.id,
           targetGroupId,
           days,
         }),
@@ -636,9 +638,7 @@ const App = () => {
 
     fetch(`/api/templates${query}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: createJsonHeaders(),
       body: JSON.stringify({
         groupId: effectiveAdminGroupId,
         templates: nextTemplates,
@@ -702,11 +702,8 @@ const App = () => {
       if (adminProfile.id && addedGroupId > 0) {
         const response = await fetch('/api/communities', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: createJsonHeaders(),
           body: JSON.stringify({
-            viewerId: adminProfile.id,
             groupId: addedGroupId,
             role: viewerGroupRole,
             workspacePlan: currentPlan.id,
@@ -762,9 +759,7 @@ const App = () => {
     try {
       const response = await fetch('/api/yookassa?action=create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createJsonHeaders(),
         body: JSON.stringify({
           plan,
           groupId: effectiveAdminGroupId,
@@ -808,6 +803,15 @@ const App = () => {
     const searchParams = new URLSearchParams(window.location.search);
     const paymentIdFromUrl = searchParams.get('paymentId');
     const pendingPayment = readPendingPayment();
+
+    if (hasActiveSubscription && currentPlan.id !== 'free') {
+      if (paymentIdFromUrl || pendingPayment?.paymentId) {
+        clearPendingPayment();
+        clearPaymentIdFromUrl();
+      }
+      return;
+    }
+
     const paymentId =
       paymentIdFromUrl && paymentIdFromUrl !== 'return'
         ? paymentIdFromUrl
@@ -828,9 +832,7 @@ const App = () => {
       try {
         const response = await fetch('/api/yookassa?action=check', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: createJsonHeaders(),
           body: JSON.stringify({
             paymentId,
             plan: pendingPayment?.plan ?? paidPlanConfig.id,
@@ -899,7 +901,13 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [adminSettings, effectiveAdminGroupId, paidPlanConfig.id]);
+  }, [
+    adminSettings,
+    currentPlan.id,
+    effectiveAdminGroupId,
+    hasActiveSubscription,
+    paidPlanConfig.id,
+  ]);
 
   const handleSaveTemplate = (template: CalculatorTemplate) => {
     if (!isViewerGroupAdmin) {
@@ -1073,9 +1081,7 @@ const App = () => {
     try {
       const response = await fetch('/api/templates?action=transfer', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createJsonHeaders(),
         body: JSON.stringify({
           templateId: template.id,
           fromGroupId: effectiveAdminGroupId,
@@ -1198,11 +1204,8 @@ const App = () => {
     if (adminProfile.id && groupId > 0) {
       fetch('/api/communities?action=touch', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createJsonHeaders(),
         body: JSON.stringify({
-          viewerId: adminProfile.id,
           groupId,
         }),
       }).catch(() => {
@@ -1218,11 +1221,8 @@ const App = () => {
 
     fetch('/api/communities?action=disconnect', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: createJsonHeaders(),
       body: JSON.stringify({
-        viewerId: adminProfile.id,
         groupId,
       }),
     })
@@ -1251,6 +1251,7 @@ const App = () => {
                 templates={visibleTemplates}
                 adminSettings={adminSettings}
                 adminProfile={adminProfile}
+                vkAuthHeaders={vkAuthHeaders}
                 isAdminNavOpen={isAdminNavOpen}
                 currentSection={homeSection}
                 requests={requests}

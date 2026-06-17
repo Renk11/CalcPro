@@ -1,4 +1,5 @@
 import { sendJson } from '../server/http.js';
+import { requireCommunityAdmin } from '../server/request-auth.js';
 import {
   addServerSupportTicket,
   getServerSupportTickets,
@@ -104,6 +105,10 @@ function buildMessage(ticket, groupId) {
 export default async function handler(request, response) {
   try {
     const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
+    const auth = requireCommunityAdmin(request, response, groupId);
+    if (!auth) {
+      return undefined;
+    }
 
     if (request.method === 'GET') {
       const tickets = await getServerSupportTickets(groupId);

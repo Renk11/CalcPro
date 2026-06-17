@@ -1,4 +1,5 @@
 import { sendJson } from '../server/http.js';
+import { requireCommunityAdmin } from '../server/request-auth.js';
 import {
   getServerTemplates,
   saveServerTemplates,
@@ -15,17 +16,35 @@ export default async function handler(request, response) {
     const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
 
     if (request.method === 'GET') {
+      const auth = requireCommunityAdmin(request, response, groupId);
+      if (!auth) {
+        return undefined;
+      }
+
       const templates = await getServerTemplates(groupId);
       return sendJson(response, 200, { ok: true, data: templates });
     }
 
     if (request.method === 'POST') {
+      const auth = requireCommunityAdmin(request, response, groupId);
+      if (!auth) {
+        return undefined;
+      }
+
       const action = String(request.query?.action || request.body?.action || '').toLowerCase();
 
       if (action === 'transfer') {
+        const fromGroupId = parseGroupId(request.body?.fromGroupId);
+        if (auth.groupId !== fromGroupId) {
+          return sendJson(response, 403, {
+            ok: false,
+            error: 'Template transfer is allowed only from the current VK community context',
+          });
+        }
+
         const result = await transferServerTemplate(
           request.body?.templateId,
-          request.body?.fromGroupId,
+          fromGroupId,
           request.body?.toGroupId,
         );
         return sendJson(response, 200, { ok: true, data: result });

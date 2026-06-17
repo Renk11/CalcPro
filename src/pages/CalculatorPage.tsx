@@ -9,6 +9,7 @@ import { calculateTemplate } from '../entities/calculator/model';
 import { submitRequest } from '../entities/calculator/submission';
 import { legalDocs, type LegalDocKey } from '../shared/legal';
 import { getRequests } from '../shared/storage/localStorage';
+import { sanitizeUserUrl } from '../shared/url';
 import type {
   CalculatorField,
   CalculatorFieldValue,
@@ -471,7 +472,10 @@ export const CalculatorPage = ({
       case 'link':
       case 'vk':
         if (field.buttonUrl?.trim()) {
-          window.open(field.buttonUrl, '_blank', 'noopener,noreferrer');
+          const safeButtonUrl = sanitizeUserUrl(field.buttonUrl);
+          if (safeButtonUrl) {
+            window.open(safeButtonUrl, '_blank', 'noopener,noreferrer');
+          }
         }
         break;
       case 'copy':

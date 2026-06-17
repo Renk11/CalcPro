@@ -38,6 +38,12 @@ npm install
 npm run dev
 ```
 
+## Переменные окружения
+
+- `VK_APP_SECRET` или `VK_MINI_APP_SECRET` — нужен серверу для проверки подписи `vk_...` launch params перед доступом к защищённым API.
+- `PUBLIC_APP_URL` — рекомендуется для корректного `return_url` в YooKassa без доверия к прокси-заголовкам.
+- `SUPABASE_URL` и `SUPABASE_SERVICE_ROLE_KEY` — для серверного хранения настроек, шаблонов, тикетов и платежей.
+
 ## Сборка
 
 ```bash

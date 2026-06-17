@@ -58,6 +58,7 @@ interface HomePageProps {
   requests: CalculatorRequest[];
   adminSettings: CalculatorAdminSettings;
   adminProfile: AdminProfile;
+  vkAuthHeaders: Record<string, string>;
   isAdminNavOpen: boolean;
   currentSection: AdminSection;
   onSectionChange: (section: AdminSection) => void;
@@ -798,6 +799,7 @@ export const HomePage = ({
   requests,
   adminSettings,
   adminProfile,
+  vkAuthHeaders,
   isAdminNavOpen,
   currentSection,
   onSectionChange,
@@ -896,7 +898,9 @@ export const HomePage = ({
   const loadSupportTicketsFromServer = async (resetPage = false) => {
     try {
       const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
-      const response = await fetch(`/api/support${query}`);
+      const response = await fetch(`/api/support${query}`, {
+        headers: vkAuthHeaders,
+      });
       const payload = (await response.json().catch(() => null)) as
         | { ok?: boolean; data?: CalculatorSupportTicket[] }
         | null;
@@ -920,7 +924,7 @@ export const HomePage = ({
 
   useEffect(() => {
     void loadSupportTicketsFromServer(true);
-  }, [currentGroupId]);
+  }, [currentGroupId, vkAuthHeaders]);
 
   useEffect(() => {
     if (currentSection !== 'settings') {
@@ -2142,6 +2146,7 @@ export const HomePage = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...vkAuthHeaders,
         },
         body: JSON.stringify({
           ...ticket,
@@ -2187,6 +2192,7 @@ export const HomePage = ({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...vkAuthHeaders,
           },
           body: JSON.stringify({
             ticketId,
@@ -2216,6 +2222,7 @@ export const HomePage = ({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...vkAuthHeaders,
           },
           body: JSON.stringify({
             ticketId,

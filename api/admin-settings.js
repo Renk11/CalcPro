@@ -1,4 +1,5 @@
 import { sendJson } from '../server/http.js';
+import { requireCommunityAdmin, requireTrustedViewerContext } from '../server/request-auth.js';
 import { getServerAdminSettings, saveServerAdminSettings } from '../server/settings-store.js';
 import {
   buildNextPaidUntil,
@@ -31,6 +32,11 @@ export default async function handler(request, response) {
     const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
 
     if (request.method === 'GET') {
+      const auth = requireCommunityAdmin(request, response, groupId);
+      if (!auth) {
+        return undefined;
+      }
+
       const settings = await getServerAdminSettings(groupId);
       return sendJson(response, 200, { ok: true, data: settings });
     }
@@ -40,7 +46,12 @@ export default async function handler(request, response) {
       const incomingSettings = request.body || {};
 
       if (action === 'grant-pro') {
-        const viewerId = String(incomingSettings.viewerId || '').trim();
+        const auth = requireTrustedViewerContext(request, response);
+        if (!auth) {
+          return undefined;
+        }
+
+        const viewerId = String(auth.viewerId || '').trim();
         const targetGroupId = parseGroupId(incomingSettings.targetGroupId);
         const days = Math.max(1, Number(incomingSettings.days) || 30);
 
@@ -95,6 +106,11 @@ export default async function handler(request, response) {
         );
 
         return sendJson(response, 200, { ok: true, data: settings });
+      }
+
+      const auth = requireCommunityAdmin(request, response, groupId);
+      if (!auth) {
+        return undefined;
       }
 
       const currentSettings = await getServerAdminSettings(groupId);

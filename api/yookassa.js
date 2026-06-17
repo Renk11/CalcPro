@@ -1,4 +1,5 @@
 import { sendJson } from '../server/http.js';
+import { requireCommunityAdmin } from '../server/request-auth.js';
 import {
   getServerAdminSettings,
   saveServerPayment,
@@ -19,23 +20,34 @@ function parseGroupId(rawValue) {
 }
 
 function buildReturnUrl(request) {
-  const forwardedProto = request.headers['x-forwarded-proto'];
-  const forwardedHost = request.headers['x-forwarded-host'];
-  const host = forwardedHost || request.headers.host;
-  const origin =
-    process.env.PUBLIC_APP_URL ||
-    (host ? `${forwardedProto || 'https'}://${host}` : request.headers.origin || '');
+  const publicOrigin = String(process.env.PUBLIC_APP_URL || '').trim();
+  const requestOrigin = String(request.headers.origin || '').trim();
+  const host = String(request.headers.host || '').trim();
+  const rawOrigin = publicOrigin || requestOrigin || (host ? `https://${host}` : '');
 
-  if (!origin) {
+  if (!rawOrigin) {
     return undefined;
   }
 
-  const normalizedOrigin = origin.startsWith('http') ? origin : `https://${origin}`;
-  return `${normalizedOrigin}/#/payments`;
+  try {
+    const normalizedOrigin = new URL(rawOrigin.startsWith('http') ? rawOrigin : `https://${rawOrigin}`);
+    if (normalizedOrigin.protocol !== 'http:' && normalizedOrigin.protocol !== 'https:') {
+      return undefined;
+    }
+
+    return `${normalizedOrigin.origin}/#/payments`;
+  } catch {
+    return undefined;
+  }
 }
 
 async function createPayment(request, response) {
   const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
+  const auth = requireCommunityAdmin(request, response, groupId);
+  if (!auth) {
+    return undefined;
+  }
+
   const settings = await getServerAdminSettings(groupId);
   const plan = String(request.body?.plan || settings.subscription.plan || DEFAULT_SUBSCRIPTION_PLAN);
   const planConfig = getSubscriptionPlanConfig(plan);
@@ -98,6 +110,11 @@ async function checkPayment(request, response) {
   const rawPayment = await requestYooKassa(`/payments/${encodeURIComponent(paymentId)}`);
   const payment = normalizeYooKassaPayment(rawPayment);
   const groupId = parseGroupId(rawPayment?.metadata?.groupId || request.body?.groupId);
+  const auth = requireCommunityAdmin(request, response, groupId);
+  if (!auth) {
+    return undefined;
+  }
+
   const settings = await getServerAdminSettings(groupId);
   const rawPlan = String(
     rawPayment?.metadata?.plan || request.body?.plan || settings.subscription.plan || DEFAULT_SUBSCRIPTION_PLAN,

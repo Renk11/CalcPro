@@ -1,4 +1,5 @@
 import { sendJson } from '../server/http.js';
+import { requireTrustedViewerContext } from '../server/request-auth.js';
 import {
   connectViewerCommunity,
   disconnectViewerCommunity,
@@ -23,7 +24,12 @@ function parseWorkspacePlan(rawValue) {
 export default async function handler(request, response) {
   try {
     const action = String(request.query?.action || request.body?.action || '').toLowerCase();
-    const viewerId = parseViewerId(request.query?.viewerId || request.body?.viewerId);
+    const auth = requireTrustedViewerContext(request, response);
+    if (!auth) {
+      return undefined;
+    }
+
+    const viewerId = parseViewerId(auth.viewerId);
 
     if (!viewerId) {
       return sendJson(response, 400, { ok: false, error: 'viewerId is required' });

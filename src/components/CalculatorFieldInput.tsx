@@ -21,6 +21,7 @@ import {
   formatResultNumber,
 } from '../entities/calculator/model';
 import { sanitizeHtml } from '../shared/html/sanitizeHtml';
+import { sanitizeUserUrl } from '../shared/url';
 
 interface CalculatorFieldInputProps {
   field: CalculatorField;
@@ -588,6 +589,7 @@ export const CalculatorFieldInput = ({
 
   if (field.type === 'text' && field.textStyle) {
     const content = field.content?.trim() || field.label;
+    const safeLinkUrl = sanitizeUserUrl(field.linkUrl);
     const defaults = getTextStyleDefaults(field.textStyle);
     const style = {
       color: field.textColor ?? defaults.textColor,
@@ -596,8 +598,8 @@ export const CalculatorFieldInput = ({
       textAlign: field.textAlign ?? 'left',
     } as const;
 
-    const body = field.linkUrl ? (
-      <a className="calc-text-block__link" href={field.linkUrl} target="_blank" rel="noreferrer">
+    const body = safeLinkUrl ? (
+      <a className="calc-text-block__link" href={safeLinkUrl} target="_blank" rel="noreferrer">
         {content}
       </a>
     ) : (
