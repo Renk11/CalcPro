@@ -68,6 +68,7 @@ interface HomePageProps {
     requestId: string,
     status: CalculatorRequestStatus,
   ) => void;
+  onDeleteRequest: (requestId: string) => void;
   onToggleAdminNav: () => void;
   onCreateFolder: () => void;
   onDeleteFolder: (folderId: string) => void;
@@ -805,6 +806,7 @@ export const HomePage = ({
   onSectionChange,
   onSaveAdminSettings,
   onUpdateRequestStatus,
+  onDeleteRequest,
   onToggleAdminNav,
   onCreateFolder,
   onDeleteFolder,
@@ -862,6 +864,7 @@ export const HomePage = ({
   const [pendingDeleteTemplate, setPendingDeleteTemplate] = useState<CalculatorTemplate | null>(
     null,
   );
+  const [pendingDeleteRequest, setPendingDeleteRequest] = useState<CalculatorRequest | null>(null);
   const [managerVkId, setManagerVkId] = useState(adminSettings.managerVkId);
   const [superAdminGroupId, setSuperAdminGroupId] = useState(
     currentGroupId > 0 ? String(currentGroupId) : '',
@@ -2287,6 +2290,10 @@ export const HomePage = ({
             На тарифах Start и Pro можно отмечать новые, активные и закрытые заявки, чтобы не
             терять обработку лидов.
           </p>
+          <div className="settings-form__hint settings-form__hint_warning">
+            Удаление заявки очищает её из списка, но не уменьшает счётчик использованных заявок в
+            лимите текущего тарифа.
+          </div>
 
           {!canUseRequestStatuses ? (
             <div className="settings-form__hint">
@@ -2343,6 +2350,13 @@ export const HomePage = ({
                       <option value="rejected">Отклонена</option>
                     </select>
                   </label>
+                  <button
+                    className="settings-support__button settings-support__button_danger"
+                    type="button"
+                    onClick={() => setPendingDeleteRequest(request)}
+                  >
+                    Удалить заявку
+                  </button>
                 </div>
               ))}
             </div>
@@ -2942,6 +2956,42 @@ export const HomePage = ({
                 onClick={() => {
                   onDeleteTemplate(pendingDeleteTemplate);
                   setPendingDeleteTemplate(null);
+                }}
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingDeleteRequest ? (
+        <div className="admin-modal" role="dialog" aria-modal="true">
+          <div className="admin-modal__backdrop" onClick={() => setPendingDeleteRequest(null)} />
+          <div className="admin-modal__card">
+            <div className="admin-modal__eyebrow">Подтверждение</div>
+            <h3 className="admin-modal__title">Удалить заявку?</h3>
+            <p className="admin-modal__text">
+              Заявка от <strong>{pendingDeleteRequest.name}</strong> будет удалена из списка без
+              возможности восстановления.
+            </p>
+            <p className="admin-modal__text">
+              Удаление не уменьшает счётчик использованных заявок в лимите текущего тарифа.
+            </p>
+            <div className="admin-modal__actions">
+              <button
+                className="admin-modal__button admin-modal__button_secondary"
+                type="button"
+                onClick={() => setPendingDeleteRequest(null)}
+              >
+                Отмена
+              </button>
+              <button
+                className="admin-modal__button admin-modal__button_danger"
+                type="button"
+                onClick={() => {
+                  onDeleteRequest(pendingDeleteRequest.id);
+                  setPendingDeleteRequest(null);
                 }}
               >
                 Удалить

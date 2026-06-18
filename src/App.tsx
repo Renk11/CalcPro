@@ -15,6 +15,7 @@ import {
 } from './entities/calculator/model';
 import { createTemplateFromPreset } from './entities/calculator/templateCatalog';
 import {
+  deleteRequest,
   getAdminSettings,
   getFolders,
   getRequests,
@@ -1161,6 +1162,15 @@ const App = () => {
     }
   };
 
+  const handleDeleteRequest = (requestId: string) => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
+    const next = deleteRequest(requestId);
+    setRequests(next);
+  };
+
   const updateTemplatePublicationStatus = (
     template: CalculatorTemplate,
     publicationStatus: CalculatorPublicationStatus,
@@ -1407,6 +1417,7 @@ const App = () => {
                   onSectionChange={setHomeSection}
                   onSaveAdminSettings={handleSaveAdminSettings}
                   onUpdateRequestStatus={handleUpdateRequestStatus}
+                  onDeleteRequest={handleDeleteRequest}
                   onToggleAdminNav={() => setIsAdminNavOpen((current) => !current)}
                   onCreateFolder={createFolder}
                   onDeleteFolder={deleteFolder}

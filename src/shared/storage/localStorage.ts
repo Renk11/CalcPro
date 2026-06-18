@@ -410,6 +410,13 @@ export const updateRequestStatus = (
   return next;
 };
 
+export const deleteRequest = (requestId: string) => {
+  const requests = getRequests();
+  const next = requests.filter((request) => request.id !== requestId);
+  saveRequests(next);
+  return next;
+};
+
 export const getAdminSettings = (): CalculatorAdminSettings => {
   ensureScopedStorageInitialized();
   const settings = parseJson<Partial<CalculatorAdminSettings>>(
