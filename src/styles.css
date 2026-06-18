@@ -2550,7 +2550,7 @@ body,
 
 .admin-home__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 270px));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 22px;
   align-items: stretch;
 }
@@ -6117,7 +6117,6 @@ body::-webkit-scrollbar-thumb:hover,
     font-size: 36px;
   }
 
-  .admin-home__grid,
   .calculator-layout {
     grid-template-columns: 1fr;
   }
@@ -6261,6 +6260,10 @@ body::-webkit-scrollbar-thumb:hover,
 
   .payments-price-card__value {
     font-size: 30px;
+  }
+
+  .admin-home__grid {
+    grid-template-columns: 1fr;
   }
 
   .calculator-page {

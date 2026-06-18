@@ -1,6 +1,10 @@
 import { sendJson } from '../server/http.js';
 import { requireTrustedViewerContext } from '../server/request-auth.js';
 import {
+  notifyCommunityConnected,
+  notifyConnectStarted,
+} from '../server/community-notifications.js';
+import {
   connectViewerCommunity,
   disconnectViewerCommunity,
   getViewerCommunities,
@@ -41,6 +45,18 @@ export default async function handler(request, response) {
     }
 
     if (request.method === 'POST') {
+      if (action === 'notify-connect-start') {
+        await notifyConnectStarted({
+          viewerId: auth.viewerId,
+          groupId: request.body?.groupId,
+          fallbackGroupId: request.body?.fallbackGroupId,
+          platform: request.body?.platform || request.body?.vkPlatform,
+          pathname: request.body?.pathname,
+        });
+
+        return sendJson(response, 200, { ok: true });
+      }
+
       if (action === 'disconnect') {
         const communities = await disconnectViewerCommunity(
           viewerId,
@@ -67,6 +83,17 @@ export default async function handler(request, response) {
       const workspacePlan = parseWorkspacePlan(request.body?.workspacePlan);
 
       const communities = await connectViewerCommunity(viewerId, community, workspacePlan);
+
+      if (request.body?.notifyConnect === true) {
+        await notifyCommunityConnected({
+          viewerId: auth.viewerId,
+          groupId: community.groupId,
+          platform: request.body?.platform || request.body?.vkPlatform,
+          communityName: community.name,
+          communityScreenName: community.screenName,
+        });
+      }
+
       return sendJson(response, 200, { ok: true, data: communities });
     }
 

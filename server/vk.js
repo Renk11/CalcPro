@@ -5,6 +5,32 @@ function getVkGroupToken() {
   return process.env.VK_GROUP_TOKEN || '';
 }
 
+export async function getVkUserInfo(userId) {
+  const normalizedUserId = Number(userId);
+
+  if (!Number.isInteger(normalizedUserId) || normalizedUserId <= 0) {
+    throw new Error('Valid userId is required');
+  }
+
+  const response = await requestVk('users.get', {
+    user_ids: normalizedUserId,
+    fields: 'photo_100,photo_200,screen_name',
+  });
+  const user = Array.isArray(response) ? response[0] : response?.[0] || response;
+
+  if (!user) {
+    throw new Error('VK user not found');
+  }
+
+  return {
+    id: normalizedUserId,
+    firstName: String(user.first_name || ''),
+    lastName: String(user.last_name || ''),
+    screenName: String(user.screen_name || ''),
+    photoUrl: String(user.photo_200 || user.photo_100 || ''),
+  };
+}
+
 export function hasVkGroupToken() {
   return Boolean(getVkGroupToken());
 }

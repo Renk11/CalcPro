@@ -820,6 +820,19 @@ const App = () => {
       return;
     }
 
+    fetch('/api/communities?action=notify-connect-start', {
+      method: 'POST',
+      headers: createJsonHeaders(),
+      body: JSON.stringify({
+        groupId: addedGroupId,
+        fallbackGroupId: currentGroupId,
+        platform: launchParams?.vk_platform ?? '',
+        pathname: typeof window !== 'undefined' ? window.location.pathname : '',
+      }),
+    }).catch(() => {
+      // Skip notification failures and continue the install flow.
+    });
+
     try {
       if (adminProfile.id && addedGroupId > 0) {
         const response = await fetch('/api/communities', {
@@ -829,6 +842,8 @@ const App = () => {
             groupId: addedGroupId,
             role: viewerGroupRole,
             workspacePlan: currentPlan.id,
+            platform: launchParams?.vk_platform ?? '',
+            notifyConnect: true,
           }),
         });
         const payload = (await response.json().catch(() => null)) as
