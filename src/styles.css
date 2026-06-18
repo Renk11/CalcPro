@@ -5999,8 +5999,15 @@ body::-webkit-scrollbar-thumb:hover,
   white-space: nowrap;
 }
 
-.result-card__submit {
+.result-card__actions {
+  display: flex;
   flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.result-card__submit {
   min-width: 196px;
   padding-inline: 24px;
   border: 1px solid rgba(43, 158, 117, 0.38);
@@ -6017,7 +6024,6 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .result-card__branding {
-  margin-top: 12px;
   color: #8f7d6d;
   font-size: 11px;
   font-weight: 700;

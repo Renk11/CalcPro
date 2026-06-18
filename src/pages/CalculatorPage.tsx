@@ -709,18 +709,22 @@ export const CalculatorPage = ({
                     </div>
                   ) : null}
                 </div>
-                {template.requestForm.enabled ? (
-                  <button
-                    className="calculator-request__submit result-card__submit"
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={isRequestSubmitDisabled}
-                  >
-                    {template.requestForm.submitButtonText}
-                  </button>
-                ) : null}
-                {showBranding ? (
-                  <div className="result-card__branding">Работает на CalcPro</div>
+                {template.requestForm.enabled || showBranding ? (
+                  <div className="result-card__actions">
+                    {template.requestForm.enabled ? (
+                      <button
+                        className="calculator-request__submit result-card__submit"
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={isRequestSubmitDisabled}
+                      >
+                        {template.requestForm.submitButtonText}
+                      </button>
+                    ) : null}
+                    {showBranding ? (
+                      <div className="result-card__branding">Работает на CalcPro</div>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             </aside>
