@@ -2101,15 +2101,15 @@ body,
 
 .analytics-donut-card {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
   min-height: 126px;
 }
 
 .analytics-donut {
-  width: 96px;
-  height: 96px;
+  width: 82px;
+  height: 82px;
   transform: rotate(-90deg);
   justify-self: center;
 }
