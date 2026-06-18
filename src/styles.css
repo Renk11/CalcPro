@@ -2104,11 +2104,12 @@ body,
   grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-items: start;
+  justify-items: center;
 }
 
 .analytics-donut {
-  width: 82px;
-  height: 82px;
+  width: 108px;
+  height: 108px;
   transform: rotate(-90deg);
   justify-self: center;
   order: 2;
@@ -2122,6 +2123,7 @@ body,
   display: grid;
   gap: 8px;
   min-width: 0;
+  width: 100%;
   order: 1;
 }
 
