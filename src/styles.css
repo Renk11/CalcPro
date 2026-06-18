@@ -2105,6 +2105,7 @@ body,
   gap: 14px;
   align-items: start;
   justify-items: center;
+  grid-template-rows: 92px auto;
 }
 
 .analytics-donut {
@@ -2125,6 +2126,7 @@ body,
   min-width: 0;
   width: 100%;
   order: 1;
+  align-content: start;
 }
 
 .analytics-donut-legend__row {
