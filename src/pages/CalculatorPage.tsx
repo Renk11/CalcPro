@@ -725,6 +725,10 @@ export const CalculatorPage = ({
               </div>
             </aside>
           ) : null}
+
+          {showBranding && template.resultCardShow === false ? (
+            <div className="calculator-page__branding-fallback">Работает на CalcPro</div>
+          ) : null}
         </div>
       </div>
       {activeLegalDoc ? (
