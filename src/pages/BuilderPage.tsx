@@ -894,6 +894,10 @@ export const BuilderPage = ({
     () => template.fields.find((field) => field.id === selectedFieldId) ?? null,
     [selectedFieldId, template.fields],
   );
+  const previewResultCardTitle = template.resultCardTitle ?? 'Итог расчета';
+  const previewResultCardDescription = template.requestForm.enabled
+    ? 'Нужно заполнить: имя, телефон, согласие'
+    : 'Результат и кнопка действия будут показаны здесь.';
   const autoSaveTimeoutRef = useRef<number | null>(null);
   const hasMountedRef = useRef(false);
 
@@ -951,6 +955,30 @@ export const BuilderPage = ({
       // Ignore storage write errors and keep working with in-memory state.
     }
   }, [isAutoSaveEnabled]);
+
+  const renderPreviewResultCard = () =>
+    template.resultCardShow !== false ? (
+      <div className="builder-preview__result-card">
+        <div className="result-card result-card_sticky builder-preview__result-sticky">
+          <div className="result-card__content">
+            {template.resultCardShowTitle !== false ? (
+              <div className="result-card__eyebrow">{previewResultCardTitle}</div>
+            ) : null}
+            {template.resultCardShowTotal !== false ? (
+              <div className="result-card__amount result-card__amount_compact">0 ₽</div>
+            ) : null}
+            <div className="result-card__description">{previewResultCardDescription}</div>
+          </div>
+          {template.requestForm.enabled ? (
+            <div className="result-card__actions">
+              <button className="calculator-request__submit result-card__submit" type="button">
+                {template.requestForm.submitButtonText}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    ) : null;
 
   useEffect(() => {
     return () => {
@@ -1813,12 +1841,10 @@ export const BuilderPage = ({
                             </span>
                           </span>
                         </label>
-                        <button className="calculator-request__submit" type="button">
-                          {template.requestForm.submitButtonText}
-                        </button>
                         </div>
                       </div>
                     ) : null}
+                    {renderPreviewResultCard()}
                     </div>
                 </div>
               ) : mode === 'formula' ? (
@@ -2417,9 +2443,6 @@ export const BuilderPage = ({
                               </span>
                             </span>
                           </label>
-                          <button className="calculator-request__submit" type="button">
-                            {template.requestForm.submitButtonText}
-                          </button>
                         </div>
                       </div>
                     ) : (
@@ -2428,6 +2451,7 @@ export const BuilderPage = ({
                       </div>
                     )}
                   </div>
+                  {renderPreviewResultCard()}
                   </div>
                 </div>
               ) : (

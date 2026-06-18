@@ -3886,6 +3886,15 @@ body,
   grid-column: 1 / -1;
 }
 
+.builder-preview__result-card {
+  grid-column: 1 / -1;
+}
+
+.builder-preview__result-sticky {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .builder-preview__request-empty {
   padding: 18px;
   border-radius: 18px;
