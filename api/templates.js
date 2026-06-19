@@ -8,6 +8,7 @@ import {
   saveServerTemplates,
   transferServerTemplate,
 } from '../server/template-store.js';
+import { getViewerCommunities } from '../server/community-store.js';
 
 function parseGroupId(rawValue) {
   const groupId = Number(rawValue);
@@ -57,28 +58,61 @@ export default async function handler(request, response) {
     }
 
     if (request.method === 'POST') {
-      const auth = requireCommunityAdmin(request, response, groupId);
-      if (!auth) {
-        return undefined;
-      }
-
       const action = String(request.query?.action || request.body?.action || '').toLowerCase();
 
       if (action === 'transfer') {
-        const fromGroupId = parseGroupId(request.body?.fromGroupId);
-        if (auth.groupId !== fromGroupId) {
+        const auth = getTrustedViewerContext(request);
+        if (!auth) {
+          return sendJson(response, 401, {
+            ok: false,
+            error: 'VK launch params verification failed',
+          });
+        }
+
+        if (!auth.isCommunityAdmin) {
           return sendJson(response, 403, {
             ok: false,
-            error: 'Template transfer is allowed only from the current VK community context',
+            error: 'Community admin access required',
+          });
+        }
+
+        const fromGroupId = parseGroupId(request.body?.fromGroupId);
+        const toGroupId = parseGroupId(request.body?.toGroupId);
+
+        const connectedCommunities = await getViewerCommunities(auth.viewerId);
+        const availableGroupIds = new Set(
+          connectedCommunities.map((community) => parseGroupId(community.groupId)),
+        );
+
+        if (auth.groupId > 0) {
+          availableGroupIds.add(auth.groupId);
+        }
+
+        if (!availableGroupIds.has(fromGroupId)) {
+          return sendJson(response, 403, {
+            ok: false,
+            error: 'Source community is not available in the current workspace',
+          });
+        }
+
+        if (!availableGroupIds.has(toGroupId)) {
+          return sendJson(response, 403, {
+            ok: false,
+            error: 'Target community is not connected to the current workspace',
           });
         }
 
         const result = await transferServerTemplate(
           request.body?.templateId,
           fromGroupId,
-          request.body?.toGroupId,
+          toGroupId,
         );
         return sendJson(response, 200, { ok: true, data: result });
+      }
+
+      const auth = requireCommunityAdmin(request, response, groupId);
+      if (!auth) {
+        return undefined;
       }
 
       const incomingTemplates = Array.isArray(request.body)
