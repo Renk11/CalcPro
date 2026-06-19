@@ -10,6 +10,7 @@ import {
   getViewerCommunities,
   touchViewerCommunity,
 } from '../server/community-store.js';
+import { resolveVkCommunityInfo } from '../server/vk.js';
 
 function parseGroupId(rawValue) {
   const groupId = Number(rawValue);
@@ -71,6 +72,13 @@ export default async function handler(request, response) {
           request.query?.groupId || request.body?.groupId,
         );
         return sendJson(response, 200, { ok: true, data: communities });
+      }
+
+      if (action === 'resolve') {
+        const community = await resolveVkCommunityInfo(
+          request.body?.community || request.body?.value || request.body?.groupId,
+        );
+        return sendJson(response, 200, { ok: true, data: community });
       }
 
       const community = {

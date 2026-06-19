@@ -889,11 +889,58 @@ const App = () => {
         'VK не вернул ID выбранного сообщества. Вставьте ссылку на группу или её ID, чтобы добавить сообщество в кабинет.',
         '',
       );
-      const manuallyResolvedGroupId = parseCommunityIdFromUserInput(manualGroupInput);
 
+      const manuallyResolvedGroupId = parseCommunityIdFromUserInput(manualGroupInput);
       if (manuallyResolvedGroupId > 0) {
         addedGroupId = manuallyResolvedGroupId;
+      } else if (manualGroupInput?.trim()) {
+        try {
+          const resolveResponse = await fetch('/api/communities?action=resolve', {
+            method: 'POST',
+            headers: createJsonHeaders(),
+            body: JSON.stringify({
+              community: manualGroupInput.trim(),
+            }),
+          });
+          const resolvePayload = (await resolveResponse.json().catch(() => null)) as
+            | {
+                ok?: boolean;
+                data?: { groupId?: number; name?: string; screenName?: string; photoUrl?: string };
+                error?: string;
+              }
+            | null;
+
+          if (
+            resolveResponse.ok &&
+            resolvePayload?.ok &&
+            Number(resolvePayload.data?.groupId) > 0
+          ) {
+            addedGroupId = Number(resolvePayload.data?.groupId);
+          } else if (resolvePayload?.error) {
+            setPaymentStatus({
+              tone: 'error',
+              message: resolvePayload.error,
+            });
+          }
+        } catch {
+          setPaymentStatus({
+            tone: 'error',
+            message: 'Не удалось распознать сообщество по ссылке. Укажите числовой ID группы.',
+          });
+        }
       }
+    }
+
+    if (addedGroupId === 0) {
+      setHomeSection('communities');
+      setPaymentStatus((current) =>
+        current ?? {
+          tone: 'neutral',
+          message:
+            'Не удалось определить добавленное сообщество. Вставьте числовой ID группы или откройте приложение уже из нужного сообщества VK.',
+        },
+      );
+      return;
     }
 
     fetch('/api/communities?action=notify-connect-start', {

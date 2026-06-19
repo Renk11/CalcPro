@@ -5,6 +5,24 @@ function getVkGroupToken() {
   return process.env.VK_GROUP_TOKEN || '';
 }
 
+function normalizeCommunityIdentifier(rawValue) {
+  const normalized = String(rawValue || '').trim();
+  if (!normalized) {
+    return '';
+  }
+
+  const withoutProtocol = normalized.replace(/^https?:\/\/(?:m\.)?/i, '');
+  const pathCandidate = withoutProtocol.replace(/^vk\.com\//i, '').split(/[/?#]/)[0] || normalized;
+  const withoutAt = pathCandidate.replace(/^@/, '').trim();
+  const numericMatch = withoutAt.match(/^(?:club|public|event)([1-9]\d*)$/i);
+
+  if (numericMatch) {
+    return numericMatch[1];
+  }
+
+  return withoutAt;
+}
+
 export async function getVkUserInfo(userId) {
   const normalizedUserId = Number(userId);
 
@@ -119,6 +137,36 @@ export async function getVkCommunityInfo(groupId) {
     groupId: normalizedGroupId,
     name: String(group.name || `Сообщество ${normalizedGroupId}`),
     screenName: String(group.screen_name || ''),
+    photoUrl: String(group.photo_200 || group.photo_100 || ''),
+  };
+}
+
+export async function resolveVkCommunityInfo(rawValue) {
+  const identifier = normalizeCommunityIdentifier(rawValue);
+
+  if (!identifier) {
+    throw new Error('Community link or identifier is required');
+  }
+
+  if (/^[1-9]\d*$/.test(identifier)) {
+    return getVkCommunityInfo(Number(identifier));
+  }
+
+  const response = await requestVk('groups.getById', {
+    group_ids: identifier,
+    fields: 'screen_name,photo_100,photo_200',
+  });
+  const group = Array.isArray(response) ? response[0] : response?.groups?.[0] || response;
+  const resolvedGroupId = Number(group?.id || 0);
+
+  if (!Number.isInteger(resolvedGroupId) || resolvedGroupId <= 0) {
+    throw new Error('VK group not found');
+  }
+
+  return {
+    groupId: resolvedGroupId,
+    name: String(group.name || `Сообщество ${resolvedGroupId}`),
+    screenName: String(group.screen_name || identifier),
     photoUrl: String(group.photo_200 || group.photo_100 || ''),
   };
 }
