@@ -1,8 +1,5 @@
 import { sendJson } from '../server/http.js';
-import {
-  getTrustedViewerContext,
-  requireCommunityAdmin,
-} from '../server/request-auth.js';
+import { getTrustedViewerContext } from '../server/request-auth.js';
 import {
   getServerTemplates,
   saveServerTemplates,
@@ -13,6 +10,58 @@ import { getViewerCommunities } from '../server/community-store.js';
 function parseGroupId(rawValue) {
   const groupId = Number(rawValue);
   return Number.isInteger(groupId) && groupId > 0 ? groupId : 0;
+}
+
+async function resolveAvailableGroupIds(auth) {
+  const availableGroupIds = new Set();
+
+  if (auth?.groupId > 0) {
+    availableGroupIds.add(auth.groupId);
+  }
+
+  if (auth?.viewerId > 0) {
+    const connectedCommunities = await getViewerCommunities(auth.viewerId);
+    connectedCommunities.forEach((community) => {
+      const communityGroupId = parseGroupId(community.groupId);
+      if (communityGroupId > 0) {
+        availableGroupIds.add(communityGroupId);
+      }
+    });
+  }
+
+  return availableGroupIds;
+}
+
+async function requireWorkspaceCommunityAdmin(request, response, groupId) {
+  const auth = getTrustedViewerContext(request);
+  if (!auth) {
+    sendJson(response, 401, {
+      ok: false,
+      error: 'VK launch params verification failed',
+    });
+    return null;
+  }
+
+  if (!auth.isCommunityAdmin) {
+    sendJson(response, 403, {
+      ok: false,
+      error: 'Community admin access required',
+    });
+    return null;
+  }
+
+  if (groupId > 0) {
+    const availableGroupIds = await resolveAvailableGroupIds(auth);
+    if (!availableGroupIds.has(groupId)) {
+      sendJson(response, 403, {
+        ok: false,
+        error: 'The requested group is not connected to the current workspace',
+      });
+      return null;
+    }
+  }
+
+  return auth;
 }
 
 export default async function handler(request, response) {
@@ -28,7 +77,15 @@ export default async function handler(request, response) {
         });
       }
 
-      if (groupId > 0 && auth.groupId !== groupId) {
+      if (auth.isCommunityAdmin && groupId > 0) {
+        const availableGroupIds = await resolveAvailableGroupIds(auth);
+        if (!availableGroupIds.has(groupId)) {
+          return sendJson(response, 403, {
+            ok: false,
+            error: 'The requested group is not connected to the current workspace',
+          });
+        }
+      } else if (groupId > 0 && auth.groupId !== groupId) {
         return sendJson(response, 403, {
           ok: false,
           error: 'The requested group does not match the current VK context',
@@ -110,7 +167,7 @@ export default async function handler(request, response) {
         return sendJson(response, 200, { ok: true, data: result });
       }
 
-      const auth = requireCommunityAdmin(request, response, groupId);
+      const auth = await requireWorkspaceCommunityAdmin(request, response, groupId);
       if (!auth) {
         return undefined;
       }

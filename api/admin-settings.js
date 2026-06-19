@@ -1,11 +1,12 @@
 import { sendJson } from '../server/http.js';
-import { requireCommunityAdmin, requireTrustedViewerContext } from '../server/request-auth.js';
+import { getTrustedViewerContext, requireTrustedViewerContext } from '../server/request-auth.js';
 import { getServerAdminSettings, saveServerAdminSettings } from '../server/settings-store.js';
 import {
   buildNextPaidUntil,
   createDefaultSubscriptionSettings,
   getSubscriptionPlanConfig,
 } from '../server/subscription-config.js';
+import { getViewerCommunities } from '../server/community-store.js';
 
 const DEFAULT_SUPER_ADMIN_IDS = ['139346496'];
 
@@ -27,12 +28,64 @@ function isSuperAdmin(viewerId) {
   return resolveSuperAdminIds().has(String(viewerId || '').trim());
 }
 
+async function resolveAvailableGroupIds(auth) {
+  const availableGroupIds = new Set();
+
+  if (auth?.groupId > 0) {
+    availableGroupIds.add(auth.groupId);
+  }
+
+  if (auth?.viewerId > 0) {
+    const connectedCommunities = await getViewerCommunities(auth.viewerId);
+    connectedCommunities.forEach((community) => {
+      const communityGroupId = parseGroupId(community.groupId);
+      if (communityGroupId > 0) {
+        availableGroupIds.add(communityGroupId);
+      }
+    });
+  }
+
+  return availableGroupIds;
+}
+
+async function requireWorkspaceCommunityAdmin(request, response, groupId) {
+  const auth = getTrustedViewerContext(request);
+  if (!auth) {
+    sendJson(response, 401, {
+      ok: false,
+      error: 'VK launch params verification failed',
+    });
+    return null;
+  }
+
+  if (!auth.isCommunityAdmin) {
+    sendJson(response, 403, {
+      ok: false,
+      error: 'Community admin access required',
+    });
+    return null;
+  }
+
+  if (groupId > 0) {
+    const availableGroupIds = await resolveAvailableGroupIds(auth);
+    if (!availableGroupIds.has(groupId)) {
+      sendJson(response, 403, {
+        ok: false,
+        error: 'The requested group is not connected to the current workspace',
+      });
+      return null;
+    }
+  }
+
+  return auth;
+}
+
 export default async function handler(request, response) {
   try {
     const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
 
     if (request.method === 'GET') {
-      const auth = requireCommunityAdmin(request, response, groupId);
+      const auth = await requireWorkspaceCommunityAdmin(request, response, groupId);
       if (!auth) {
         return undefined;
       }
@@ -108,7 +161,7 @@ export default async function handler(request, response) {
         return sendJson(response, 200, { ok: true, data: settings });
       }
 
-      const auth = requireCommunityAdmin(request, response, groupId);
+      const auth = await requireWorkspaceCommunityAdmin(request, response, groupId);
       if (!auth) {
         return undefined;
       }
