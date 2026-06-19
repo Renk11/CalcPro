@@ -1,7 +1,7 @@
 import bridge from '@vkontakte/vk-bridge';
 
 const initializeVkBridge = async () => {
-  if (typeof window === 'undefined' || !bridge.isEmbedded()) {
+  if (typeof window === 'undefined') {
     return;
   }
 
