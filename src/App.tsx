@@ -1260,23 +1260,27 @@ const App = () => {
     }
 
     templatesSyncVersionRef.current += 1;
+    const currentTemplate = templates.find((item) => item.id === template.id) ?? template;
     const now = new Date().toISOString();
     const nextTemplate = normalizeTemplateRecord({
-      ...template,
+      ...currentTemplate,
       publicationStatus,
       publishedAt:
         publicationStatus === 'published'
-          ? template.publishedAt ?? now
+          ? currentTemplate.publishedAt ?? now
           : undefined,
       updatedAt: now,
       lastModifiedBy: currentAdminLabel,
     });
 
-    const next = upsertTemplate(nextTemplate);
+    const rollbackTemplates = templates;
+    const next = rollbackTemplates.some((item) => item.id === nextTemplate.id)
+      ? rollbackTemplates.map((item) => (item.id === nextTemplate.id ? nextTemplate : item))
+      : [nextTemplate, ...rollbackTemplates];
     saveTemplates(next);
     setTemplates(next);
 
-    if (selectedTemplate?.id === template.id) {
+    if (selectedTemplate?.id === nextTemplate.id) {
       setSelectedTemplate(nextTemplate);
     }
 
@@ -1295,11 +1299,10 @@ const App = () => {
             : 'Публикация снята. Сохранены изменения на сервере.',
       });
     } catch (error) {
-      const rollbackTemplates = templates;
       saveTemplates(rollbackTemplates);
       setTemplates(rollbackTemplates);
-      if (selectedTemplate?.id === template.id) {
-        setSelectedTemplate(template);
+      if (selectedTemplate?.id === nextTemplate.id) {
+        setSelectedTemplate(currentTemplate);
       }
       setPaymentStatus({
         tone: 'error',
