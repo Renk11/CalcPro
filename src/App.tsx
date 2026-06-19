@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useRef } from 'react';
 import bridge, {
   parseURLSearchParamsForGetLaunchParams,
   type GetLaunchParamsResponse,
@@ -279,6 +279,7 @@ const App = () => {
   });
   const isProtectedApiUnavailable = (payload?: { error?: string } | null, status?: number) =>
     isVkLaunchParamsError(payload, status);
+  const templatesSyncVersionRef = useRef(0);
 
   useEffect(() => {
     setStorageGroupScope(effectiveAdminGroupId);
@@ -288,6 +289,7 @@ const App = () => {
     setAdminSettings(getAdminSettings());
     setSelectedTemplate(undefined);
     setActiveFolderId('all');
+    templatesSyncVersionRef.current += 1;
   }, [effectiveAdminGroupId]);
 
   useEffect(() => {
@@ -472,6 +474,7 @@ const App = () => {
 
   useEffect(() => {
     let isCancelled = false;
+    const syncVersion = templatesSyncVersionRef.current;
 
     const syncTemplatesFromServer = async () => {
       try {
@@ -487,7 +490,13 @@ const App = () => {
           return;
         }
 
-        if (!response.ok || !payload?.ok || !Array.isArray(payload.data) || isCancelled) {
+        if (
+          !response.ok ||
+          !payload?.ok ||
+          !Array.isArray(payload.data) ||
+          isCancelled ||
+          templatesSyncVersionRef.current !== syncVersion
+        ) {
           return;
         }
 
@@ -772,6 +781,7 @@ const App = () => {
   };
 
   const persistTemplates = (nextTemplates: CalculatorTemplate[]) => {
+    templatesSyncVersionRef.current += 1;
     saveTemplates(nextTemplates);
     setTemplates(nextTemplates);
 
@@ -1192,6 +1202,7 @@ const App = () => {
       return;
     }
 
+    templatesSyncVersionRef.current += 1;
     const now = new Date().toISOString();
     const nextTemplate = normalizeTemplateRecord({
       ...template,
