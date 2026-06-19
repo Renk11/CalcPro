@@ -149,6 +149,51 @@ const parsePositiveInteger = (rawValue: string | null | undefined) => {
   return Number.isInteger(value) && value > 0 ? value : 0;
 };
 
+const parseCommunityIdFromInstallResult = (result: unknown) => {
+  if (!result || typeof result !== 'object') {
+    return 0;
+  }
+
+  const payload = result as {
+    group_id?: number | string;
+    groupId?: number | string;
+    group_ids?: Array<number | string>;
+    groupIds?: Array<number | string>;
+    group?: { id?: number | string };
+  };
+
+  return (
+    parsePositiveInteger(payload.group_id != null ? String(payload.group_id) : null) ||
+    parsePositiveInteger(payload.groupId != null ? String(payload.groupId) : null) ||
+    parsePositiveInteger(payload.group?.id != null ? String(payload.group.id) : null) ||
+    parsePositiveInteger(
+      Array.isArray(payload.group_ids) && payload.group_ids.length > 0
+        ? String(payload.group_ids[0])
+        : null,
+    ) ||
+    parsePositiveInteger(
+      Array.isArray(payload.groupIds) && payload.groupIds.length > 0
+        ? String(payload.groupIds[0])
+        : null,
+    )
+  );
+};
+
+const parseCommunityIdFromUserInput = (rawValue: string | null | undefined) => {
+  const normalized = String(rawValue || '').trim();
+  if (!normalized) {
+    return 0;
+  }
+
+  const directId = parsePositiveInteger(normalized);
+  if (directId > 0) {
+    return directId;
+  }
+
+  const match = normalized.match(/(?:club|public|event)?([1-9]\d{2,})/i);
+  return match ? Number(match[1]) : 0;
+};
+
 const createFallbackCommunity = (
   groupId: number,
   role: string,
@@ -827,8 +872,8 @@ const App = () => {
     try {
       const result = (await bridge.send('VKWebAppAddToCommunity' as never, {
         hide_success_modal: false,
-      } as never)) as { group_id?: number };
-      addedGroupId = Number(result?.group_id) || 0;
+      } as never)) as unknown;
+      addedGroupId = parseCommunityIdFromInstallResult(result);
     } catch {
       setHomeSection('payments');
       setPaymentStatus({
@@ -837,6 +882,18 @@ const App = () => {
           'Не удалось открыть выбор сообщества автоматически. Откройте приложение из нужной группы VK и повторите установку там.',
       });
       return;
+    }
+
+    if (addedGroupId === 0 && typeof window !== 'undefined') {
+      const manualGroupInput = window.prompt(
+        'VK не вернул ID выбранного сообщества. Вставьте ссылку на группу или её ID, чтобы добавить сообщество в кабинет.',
+        '',
+      );
+      const manuallyResolvedGroupId = parseCommunityIdFromUserInput(manualGroupInput);
+
+      if (manuallyResolvedGroupId > 0) {
+        addedGroupId = manuallyResolvedGroupId;
+      }
     }
 
     fetch('/api/communities?action=notify-connect-start', {
