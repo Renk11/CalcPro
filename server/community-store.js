@@ -138,24 +138,21 @@ export async function connectViewerCommunity(viewerId, community, workspacePlanI
     }
   }
 
-  const currentList = await getViewerCommunities(normalizedViewerId);
   const groupSettings = await getServerAdminSettings(normalizedCommunity.groupId);
   const activePlan = workspacePlanId
     ? getSubscriptionPlanConfig(workspacePlanId)
     : getSubscriptionPlanConfig(groupSettings.subscription.plan);
   const communityLimit = activePlan.communityLimit;
-
-  const existingIndex = currentList.findIndex(
+  const latestList = await getViewerCommunities(normalizedViewerId);
+  const existingIndex = latestList.findIndex(
     (item) => item.groupId === normalizedCommunity.groupId,
   );
 
-  if (existingIndex === -1 && communityLimit != null && currentList.length >= communityLimit) {
-    throw new Error(
-      `Лимит подключённых сообществ для тарифа ${activePlan.name}: ${communityLimit}`,
-    );
+  if (existingIndex === -1 && communityLimit != null && latestList.length >= communityLimit) {
+    throw new Error(`Лимит подключённых сообществ для тарифа ${activePlan.name}: ${communityLimit}`);
   }
 
-  const nextList = [...currentList];
+  const nextList = [...latestList];
   const merged = {
     ...normalizedCommunity,
     addedAt:
