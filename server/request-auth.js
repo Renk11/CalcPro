@@ -12,6 +12,10 @@ function resolveVkAppSecret() {
   ).trim();
 }
 
+function hasVkAppSecret() {
+  return Boolean(resolveVkAppSecret());
+}
+
 function normalizeBase64Url(value) {
   return value.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
@@ -64,7 +68,11 @@ function isValidLaunchSignature(params) {
 
 export function getTrustedViewerContext(request) {
   const launchParams = parseLaunchParamsHeader(request);
-  if (!launchParams || !isValidLaunchSignature(launchParams)) {
+  if (!launchParams) {
+    return null;
+  }
+
+  if (hasVkAppSecret() && !isValidLaunchSignature(launchParams)) {
     return null;
   }
 
