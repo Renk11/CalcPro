@@ -370,15 +370,6 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    const viewerId = adminProfile.id;
-
-    if (!viewerId) {
-      if (fallbackCommunity) {
-        setConnectedCommunities([fallbackCommunity]);
-      }
-      return;
-    }
-
     let isCancelled = false;
 
     const syncCommunities = async () => {
@@ -442,7 +433,7 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [adminProfile.id, currentGroupId, currentPlan.id, viewerGroupRole, fallbackCommunity]);
+  }, [currentGroupId, currentPlan.id, viewerGroupRole, fallbackCommunity]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -753,20 +744,38 @@ const App = () => {
     setAdminSettings(settings);
   };
 
-  const persistTemplates = (nextTemplates: CalculatorTemplate[]) => {
-    saveTemplates(nextTemplates);
-    setTemplates(nextTemplates);
-
+  const syncTemplatesToServer = async (nextTemplates: CalculatorTemplate[]) => {
     const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
-
-    fetch(`/api/templates${query}`, {
+    const response = await fetch(`/api/templates${query}`, {
       method: 'POST',
       headers: createJsonHeaders(),
       body: JSON.stringify({
         groupId: effectiveAdminGroupId,
         templates: nextTemplates,
       }),
-    }).catch(() => {
+    });
+    const payload = (await response.json().catch(() => null)) as
+      | { ok?: boolean; data?: CalculatorTemplate[]; error?: string }
+      | null;
+
+    if (isProtectedApiUnavailable(payload, response.status)) {
+      throw new Error(
+        'Откройте приложение внутри нужного сообщества VK и повторите публикацию.',
+      );
+    }
+
+    if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+      throw new Error(payload?.error || 'Не удалось сохранить калькулятор на сервере.');
+    }
+
+    return payload.data.map((template) => normalizeTemplateRecord(template));
+  };
+
+  const persistTemplates = (nextTemplates: CalculatorTemplate[]) => {
+    saveTemplates(nextTemplates);
+    setTemplates(nextTemplates);
+
+    syncTemplatesToServer(nextTemplates).catch(() => {
       // Local templates remain saved even if the API request fails.
     });
   };
@@ -809,8 +818,7 @@ const App = () => {
       const result = (await bridge.send('VKWebAppAddToCommunity' as never, {
         hide_success_modal: false,
       } as never)) as { group_id?: number };
-      addedGroupId =
-        Number(result?.group_id) || Number(launchParams?.vk_group_id ?? 0) || currentGroupId;
+      addedGroupId = Number(result?.group_id) || 0;
     } catch {
       setHomeSection('payments');
       setPaymentStatus({
@@ -835,7 +843,7 @@ const App = () => {
     });
 
     try {
-      if (adminProfile.id && addedGroupId > 0) {
+      if (addedGroupId > 0) {
         const response = await fetch('/api/communities', {
           method: 'POST',
           headers: createJsonHeaders(),
@@ -866,14 +874,19 @@ const App = () => {
         setConnectedCommunities(payload.data);
       }
 
-      setHomeSection('payments');
-      setPaymentStatus({
-        tone: 'success',
-        message:
-          addedGroupId > 0
-            ? `Приложение добавлено в сообщество ID ${addedGroupId}. Откройте его внутри группы и завершите активацию на этом экране.`
-            : 'Приложение добавлено в сообщество. Откройте его внутри группы и завершите активацию на этом экране.',
-      });
+      setHomeSection('communities');
+      setPaymentStatus(
+        addedGroupId > 0
+          ? {
+              tone: 'success',
+              message: `Приложение добавлено в сообщество ID ${addedGroupId}. Группа уже подключена к кабинету.`,
+            }
+          : {
+              tone: 'neutral',
+              message:
+                'VK не вернул ID выбранной группы. Откройте приложение из добавленного сообщества, и оно автоматически появится в списке.',
+            },
+      );
     } catch (error) {
       setHomeSection('payments');
       setPaymentStatus({
@@ -1171,7 +1184,7 @@ const App = () => {
     setRequests(next);
   };
 
-  const updateTemplatePublicationStatus = (
+  const updateTemplatePublicationStatus = async (
     template: CalculatorTemplate,
     publicationStatus: CalculatorPublicationStatus,
   ) => {
@@ -1192,10 +1205,41 @@ const App = () => {
     });
 
     const next = upsertTemplate(nextTemplate);
-    persistTemplates(next);
+    saveTemplates(next);
+    setTemplates(next);
 
     if (selectedTemplate?.id === template.id) {
       setSelectedTemplate(nextTemplate);
+    }
+
+    try {
+      const syncedTemplates = await syncTemplatesToServer(next);
+      saveTemplates(syncedTemplates);
+      setTemplates(syncedTemplates);
+      setSelectedTemplate((current) =>
+        current ? syncedTemplates.find((item) => item.id === current.id) ?? current : current,
+      );
+      setPaymentStatus({
+        tone: 'success',
+        message:
+          publicationStatus === 'published'
+            ? 'Калькулятор опубликован.'
+            : 'Публикация снята. Сохранены изменения на сервере.',
+      });
+    } catch (error) {
+      const rollbackTemplates = templates;
+      saveTemplates(rollbackTemplates);
+      setTemplates(rollbackTemplates);
+      if (selectedTemplate?.id === template.id) {
+        setSelectedTemplate(template);
+      }
+      setPaymentStatus({
+        tone: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Не удалось изменить статус публикации на сервере.',
+      });
     }
   };
 

@@ -52,6 +52,8 @@ interface LocalizedBuilderDateTimeInputProps {
 }
 
 const BUILDER_AUTOSAVE_STORAGE_KEY = 'calcpro-builder-autosave-enabled';
+const REQUEST_FORM_SELECTION_ID = '__request_form__';
+const RESULT_CARD_SELECTION_ID = '__result_card__';
 const PRO_LIBRARY_ITEM_IDS = new Set(['range', 'flag', 'image', 'booking', 'html']);
 const BASIC_BUTTON_ACTIONS: ButtonActionType[] = ['calculate', 'submit', 'reset'];
 
@@ -830,7 +832,7 @@ export const BuilderPage = ({
     }
   });
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(
-    initialTemplate?.fields[0]?.id ?? null,
+    initialTemplate?.fields[0]?.id ?? REQUEST_FORM_SELECTION_ID,
   );
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
   const [dragOverFieldId, setDragOverFieldId] = useState<string | null>(null);
@@ -894,6 +896,8 @@ export const BuilderPage = ({
     () => template.fields.find((field) => field.id === selectedFieldId) ?? null,
     [selectedFieldId, template.fields],
   );
+  const isRequestFormSelected = selectedFieldId === REQUEST_FORM_SELECTION_ID;
+  const isResultCardSelected = selectedFieldId === RESULT_CARD_SELECTION_ID;
   const previewResultCardTitle = template.resultCardTitle ?? 'Итог расчета';
   const previewResultCardDescription = template.requestForm.enabled
     ? 'Нужно заполнить: имя, телефон, согласие'
@@ -932,9 +936,14 @@ export const BuilderPage = ({
       return;
     }
 
-    const targetSelector = selectedFieldId
-      ? `[data-builder-field-id="${selectedFieldId}"]`
-      : '[data-builder-request-form="true"]';
+    const targetSelector =
+      selectedFieldId === REQUEST_FORM_SELECTION_ID
+        ? '[data-builder-request-form="true"]'
+        : selectedFieldId === RESULT_CARD_SELECTION_ID
+          ? '[data-builder-result-card="true"]'
+          : selectedFieldId
+            ? `[data-builder-field-id="${selectedFieldId}"]`
+            : '[data-builder-request-form="true"]';
     const targetElement = canvasElement.querySelector<HTMLElement>(targetSelector);
 
     if (!targetElement) {
@@ -956,27 +965,66 @@ export const BuilderPage = ({
     }
   }, [isAutoSaveEnabled]);
 
-  const renderPreviewResultCard = () =>
-    template.resultCardShow !== false ? (
-      <div className="builder-preview__result-card">
-        <div className="result-card result-card_sticky builder-preview__result-sticky">
-          <div className="result-card__content">
-            {template.resultCardShowTitle !== false ? (
-              <div className="result-card__eyebrow">{previewResultCardTitle}</div>
-            ) : null}
-            {template.resultCardShowTotal !== false ? (
-              <div className="result-card__amount result-card__amount_compact">0 ₽</div>
-            ) : null}
-            <div className="result-card__description">{previewResultCardDescription}</div>
-          </div>
-          {template.requestForm.enabled ? (
-            <div className="result-card__actions">
-              <button className="calculator-request__submit result-card__submit" type="button">
-                {template.requestForm.submitButtonText}
+  const renderPreviewResultCard = (isEditable = false) =>
+    template.resultCardShow !== false || isEditable ? (
+      <div
+        data-builder-result-card={isEditable ? 'true' : undefined}
+        className={
+          isEditable
+            ? `builder-preview__field builder-preview__field_editable builder-preview__field_full builder-preview__result-card ${isResultCardSelected ? 'builder-preview__field_active' : ''} ${template.resultCardShow !== false ? '' : 'builder-preview__field_hidden'}`
+            : 'builder-preview__result-card'
+        }
+        onClick={
+          isEditable
+            ? () => {
+                setSelectedFieldId(RESULT_CARD_SELECTION_ID);
+                setIsInspectorOpen(true);
+                setMode('design');
+              }
+            : undefined
+        }
+      >
+        {isEditable ? (
+          <div className="builder-preview__field-toolbar builder-preview__field-toolbar_main">
+            <span className="builder-preview__field-badge">Итог расчета</span>
+            <div className="builder-preview__field-actions">
+              <button
+                className="builder-preview__field-action"
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  updateTemplate({ resultCardShow: !(template.resultCardShow !== false) });
+                }}
+              >
+                {template.resultCardShow !== false ? 'Скрыть' : 'Показать'}
               </button>
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
+        {template.resultCardShow !== false ? (
+          <div className="result-card result-card_sticky builder-preview__result-sticky">
+            <div className="result-card__content">
+              {template.resultCardShowTitle !== false ? (
+                <div className="result-card__eyebrow">{previewResultCardTitle}</div>
+              ) : null}
+              {template.resultCardShowTotal !== false ? (
+                <div className="result-card__amount result-card__amount_compact">0 ₽</div>
+              ) : null}
+              <div className="result-card__description">{previewResultCardDescription}</div>
+            </div>
+            {template.requestForm.enabled ? (
+              <div className="result-card__actions">
+                <button className="calculator-request__submit result-card__submit" type="button">
+                  {template.requestForm.submitButtonText}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="builder-preview__request-empty">
+            Карточка результата скрыта. Нажмите, чтобы открыть настройки справа.
+          </div>
+        )}
       </div>
     ) : null;
 
@@ -1301,7 +1349,7 @@ export const BuilderPage = ({
       setIsPreview(false);
       setMode('design');
       setIsInspectorOpen(true);
-      setSelectedFieldId(null);
+      setSelectedFieldId(REQUEST_FORM_SELECTION_ID);
       return;
     }
 
@@ -1971,146 +2019,8 @@ export const BuilderPage = ({
                       <span className="builder-inspector__field-hint">
                         Кастомная формула доступна на тарифе Про. В Базовом тарифе работает простой расчет.
                       </span>
-                    ) : null}
-                  </label>
-
-                  <div className="builder-formula__result-card">
-                    <div className="builder-formula__result-settings">
-                      <div className="builder-formula__result-settings-title">Настройки карточки результата</div>
-	                      <div className="builder-formula__result-row">
-	                        <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
-	                          <input
-	                            type="checkbox"
-	                            aria-label="Показывать карточку результата"
-	                            checked={template.resultCardShow !== false}
-	                            onChange={(event) =>
-	                              updateTemplate({ resultCardShow: event.target.checked })
-	                            }
-	                          />
-	                        </label>
-	                        <label className="builder-formula__field builder-formula__result-input">
-	                          <span>Карточка результата</span>
-	                          <input value="Показывать весь блок результата" readOnly />
-	                        </label>
-	                      </div>
-
-	                      <div className="builder-formula__result-row">
-                        <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
-                          <input
-                            type="checkbox"
-                            aria-label="Показывать заголовок"
-                            checked={template.resultCardShowTitle !== false}
-                            onChange={(event) =>
-                              updateTemplate({ resultCardShowTitle: event.target.checked })
-                            }
-                          />
-                        </label>
-                        <label className="builder-formula__field builder-formula__result-input">
-                          <span>Заголовок</span>
-                          <input
-                            value={template.resultCardTitle ?? 'Итог расчета'}
-                            onChange={(event) =>
-                              updateTemplate({ resultCardTitle: event.target.value })
-                            }
-                          />
-                        </label>
-                      </div>
-
-                      <div className="builder-formula__result-row">
-                        <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
-                          <input
-                            type="checkbox"
-                            aria-label="Показывать итоговую сумму"
-                            checked={template.resultCardShowTotal !== false}
-                            onChange={(event) =>
-                              updateTemplate({ resultCardShowTotal: event.target.checked })
-                            }
-                          />
-                        </label>
-                        <label className="builder-formula__field builder-formula__result-input">
-                          <span>Итоговая сумма</span>
-                          <input value="Основное значение карточки" readOnly />
-                        </label>
-                      </div>
-
-                      <div className="builder-formula__result-row">
-                        <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
-                          <input
-                            type="checkbox"
-                            aria-label="Показывать подытог"
-                            checked={template.resultCardShowSubtotal !== false}
-                            disabled={!canUseProFeatures}
-                            onChange={(event) =>
-                              updateTemplate({ resultCardShowSubtotal: event.target.checked })
-                            }
-                          />
-                        </label>
-                        <label className="builder-formula__field builder-formula__result-input">
-                          <span>Подытог</span>
-                          <input
-                            value={template.resultSubtotalLabel ?? 'Подытог'}
-                            disabled={!canUseProFeatures}
-                            onChange={(event) =>
-                              updateTemplate({ resultSubtotalLabel: event.target.value })
-                            }
-                          />
-                        </label>
-                      </div>
-
-                      <div className="builder-formula__result-row">
-                        <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
-                          <input
-                            type="checkbox"
-                            aria-label="Показывать скидку"
-                            checked={template.resultCardShowDiscount !== false}
-                            disabled={!canUseProFeatures}
-                            onChange={(event) =>
-                              updateTemplate({ resultCardShowDiscount: event.target.checked })
-                            }
-                          />
-                        </label>
-                        <label className="builder-formula__field builder-formula__result-input">
-                          <span>Скидка</span>
-                          <input
-                            value={template.resultDiscountLabel ?? 'Скидка'}
-                            disabled={!canUseProFeatures}
-                            onChange={(event) =>
-                              updateTemplate({ resultDiscountLabel: event.target.value })
-                            }
-                          />
-                        </label>
-                      </div>
-
-                      <div className="builder-formula__result-row">
-                        <label className="builder-formula__field builder-formula__field_toggle builder-formula__result-toggle">
-                          <input
-                            type="checkbox"
-                            aria-label="Показывать минимальную цену"
-                            checked={template.resultCardShowMinPrice !== false}
-                            disabled={!canUseProFeatures}
-                            onChange={(event) =>
-                              updateTemplate({ resultCardShowMinPrice: event.target.checked })
-                            }
-                          />
-                        </label>
-                        <label className="builder-formula__field builder-formula__result-input">
-                          <span>Минимальная цена</span>
-                          <input
-                            value={template.resultMinPriceLabel ?? 'Минимальная цена'}
-                            disabled={!canUseProFeatures}
-                            onChange={(event) =>
-                              updateTemplate({ resultMinPriceLabel: event.target.value })
-                            }
-                          />
-                        </label>
-                      </div>
-                      {!canUseProFeatures ? (
-                        <div className="builder-inspector__field-hint">
-                          Подытог, скидка и минимальная цена доступны на тарифе Про.
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
+                  ) : null}
+                </label>
 
                   {template.fields.filter((field) => field.type === 'result').map((field) => (
                     <div key={field.id} className="builder-formula__result-card">
@@ -2232,7 +2142,9 @@ export const BuilderPage = ({
                     </div>
                   ))}
                 </div>
-              ) : template.fields.length > 0 || template.requestForm.enabled ? (
+              ) : template.fields.length > 0 ||
+                template.requestForm.enabled ||
+                template.resultCardShow !== false ? (
                 <div className="builder-preview builder-preview_design">
                   <div className="builder-preview__fields">
                   {template.fields.map((field) => (
@@ -2347,9 +2259,9 @@ export const BuilderPage = ({
                   ))}
                   <div
                     data-builder-request-form="true"
-                    className={`builder-preview__field builder-preview__field_editable builder-preview__field_full builder-preview__request-card ${selectedFieldId === null ? 'builder-preview__field_active' : ''} ${template.requestForm.enabled ? '' : 'builder-preview__field_hidden'}`}
+                    className={`builder-preview__field builder-preview__field_editable builder-preview__field_full builder-preview__request-card ${isRequestFormSelected ? 'builder-preview__field_active' : ''} ${template.requestForm.enabled ? '' : 'builder-preview__field_hidden'}`}
                     onClick={() => {
-                      setSelectedFieldId(null);
+                      setSelectedFieldId(REQUEST_FORM_SELECTION_ID);
                       setIsInspectorOpen(true);
                       setMode('design');
                     }}
@@ -2451,7 +2363,7 @@ export const BuilderPage = ({
                       </div>
                     )}
                   </div>
-                  {renderPreviewResultCard()}
+                  {renderPreviewResultCard(true)}
                   </div>
                 </div>
               ) : (
@@ -2468,7 +2380,7 @@ export const BuilderPage = ({
         </main>
 
         <button
-          className={`builder-inspector__toggle builder-floating-toggle_legacy ${isInspectorOpen ? 'builder-inspector__toggle_open' : ''} ${!selectedField && mode !== 'formula' ? 'builder-inspector__toggle_muted' : ''}`}
+          className={`builder-inspector__toggle builder-floating-toggle_legacy ${isInspectorOpen ? 'builder-inspector__toggle_open' : ''} ${!selectedField && !isRequestFormSelected && !isResultCardSelected && mode !== 'formula' ? 'builder-inspector__toggle_muted' : ''}`}
           type="button"
           aria-label={isInspectorOpen ? '\u0421\u043a\u0440\u044b\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438'}
           onClick={() => setIsInspectorOpen((value) => !value)}
@@ -3889,6 +3801,131 @@ export const BuilderPage = ({
                 >
                   {'\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u044d\u043b\u0435\u043c\u0435\u043d\u0442'}
                 </button>
+              </div>
+            </>
+          ) : isResultCardSelected ? (
+            <>
+              <div className="builder-inspector__section">
+                <div className="builder-inspector__eyebrow">Инспектор</div>
+                <h3 className="builder-inspector__title">Итог расчета</h3>
+                <p className="builder-inspector__text">
+                  Настройте показ карточки результата и подписи внутри итогового блока.
+                </p>
+              </div>
+
+              <div className="builder-inspector__section">
+                <label className="builder-inspector__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={template.resultCardShow !== false}
+                    onChange={(event) => updateTemplate({ resultCardShow: event.target.checked })}
+                  />
+                  <span>Показывать карточку результата</span>
+                </label>
+
+                <label className="builder-inspector__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={template.resultCardShowTitle !== false}
+                    onChange={(event) =>
+                      updateTemplate({ resultCardShowTitle: event.target.checked })
+                    }
+                  />
+                  <span>Показывать заголовок</span>
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Заголовок</span>
+                  <input
+                    value={template.resultCardTitle ?? 'Итог расчета'}
+                    onChange={(event) => updateTemplate({ resultCardTitle: event.target.value })}
+                  />
+                </label>
+
+                <label className="builder-inspector__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={template.resultCardShowTotal !== false}
+                    onChange={(event) =>
+                      updateTemplate({ resultCardShowTotal: event.target.checked })
+                    }
+                  />
+                  <span>Показывать итоговую сумму</span>
+                </label>
+
+                <label className="builder-inspector__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={template.resultCardShowSubtotal !== false}
+                    disabled={!canUseProFeatures}
+                    onChange={(event) =>
+                      updateTemplate({ resultCardShowSubtotal: event.target.checked })
+                    }
+                  />
+                  <span>Показывать подытог</span>
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Подпись подытога</span>
+                  <input
+                    value={template.resultSubtotalLabel ?? 'Подытог'}
+                    disabled={!canUseProFeatures}
+                    onChange={(event) =>
+                      updateTemplate({ resultSubtotalLabel: event.target.value })
+                    }
+                  />
+                </label>
+
+                <label className="builder-inspector__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={template.resultCardShowDiscount !== false}
+                    disabled={!canUseProFeatures}
+                    onChange={(event) =>
+                      updateTemplate({ resultCardShowDiscount: event.target.checked })
+                    }
+                  />
+                  <span>Показывать скидку</span>
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Подпись скидки</span>
+                  <input
+                    value={template.resultDiscountLabel ?? 'Скидка'}
+                    disabled={!canUseProFeatures}
+                    onChange={(event) =>
+                      updateTemplate({ resultDiscountLabel: event.target.value })
+                    }
+                  />
+                </label>
+
+                <label className="builder-inspector__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={template.resultCardShowMinPrice !== false}
+                    disabled={!canUseProFeatures}
+                    onChange={(event) =>
+                      updateTemplate({ resultCardShowMinPrice: event.target.checked })
+                    }
+                  />
+                  <span>Показывать минимальную цену</span>
+                </label>
+
+                <label className="builder-inspector__field">
+                  <span>Подпись минимальной цены</span>
+                  <input
+                    value={template.resultMinPriceLabel ?? 'Минимальная цена'}
+                    disabled={!canUseProFeatures}
+                    onChange={(event) =>
+                      updateTemplate({ resultMinPriceLabel: event.target.value })
+                    }
+                  />
+                </label>
+                {!canUseProFeatures ? (
+                  <div className="builder-inspector__field-hint">
+                    Подытог, скидка и минимальная цена доступны на тарифе Про.
+                  </div>
+                ) : null}
               </div>
             </>
           ) : (

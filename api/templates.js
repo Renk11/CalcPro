@@ -1,5 +1,8 @@
 import { sendJson } from '../server/http.js';
-import { requireCommunityAdmin } from '../server/request-auth.js';
+import {
+  getTrustedViewerContext,
+  requireCommunityAdmin,
+} from '../server/request-auth.js';
 import {
   getServerTemplates,
   saveServerTemplates,
@@ -16,13 +19,41 @@ export default async function handler(request, response) {
     const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
 
     if (request.method === 'GET') {
-      const auth = requireCommunityAdmin(request, response, groupId);
+      const auth = getTrustedViewerContext(request);
       if (!auth) {
-        return undefined;
+        return sendJson(response, 401, {
+          ok: false,
+          error: 'VK launch params verification failed',
+        });
+      }
+
+      if (groupId > 0 && auth.groupId !== groupId) {
+        return sendJson(response, 403, {
+          ok: false,
+          error: 'The requested group does not match the current VK context',
+        });
       }
 
       const templates = await getServerTemplates(groupId);
-      return sendJson(response, 200, { ok: true, data: templates });
+      const visibleTemplates = auth.isCommunityAdmin
+        ? templates
+        : templates.filter((template) => template?.publicationStatus === 'published');
+
+      if (!auth.isCommunityAdmin && groupId <= 0) {
+        return sendJson(response, 403, {
+          ok: false,
+          error: 'Public templates are available only in the current VK community context',
+        });
+      }
+
+      if (!auth.isCommunityAdmin && auth.groupId <= 0) {
+        return sendJson(response, 403, {
+          ok: false,
+          error: 'Public templates are available only inside a VK community',
+        });
+      }
+
+      return sendJson(response, 200, { ok: true, data: visibleTemplates });
     }
 
     if (request.method === 'POST') {
