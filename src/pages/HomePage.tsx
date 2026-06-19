@@ -81,7 +81,6 @@ interface HomePageProps {
   onDuplicateTemplate: (template: CalculatorTemplate) => void;
   onDeleteTemplate: (template: CalculatorTemplate) => void;
   onMoveTemplateToFolder: (template: CalculatorTemplate, folderId?: string) => void;
-  onTransferTemplateToCommunity: (template: CalculatorTemplate, groupId: number) => void;
   onUpdateTemplateStatus: (
     template: CalculatorTemplate,
     publicationStatus: CalculatorPublicationStatus,
@@ -494,14 +493,6 @@ const faqTopics: FaqTopic[] = [
         ],
       },
       {
-        title: 'Как перенести калькулятор в другую группу',
-        items: [
-          'Откройте карточку нужного калькулятора в разделе «Мои калькуляторы», вызовите меню действий и выберите пункт «Перенести в сообщество».',
-          'После выбора целевой группы калькулятор удалится из текущего сообщества и будет сохранён в новой группе как черновик.',
-          'При переносе калькулятор отвязывается от папки старой группы, получает новый публичный идентификатор и требует отдельной публикации в новом сообществе.',
-        ],
-      },
-      {
         title: 'Лимиты и тарифы',
         items: [
           'Free позволяет работать только с одним сообществом.',
@@ -819,7 +810,6 @@ export const HomePage = ({
   onDuplicateTemplate,
   onDeleteTemplate,
   onMoveTemplateToFolder,
-  onTransferTemplateToCommunity,
   onUpdateTemplateStatus,
   currentPlan,
   configuredPlan,
@@ -1565,8 +1555,6 @@ export const HomePage = ({
               key={template.id}
               template={template}
               folders={folders}
-              communities={connectedCommunities}
-              currentGroupId={currentGroupId}
               canDuplicate={canUseTemplates}
               canUseFolders={canUseFolders}
               onOpen={onOpen}
@@ -1574,7 +1562,6 @@ export const HomePage = ({
               onDuplicate={onDuplicateTemplate}
               onDelete={setPendingDeleteTemplate}
               onMoveToFolder={onMoveTemplateToFolder}
-              onTransferToCommunity={onTransferTemplateToCommunity}
               onUpdateStatus={onUpdateTemplateStatus}
             />
           ))}

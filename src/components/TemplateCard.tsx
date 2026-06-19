@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import type {
-  CalculatorConnectedCommunity,
   CalculatorFolder,
   CalculatorPublicationStatus,
   CalculatorTemplate,
@@ -9,8 +8,6 @@ import type {
 interface TemplateCardProps {
   template: CalculatorTemplate;
   folders: CalculatorFolder[];
-  communities: CalculatorConnectedCommunity[];
-  currentGroupId: number;
   canDuplicate: boolean;
   canUseFolders: boolean;
   onOpen: (template: CalculatorTemplate) => void;
@@ -18,7 +15,6 @@ interface TemplateCardProps {
   onDuplicate: (template: CalculatorTemplate) => void;
   onDelete: (template: CalculatorTemplate) => void;
   onMoveToFolder: (template: CalculatorTemplate, folderId?: string) => void;
-  onTransferToCommunity: (template: CalculatorTemplate, groupId: number) => void;
   onUpdateStatus: (
     template: CalculatorTemplate,
     publicationStatus: CalculatorPublicationStatus,
@@ -34,11 +30,11 @@ const publicationStatusLabels: Record<CalculatorPublicationStatus, string> = {
 
 const hasMojibake = (value?: string) =>
   typeof value === 'string' &&
-  (value.includes('Р ') ||
-    value.includes('Гђ') ||
-    value.includes('Г‘') ||
-    value.includes('РІР‚') ||
-    value.includes('Г‚'));
+  (value.includes('Р В ') ||
+    value.includes('Р“С’') ||
+    value.includes('Р“вЂ') ||
+    value.includes('Р Р†Р вЂљ') ||
+    value.includes('Р“вЂљ'));
 
 const formatTemplateDate = (value?: string) =>
   value
@@ -52,8 +48,6 @@ const formatTemplateDate = (value?: string) =>
 export const TemplateCard = ({
   template,
   folders,
-  communities,
-  currentGroupId,
   canDuplicate,
   canUseFolders,
   onOpen,
@@ -61,14 +55,11 @@ export const TemplateCard = ({
   onDuplicate,
   onDelete,
   onMoveToFolder,
-  onTransferToCommunity,
   onUpdateStatus,
 }: TemplateCardProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
-  const [isCommunityPickerOpen, setIsCommunityPickerOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const transferTargets = communities.filter((community) => community.groupId !== currentGroupId);
   const safeTitle = hasMojibake(template.title) ? 'Новый калькулятор' : template.title;
   const safeDescription = hasMojibake(template.description) ? '' : template.description;
   const safeLastModifiedBy = hasMojibake(template.lastModifiedBy)
@@ -84,7 +75,6 @@ export const TemplateCard = ({
       if (!menuRef.current?.contains(event.target as Node)) {
         setIsMenuOpen(false);
         setIsFolderPickerOpen(false);
-        setIsCommunityPickerOpen(false);
       }
     };
 
@@ -114,7 +104,6 @@ export const TemplateCard = ({
                 onClick={() => {
                   setIsMenuOpen((current) => !current);
                   setIsFolderPickerOpen(false);
-                  setIsCommunityPickerOpen(false);
                 }}
               >
                 ...
@@ -179,7 +168,6 @@ export const TemplateCard = ({
                     disabled={!canUseFolders}
                     onClick={() => {
                       setIsFolderPickerOpen((current) => !current);
-                      setIsCommunityPickerOpen(false);
                     }}
                   >
                     {canUseFolders ? 'Перенести в папку' : 'Папки (Про)'}
@@ -210,39 +198,6 @@ export const TemplateCard = ({
                           }}
                         >
                           {folder.name}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  <button
-                    className="template-card__menu-action"
-                    type="button"
-                    disabled={!transferTargets.length}
-                    onClick={() => {
-                      setIsCommunityPickerOpen((current) => !current);
-                      setIsFolderPickerOpen(false);
-                    }}
-                  >
-                    {transferTargets.length
-                      ? 'Перенести в сообщество'
-                      : 'Нет других сообществ'}
-                  </button>
-
-                  {isCommunityPickerOpen && transferTargets.length ? (
-                    <div className="template-card__folder-picker">
-                      {transferTargets.map((community) => (
-                        <button
-                          key={community.groupId}
-                          className="template-card__folder-option"
-                          type="button"
-                          onClick={() => {
-                            onTransferToCommunity(template, community.groupId);
-                            setIsMenuOpen(false);
-                            setIsCommunityPickerOpen(false);
-                          }}
-                        >
-                          {community.name}
                         </button>
                       ))}
                     </div>

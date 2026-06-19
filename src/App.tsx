@@ -1386,63 +1386,6 @@ const App = () => {
     }
   };
 
-  const handleTransferTemplateToCommunity = async (
-    template: CalculatorTemplate,
-    targetGroupId: number,
-  ) => {
-    if (!isViewerGroupAdmin || targetGroupId <= 0 || targetGroupId === effectiveAdminGroupId) {
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/templates?action=transfer', {
-        method: 'POST',
-        headers: createJsonHeaders(),
-        body: JSON.stringify({
-          templateId: template.id,
-          fromGroupId: effectiveAdminGroupId,
-          toGroupId: targetGroupId,
-        }),
-      });
-      const payload = (await response.json().catch(() => null)) as
-        | {
-            ok?: boolean;
-            data?: {
-              sourceTemplates?: CalculatorTemplate[];
-            };
-            error?: string;
-          }
-        | null;
-
-      if (isProtectedApiUnavailable(payload, response.status)) {
-        return;
-      }
-
-      if (!response.ok || !payload?.ok || !Array.isArray(payload.data?.sourceTemplates)) {
-        throw new Error(payload?.error || 'Не удалось перенести калькулятор');
-      }
-
-      const nextSourceTemplates = payload.data.sourceTemplates.map((item) =>
-        normalizeTemplateRecord(item),
-      );
-      persistTemplates(nextSourceTemplates);
-
-      if (selectedTemplate?.id === template.id) {
-        setSelectedTemplate(undefined);
-      }
-
-      setPaymentStatus({
-        tone: 'success',
-        message: `Калькулятор перенесён в сообщество ID ${targetGroupId}. В новой группе он сохранён как черновик.`,
-      });
-    } catch (error) {
-      setPaymentStatus({
-        tone: 'error',
-        message: error instanceof Error ? error.message : 'Не удалось перенести калькулятор',
-      });
-    }
-  };
-
   const createFolder = () => {
     if (!isViewerGroupAdmin) {
       return;
@@ -1592,7 +1535,6 @@ const App = () => {
                   onDuplicateTemplate={duplicateTemplate}
                   onDeleteTemplate={deleteTemplate}
                   onMoveTemplateToFolder={moveTemplateToFolder}
-                  onTransferTemplateToCommunity={handleTransferTemplateToCommunity}
                   onUpdateTemplateStatus={updateTemplatePublicationStatus}
                   currentPlan={currentPlan}
                   configuredPlan={paidPlanConfig}
