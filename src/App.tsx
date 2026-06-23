@@ -214,6 +214,23 @@ const createFallbackCommunity = (
   };
 };
 
+const scopeCommunitiesToContext = (
+  communities: CalculatorConnectedCommunity[],
+  launchGroupId: number,
+  fallbackCommunity: CalculatorConnectedCommunity | null,
+) => {
+  if (launchGroupId <= 0) {
+    return communities;
+  }
+
+  const scoped = communities.filter((community) => community.groupId === launchGroupId);
+  if (scoped.length > 0) {
+    return scoped;
+  }
+
+  return fallbackCommunity ? [fallbackCommunity] : [];
+};
+
 const getMonthRequestCount = (requests: CalculatorRequest[], date = new Date()) => {
   const month = date.getMonth();
   const year = date.getFullYear();
@@ -444,7 +461,9 @@ const App = () => {
           }
 
           if (!isCancelled && connectedResponse.ok && connectedPayload?.ok && Array.isArray(connectedPayload.data)) {
-            setConnectedCommunities(connectedPayload.data);
+            setConnectedCommunities(
+              scopeCommunitiesToContext(connectedPayload.data, currentGroupId, fallbackCommunity),
+            );
             return;
           }
         }
@@ -465,7 +484,11 @@ const App = () => {
 
         if (!isCancelled && response.ok && payload?.ok && Array.isArray(payload.data)) {
           setConnectedCommunities(
-            payload.data.length === 0 && fallbackCommunity ? [fallbackCommunity] : payload.data,
+            scopeCommunitiesToContext(
+              payload.data.length === 0 && fallbackCommunity ? [fallbackCommunity] : payload.data,
+              currentGroupId,
+              fallbackCommunity,
+            ),
           );
         }
       } catch {
@@ -985,7 +1008,9 @@ const App = () => {
           );
         }
 
-        setConnectedCommunities(payload.data);
+        setConnectedCommunities(
+          scopeCommunitiesToContext(payload.data, currentGroupId, fallbackCommunity),
+        );
       }
 
       setHomeSection('communities');
@@ -1492,7 +1517,9 @@ const App = () => {
       .then((response) => response.json().catch(() => null))
       .then((payload: { ok?: boolean; data?: CalculatorConnectedCommunity[] } | null) => {
         if (payload?.ok && Array.isArray(payload.data)) {
-          setConnectedCommunities(payload.data);
+          setConnectedCommunities(
+            scopeCommunitiesToContext(payload.data, currentGroupId, fallbackCommunity),
+          );
         }
       })
       .catch(() => {

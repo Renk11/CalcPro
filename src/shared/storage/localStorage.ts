@@ -104,7 +104,7 @@ const ensureScopedStorageInitialized = (groupId = activeStorageGroupId) => {
     if (!getStorageItem(requestsKey)) {
       setStorageItem(
         requestsKey,
-        getStorageItem(getLegacyStorageKey('requests')) ?? JSON.stringify(defaults.requests),
+        JSON.stringify(defaults.requests),
       );
     }
 
