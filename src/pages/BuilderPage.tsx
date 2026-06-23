@@ -773,6 +773,7 @@ export const BuilderPage = ({
   canUseBooking = true,
   canUseProFeatures = true,
 }: BuilderPageProps) => {
+  const topbarRef = useRef<HTMLElement | null>(null);
   const [template, setTemplate] = useState<CalculatorTemplate>(
     normalizeTemplateContent(initialTemplate ?? createEmptyTemplate()),
   );
@@ -819,6 +820,7 @@ export const BuilderPage = ({
   );
   const [saveStatus, setSaveStatus] = useState('');
   const [saveToastKey, setSaveToastKey] = useState(0);
+  const [floatingToggleTop, setFloatingToggleTop] = useState(100);
   const saveToastTimeoutRef = useRef<number | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
@@ -1076,6 +1078,40 @@ export const BuilderPage = ({
       }
     };
   }, [isAutoSaveEnabled, onSave, template]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    let frameId = 0;
+    const updateFloatingToggleTop = () => {
+      frameId = 0;
+      const topbarBottom = topbarRef.current?.getBoundingClientRect().bottom ?? 88;
+      setFloatingToggleTop(Math.max(12, Math.round(topbarBottom + 10)));
+    };
+
+    const scheduleUpdate = () => {
+      if (frameId !== 0) {
+        return;
+      }
+
+      frameId = window.requestAnimationFrame(updateFloatingToggleTop);
+    };
+
+    scheduleUpdate();
+    window.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.addEventListener('resize', scheduleUpdate);
+
+    return () => {
+      if (frameId !== 0) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      window.removeEventListener('scroll', scheduleUpdate);
+      window.removeEventListener('resize', scheduleUpdate);
+    };
+  }, []);
 
   const updateTemplate = (patch: Partial<CalculatorTemplate>) => {
     setTemplate((current) => ({
@@ -1657,7 +1693,7 @@ export const BuilderPage = ({
 
   return (
     <div className="builder-shell builder-shell_editor">
-      <header className="builder-editor__topbar">
+      <header ref={topbarRef} className="builder-editor__topbar">
         <div className="builder-editor__topbar-left">
           <button className="builder-editor__back" type="button" onClick={onBack}>
             <Icon20ArrowLeftOutline />
@@ -1711,7 +1747,10 @@ export const BuilderPage = ({
         </div>
       ) : null}
 
-      <div className={`builder-editor ${isInspectorOpen ? 'builder-editor_with-inspector' : ''} ${mode === 'formula' ? 'builder-editor_formula' : ''}`}>
+      <div
+        className={`builder-editor ${isInspectorOpen ? 'builder-editor_with-inspector' : ''} ${mode === 'formula' ? 'builder-editor_formula' : ''}`}
+        style={{ '--builder-floating-toggle-top': `${floatingToggleTop}px` } as React.CSSProperties}
+      >
         <aside className={`builder-library ${isLibraryOpen ? 'builder-library_open' : 'builder-library_closed'}`}>
           <div className="builder-library__panel">
             <div className="builder-library__head">
