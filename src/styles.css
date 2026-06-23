@@ -581,7 +581,6 @@ body,
 .payments-scenario-card,
 .payments-guide,
 .payments-activation-card,
-.builder-library,
 .builder-canvas__toolbar,
 .builder-preview,
 .builder-formula,
@@ -619,7 +618,6 @@ body,
   .payments-scenario-card,
   .payments-guide,
   .payments-activation-card,
-  .builder-library,
   .builder-canvas__toolbar,
   .builder-preview,
   .builder-formula,
@@ -3457,8 +3455,29 @@ body,
 
 .builder-editor > .builder-library__toggle.builder-floating-toggle_legacy,
 .builder-editor > .builder-inspector__toggle.builder-floating-toggle_legacy {
+  position: fixed;
+  top: 100px;
   display: inline-flex !important;
   pointer-events: auto;
+  z-index: 30;
+}
+
+.builder-editor > .builder-library__toggle.builder-floating-toggle_legacy {
+  left: 24px;
+}
+
+.builder-editor
+  > .builder-library__toggle.builder-floating-toggle_legacy.builder-library__toggle_open {
+  left: 305px;
+}
+
+.builder-editor > .builder-inspector__toggle.builder-floating-toggle_legacy {
+  right: 24px;
+}
+
+.builder-editor
+  > .builder-inspector__toggle.builder-floating-toggle_legacy.builder-inspector__toggle_open {
+  right: 297px;
 }
 
 .builder-editor_formula > .builder-library__toggle.builder-floating-toggle_legacy,
@@ -3473,7 +3492,7 @@ body,
 }
 
 .builder-editor_with-inspector .builder-canvas {
-  padding-right: 18px;
+  padding-right: 24px;
 }
 
 .builder-editor_formula .builder-library__toggle,
@@ -3493,11 +3512,21 @@ body,
   bottom: 0;
   z-index: 4;
   width: 328px;
-  padding: 24px 20px;
+  padding: 0;
   box-sizing: border-box;
   background: #1f252c;
   border-right: 1px solid #2f3841;
   transition: transform 0.28s ease;
+  overflow: visible;
+}
+
+.builder-library__panel {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 24px 20px;
+  box-sizing: border-box;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
@@ -3718,7 +3747,7 @@ body,
   padding: 24px 24px 20px;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable both-edges;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 153, 80, 0.16) transparent;
   background:
@@ -4769,16 +4798,11 @@ body,
   position: relative;
   width: 320px;
   min-width: 320px;
-  height: 100%;
-  padding: 26px 22px;
+  padding: 0;
   box-sizing: border-box;
   border-left: 1px solid #2f3841;
   background: #1d2229;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 179, 107, 0.16) transparent;
+  overflow: visible;
   transition:
     transform 0.28s ease,
     width 0.28s ease,
@@ -4786,6 +4810,20 @@ body,
     padding 0.28s ease,
     border-color 0.28s ease,
     opacity 0.2s ease;
+}
+
+.builder-inspector__panel {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 26px 22px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 179, 107, 0.16) transparent;
 }
 
 .builder-inspector_open {
@@ -4856,9 +4894,9 @@ body,
   gap: 14px;
 }
 
-.builder-library::-webkit-scrollbar,
+.builder-library__panel::-webkit-scrollbar,
 .builder-canvas::-webkit-scrollbar,
-.builder-inspector::-webkit-scrollbar,
+.builder-inspector__panel::-webkit-scrollbar,
 html::-webkit-scrollbar,
 body::-webkit-scrollbar,
 #root::-webkit-scrollbar,
@@ -4878,9 +4916,9 @@ body::-webkit-scrollbar,
   width: 10px;
 }
 
-.builder-library::-webkit-scrollbar-track,
+.builder-library__panel::-webkit-scrollbar-track,
 .builder-canvas::-webkit-scrollbar-track,
-.builder-inspector::-webkit-scrollbar-track,
+.builder-inspector__panel::-webkit-scrollbar-track,
 html::-webkit-scrollbar-track,
 body::-webkit-scrollbar-track,
 #root::-webkit-scrollbar-track,
@@ -4901,9 +4939,9 @@ body::-webkit-scrollbar-track,
   border-radius: 999px;
 }
 
-.builder-library::-webkit-scrollbar-thumb,
+.builder-library__panel::-webkit-scrollbar-thumb,
 .builder-canvas::-webkit-scrollbar-thumb,
-.builder-inspector::-webkit-scrollbar-thumb,
+.builder-inspector__panel::-webkit-scrollbar-thumb,
 html::-webkit-scrollbar-thumb,
 body::-webkit-scrollbar-thumb,
 #root::-webkit-scrollbar-thumb,
@@ -4928,9 +4966,9 @@ body::-webkit-scrollbar-thumb,
   transition: background 0.18s ease;
 }
 
-.builder-library::-webkit-scrollbar-button,
+.builder-library__panel::-webkit-scrollbar-button,
 .builder-canvas::-webkit-scrollbar-button,
-.builder-inspector::-webkit-scrollbar-button,
+.builder-inspector__panel::-webkit-scrollbar-button,
 html::-webkit-scrollbar-button,
 body::-webkit-scrollbar-button,
 #root::-webkit-scrollbar-button,
@@ -4946,9 +4984,9 @@ body::-webkit-scrollbar-button,
   display: none;
 }
 
-.builder-library:hover,
+.builder-library__panel:hover,
 .builder-canvas:hover,
-.builder-inspector:hover,
+.builder-inspector__panel:hover,
 html:hover,
 body:hover,
 #root:hover,
@@ -4968,9 +5006,9 @@ body:hover,
   scrollbar-color: rgba(255, 179, 107, 0.58) rgba(255, 255, 255, 0.04);
 }
 
-.builder-library:hover::-webkit-scrollbar-track,
+.builder-library__panel:hover::-webkit-scrollbar-track,
 .builder-canvas:hover::-webkit-scrollbar-track,
-.builder-inspector:hover::-webkit-scrollbar-track,
+.builder-inspector__panel:hover::-webkit-scrollbar-track,
 html:hover::-webkit-scrollbar-track,
 body:hover::-webkit-scrollbar-track,
 #root:hover::-webkit-scrollbar-track,
@@ -4990,9 +5028,9 @@ body:hover::-webkit-scrollbar-track,
   background: rgba(255, 255, 255, 0.04);
 }
 
-.builder-library:hover::-webkit-scrollbar-thumb,
+.builder-library__panel:hover::-webkit-scrollbar-thumb,
 .builder-canvas:hover::-webkit-scrollbar-thumb,
-.builder-inspector:hover::-webkit-scrollbar-thumb,
+.builder-inspector__panel:hover::-webkit-scrollbar-thumb,
 html:hover::-webkit-scrollbar-thumb,
 body:hover::-webkit-scrollbar-thumb,
 #root:hover::-webkit-scrollbar-thumb,
@@ -5013,9 +5051,9 @@ body:hover::-webkit-scrollbar-thumb,
   background-clip: padding-box;
 }
 
-.builder-library::-webkit-scrollbar-thumb:hover,
+.builder-library__panel::-webkit-scrollbar-thumb:hover,
 .builder-canvas::-webkit-scrollbar-thumb:hover,
-.builder-inspector::-webkit-scrollbar-thumb:hover,
+.builder-inspector__panel::-webkit-scrollbar-thumb:hover,
 html::-webkit-scrollbar-thumb:hover,
 body::-webkit-scrollbar-thumb:hover,
 #root::-webkit-scrollbar-thumb:hover,
@@ -6865,11 +6903,14 @@ body::-webkit-scrollbar-thumb:hover,
   .builder-inspector {
     position: relative;
     width: auto;
-    height: auto;
     min-width: 0;
+    transform: translateX(0);
+  }
+
+  .builder-inspector__panel {
+    max-height: none;
     border-left: 0;
     border-top: 1px solid #2f3841;
-    transform: translateX(0);
   }
 
   .builder-inspector__toggle {
@@ -6977,14 +7018,29 @@ body::-webkit-scrollbar-thumb:hover,
     transform: none;
   }
 
-  .builder-library_closed,
-  .builder-library_open {
-    transform: none;
+  .builder-library__panel {
+    position: relative;
+    top: auto;
+    height: auto;
+    max-height: none;
+    padding: 24px 20px;
   }
 
-  .builder-library__toggle,
+  .builder-library_closed {
+    display: none;
+  }
+
+  .builder-library_open {
+    display: block;
+  }
+
+  .builder-canvas__board > .builder-library__toggle,
   .builder-inspector__toggle {
     display: none !important;
+  }
+
+  .builder-editor > .builder-library__toggle.builder-floating-toggle_legacy {
+    display: inline-flex !important;
   }
 
   .builder-canvas {
@@ -6999,10 +7055,14 @@ body::-webkit-scrollbar-thumb:hover,
     position: relative;
     width: 100%;
     min-width: 0;
-    height: auto;
-    border-left: 0;
     border-top: 1px solid #2f3841;
     transform: none;
+  }
+
+  .builder-inspector__panel {
+    max-height: none;
+    border-left: 0;
+    border-top: 0;
   }
 
   .builder-editor_formula .builder-inspector {
@@ -7040,6 +7100,10 @@ body::-webkit-scrollbar-thumb:hover,
   }
 
   .builder-library {
+    padding: 18px 14px 16px;
+  }
+
+  .builder-library__panel {
     padding: 18px 14px 16px;
   }
 
@@ -7132,6 +7196,10 @@ body::-webkit-scrollbar-thumb:hover,
   }
 
   .builder-inspector {
+    padding: 0;
+  }
+
+  .builder-inspector__panel {
     padding: 18px 14px 20px;
   }
 

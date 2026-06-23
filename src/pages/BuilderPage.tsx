@@ -853,6 +853,8 @@ export const BuilderPage = ({
   const previousFieldIdsRef = useRef(template.fields.map((field) => field.id));
   const hasTrackedFieldInsertionsRef = useRef(false);
   const staggerTimeoutsRef = useRef<number[]>([]);
+  const previousFieldCountRef = useRef(template.fields.length);
+  const previousRequestFormEnabledRef = useRef(template.requestForm.enabled);
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocKey | null>(null);
   const [previewConsentChecked, setPreviewConsentChecked] = useState(false);
   const [previewValues, setPreviewValues] = useState<CalculatorValues>(() =>
@@ -1424,6 +1426,19 @@ export const BuilderPage = ({
   }, [template.fields]);
 
   useEffect(() => {
+    const didAddField = template.fields.length > previousFieldCountRef.current;
+    const didEnableRequestForm =
+      template.requestForm.enabled && !previousRequestFormEnabledRef.current;
+
+    if (didAddField || didEnableRequestForm) {
+      setIsLibraryOpen(false);
+    }
+
+    previousFieldCountRef.current = template.fields.length;
+    previousRequestFormEnabledRef.current = template.requestForm.enabled;
+  }, [template.fields.length, template.requestForm.enabled]);
+
+  useEffect(() => {
     return () => {
       staggerTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
     };
@@ -1698,44 +1713,46 @@ export const BuilderPage = ({
 
       <div className={`builder-editor ${isInspectorOpen ? 'builder-editor_with-inspector' : ''} ${mode === 'formula' ? 'builder-editor_formula' : ''}`}>
         <aside className={`builder-library ${isLibraryOpen ? 'builder-library_open' : 'builder-library_closed'}`}>
-          <div className="builder-library__head">
-            <div className='builder-library__eyebrow'>{'\u0411\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0430'}</div>
-            <h2 className='builder-library__title'>{'\u042d\u043b\u0435\u043c\u0435\u043d\u0442\u044b'}</h2>
-          </div>
+          <div className="builder-library__panel">
+            <div className="builder-library__head">
+              <div className='builder-library__eyebrow'>{'\u0411\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0430'}</div>
+              <h2 className='builder-library__title'>{'\u042d\u043b\u0435\u043c\u0435\u043d\u0442\u044b'}</h2>
+            </div>
 
-          <div className="builder-library__list">
-            {preparedLibraryItems.map((item) => {
-              const Icon = item.icon;
-              const isRequestFormItem = item.id === 'request-form';
-              const isRequestFormEnabled = isRequestFormItem ? template.requestForm.enabled : false;
-              return (
-                <div
-                  key={item.id}
-                  className={`builder-library__item ${!item.supported ? 'builder-library__item_disabled' : ''} ${isRequestFormEnabled ? 'builder-library__item_active' : ''}`}
-                >
-                  <span className={`builder-library__icon ${item.accent}`}>
-                    <Icon />
-                  </span>
-                  <span className="builder-library__label">
-                    {item.label}
-                    {isRequestFormItem ? (
-                      <span className="builder-library__meta">
-                        {isRequestFormEnabled ? 'Включен' : 'Выключен'}
-                      </span>
-                    ) : null}
-                  </span>
-                  <button
-                    className="builder-library__dots"
-                    type="button"
-                    aria-label={`Добавить блок ${item.label}`}
-                    onClick={() => addField(item)}
-                    disabled={!item.supported}
+            <div className="builder-library__list">
+              {preparedLibraryItems.map((item) => {
+                const Icon = item.icon;
+                const isRequestFormItem = item.id === 'request-form';
+                const isRequestFormEnabled = isRequestFormItem ? template.requestForm.enabled : false;
+                return (
+                  <div
+                    key={item.id}
+                    className={`builder-library__item ${!item.supported ? 'builder-library__item_disabled' : ''} ${isRequestFormEnabled ? 'builder-library__item_active' : ''}`}
                   >
-                    {isRequestFormItem ? (isRequestFormEnabled ? '-' : '+') : '+'}
-                  </button>
-                </div>
-              );
-            })}
+                    <span className={`builder-library__icon ${item.accent}`}>
+                      <Icon />
+                    </span>
+                    <span className="builder-library__label">
+                      {item.label}
+                      {isRequestFormItem ? (
+                        <span className="builder-library__meta">
+                          {isRequestFormEnabled ? 'Включен' : 'Выключен'}
+                        </span>
+                      ) : null}
+                    </span>
+                    <button
+                      className="builder-library__dots"
+                      type="button"
+                      aria-label={`Добавить блок ${item.label}`}
+                      onClick={() => addField(item)}
+                      disabled={!item.supported}
+                    >
+                      {isRequestFormItem ? (isRequestFormEnabled ? '-' : '+') : '+'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </aside>
 
@@ -2452,6 +2469,7 @@ export const BuilderPage = ({
         </button>
 
         <aside className={`builder-inspector ${isInspectorOpen ? 'builder-inspector_open' : 'builder-inspector_closed'}`}>
+          <div className="builder-inspector__panel">
           {mode === 'formula' ? (
             <div className="builder-inspector__section">
               <div className="builder-inspector__eyebrow">{'\u0420\u0435\u0436\u0438\u043c \u0444\u043e\u0440\u043c\u0443\u043b\u044b'}</div>
@@ -4155,6 +4173,7 @@ export const BuilderPage = ({
               </div>
             </>
           )}
+          </div>
         </aside>
 
         {isJsonModalOpen ? (
