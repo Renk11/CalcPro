@@ -56,6 +56,8 @@ interface HomePageProps {
   activeFolderId: 'all' | string;
   allTemplates: CalculatorTemplate[];
   templates: CalculatorTemplate[];
+  isTemplatesLoading: boolean;
+  isCommunitiesLoading: boolean;
   requests: CalculatorRequest[];
   adminSettings: CalculatorAdminSettings;
   adminProfile: AdminProfile;
@@ -788,6 +790,8 @@ export const HomePage = ({
   activeFolderId,
   allTemplates,
   templates,
+  isTemplatesLoading,
+  isCommunitiesLoading,
   requests,
   adminSettings,
   adminProfile,
@@ -1018,7 +1022,7 @@ export const HomePage = ({
       return 0;
     }
 
-    return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
   }, [adminSettings.subscription.paidUntil]);
   const subscriptionDaysLeftLabel =
     subscriptionDaysLeft > 0
@@ -1063,6 +1067,80 @@ export const HomePage = ({
       return matchesCategory && matchesSearch;
     });
   }, [templateCategory, templateSearch]);
+
+  const renderCommunitySkeleton = () => (
+    <div className="content-skeleton content-skeleton_communities" aria-hidden="true">
+      <div className="content-skeleton__shine" />
+      <div className="content-skeleton__row">
+        <div className="content-skeleton__avatar" />
+        <div className="content-skeleton__group">
+          <div className="content-skeleton__line content-skeleton__line_title" />
+          <div className="content-skeleton__line content-skeleton__line_meta" />
+        </div>
+        <div className="content-skeleton__pill" />
+      </div>
+      <div className="content-skeleton__row">
+        <div className="content-skeleton__avatar" />
+        <div className="content-skeleton__group">
+          <div className="content-skeleton__line content-skeleton__line_title" />
+          <div className="content-skeleton__line content-skeleton__line_meta" />
+        </div>
+        <div className="content-skeleton__pill" />
+      </div>
+      <div className="content-skeleton__row">
+        <div className="content-skeleton__avatar" />
+        <div className="content-skeleton__group">
+          <div className="content-skeleton__line content-skeleton__line_title" />
+          <div className="content-skeleton__line content-skeleton__line_meta" />
+        </div>
+        <div className="content-skeleton__pill" />
+      </div>
+    </div>
+  );
+
+  const renderCalculatorsSkeleton = () => (
+    <div className="admin-home__grid admin-home__grid_loading" aria-hidden="true">
+      <div className="template-card template-card_skeleton">
+        <div className="content-skeleton content-skeleton_template">
+          <div className="content-skeleton__shine" />
+          <div className="content-skeleton__line content-skeleton__line_chip" />
+          <div className="content-skeleton__line content-skeleton__line_heading" />
+          <div className="content-skeleton__line content-skeleton__line_body" />
+          <div className="content-skeleton__line content-skeleton__line_body content-skeleton__line_body_short" />
+          <div className="content-skeleton__actions">
+            <div className="content-skeleton__button" />
+            <div className="content-skeleton__button content-skeleton__button_secondary" />
+          </div>
+        </div>
+      </div>
+      <div className="template-card template-card_skeleton">
+        <div className="content-skeleton content-skeleton_template">
+          <div className="content-skeleton__shine" />
+          <div className="content-skeleton__line content-skeleton__line_chip" />
+          <div className="content-skeleton__line content-skeleton__line_heading" />
+          <div className="content-skeleton__line content-skeleton__line_body" />
+          <div className="content-skeleton__line content-skeleton__line_body content-skeleton__line_body_short" />
+          <div className="content-skeleton__actions">
+            <div className="content-skeleton__button" />
+            <div className="content-skeleton__button content-skeleton__button_secondary" />
+          </div>
+        </div>
+      </div>
+      <div className="template-card template-card_skeleton">
+        <div className="content-skeleton content-skeleton_template">
+          <div className="content-skeleton__shine" />
+          <div className="content-skeleton__line content-skeleton__line_chip" />
+          <div className="content-skeleton__line content-skeleton__line_heading" />
+          <div className="content-skeleton__line content-skeleton__line_body" />
+          <div className="content-skeleton__line content-skeleton__line_body content-skeleton__line_body_short" />
+          <div className="content-skeleton__actions">
+            <div className="content-skeleton__button" />
+            <div className="content-skeleton__button content-skeleton__button_secondary" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderCommunitiesSection = () => (
     <main className="admin-home__content admin-home__content_wide">
@@ -1110,7 +1188,9 @@ export const HomePage = ({
           ) : null}
 
           <div className="communities-list">
-            {connectedCommunities.length ? (
+            {isCommunitiesLoading ? (
+              renderCommunitySkeleton()
+            ) : connectedCommunities.length ? (
               connectedCommunities.map((community) => {
                 const isActive = community.groupId === currentGroupId;
 
@@ -1185,18 +1265,29 @@ export const HomePage = ({
           </div>
 
           <div className="communities-summary">
-            <div className="communities-summary__row">
-              <span>Рабочая группа</span>
-              <strong>{currentGroupId > 0 ? `ID ${currentGroupId}` : 'Не выбрана'}</strong>
-            </div>
-            <div className="communities-summary__row">
-              <span>Контекст запуска</span>
-              <strong>{launchGroupId > 0 ? `ID ${launchGroupId}` : 'Вне сообщества'}</strong>
-            </div>
-            <div className="communities-summary__row">
-              <span>Тариф</span>
-              <strong>{currentPlan.name}</strong>
-            </div>
+            {isCommunitiesLoading ? (
+              <div className="content-skeleton content-skeleton_summary" aria-hidden="true">
+                <div className="content-skeleton__shine" />
+                <div className="content-skeleton__summary-row" />
+                <div className="content-skeleton__summary-row" />
+                <div className="content-skeleton__summary-row" />
+              </div>
+            ) : (
+              <>
+                <div className="communities-summary__row">
+                  <span>Рабочая группа</span>
+                  <strong>{currentGroupId > 0 ? `ID ${currentGroupId}` : 'Не выбрана'}</strong>
+                </div>
+                <div className="communities-summary__row">
+                  <span>Контекст запуска</span>
+                  <strong>{launchGroupId > 0 ? `ID ${launchGroupId}` : 'Вне сообщества'}</strong>
+                </div>
+                <div className="communities-summary__row">
+                  <span>Тариф</span>
+                  <strong>{currentPlan.name}</strong>
+                </div>
+              </>
+            )}
           </div>
         </article>
       </section>
@@ -1528,44 +1619,48 @@ export const HomePage = ({
           <div className="admin-home__role-badge">АДМИН</div>
         </div>
 
-        <div className="admin-home__grid">
-          <div className="create-calculator-tile-wrap">
-            <button
-              className={`create-calculator-tile ${!canCreateMoreTemplates ? 'create-calculator-tile_disabled' : ''}`}
-              type="button"
-              onClick={onCreate}
-              disabled={!canCreateMoreTemplates}
-            >
-              <span className="create-calculator-tile__plus">
-                <Icon20Add />
-              </span>
-              <span className="create-calculator-tile__label">Создать калькулятор</span>
-            </button>
-            {showCreateCalculatorLimitHint ? (
-              <div className="create-calculator-tile__tooltip">
-                {currentPlan.calculatorLimit == null
-                  ? 'Лимит по калькуляторам снят.'
-                  : `${currentPlan.name}: до ${currentPlan.calculatorLimit} калькуляторов`}
-              </div>
-            ) : null}
-          </div>
+        {isTemplatesLoading ? (
+          renderCalculatorsSkeleton()
+        ) : (
+          <div className="admin-home__grid">
+            <div className="create-calculator-tile-wrap">
+              <button
+                className={`create-calculator-tile ${!canCreateMoreTemplates ? 'create-calculator-tile_disabled' : ''}`}
+                type="button"
+                onClick={onCreate}
+                disabled={!canCreateMoreTemplates}
+              >
+                <span className="create-calculator-tile__plus">
+                  <Icon20Add />
+                </span>
+                <span className="create-calculator-tile__label">Создать калькулятор</span>
+              </button>
+              {showCreateCalculatorLimitHint ? (
+                <div className="create-calculator-tile__tooltip">
+                  {currentPlan.calculatorLimit == null
+                    ? 'Лимит по калькуляторам снят.'
+                    : `${currentPlan.name}: до ${currentPlan.calculatorLimit} калькуляторов`}
+                </div>
+              ) : null}
+            </div>
 
-          {templates.map((template) => (
-            <TemplateCard
-              key={template.id}
-              template={template}
-              folders={folders}
-              canDuplicate={canUseTemplates}
-              canUseFolders={canUseFolders}
-              onOpen={onOpen}
-              onEdit={onEdit}
-              onDuplicate={onDuplicateTemplate}
-              onDelete={setPendingDeleteTemplate}
-              onMoveToFolder={onMoveTemplateToFolder}
-              onUpdateStatus={onUpdateTemplateStatus}
-            />
-          ))}
-        </div>
+            {templates.map((template) => (
+              <TemplateCard
+                key={template.id}
+                template={template}
+                folders={folders}
+                canDuplicate={canUseTemplates}
+                canUseFolders={canUseFolders}
+                onOpen={onOpen}
+                onEdit={onEdit}
+                onDuplicate={onDuplicateTemplate}
+                onDelete={setPendingDeleteTemplate}
+                onMoveToFolder={onMoveTemplateToFolder}
+                onUpdateStatus={onUpdateTemplateStatus}
+              />
+            ))}
+          </div>
+        )}
       </main>
     </>
   );

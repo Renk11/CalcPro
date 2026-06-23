@@ -116,12 +116,28 @@ type PaymentStatus = {
 const AdminPageFallback = ({ title }: { title: string }) => (
   <div className="calculator-page calculator-page_empty">
     <div className="calculator-page__shell">
-      <div className="calculator-page__hero-copy calculator-page__hero-copy_empty">
-        <div className="calculator-page__eyebrow">Workspace</div>
-        <h1 className="calculator-page__title">{title}</h1>
-        <p className="calculator-page__description">
-          Загружаем интерфейс и данные сообщества.
-        </p>
+      <div className="app-skeleton app-skeleton_admin">
+        <div className="app-skeleton__panel app-skeleton__panel_sidebar">
+          <span className="app-skeleton__shine" />
+          <div className="app-skeleton__line app-skeleton__line_title" />
+          <div className="app-skeleton__line app-skeleton__line_chip" />
+          <div className="app-skeleton__stack">
+            <div className="app-skeleton__card app-skeleton__card_folder" />
+            <div className="app-skeleton__card app-skeleton__card_folder" />
+            <div className="app-skeleton__card app-skeleton__card_folder" />
+          </div>
+        </div>
+        <div className="app-skeleton__panel app-skeleton__panel_content">
+          <span className="app-skeleton__shine" />
+          <div className="app-skeleton__fallback-title">{title}</div>
+          <div className="app-skeleton__line app-skeleton__line_eyebrow" />
+          <div className="app-skeleton__line app-skeleton__line_heading" />
+          <div className="app-skeleton__grid">
+            <div className="app-skeleton__card app-skeleton__card_large" />
+            <div className="app-skeleton__card app-skeleton__card_large" />
+            <div className="app-skeleton__card app-skeleton__card_large" />
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -130,12 +146,57 @@ const AdminPageFallback = ({ title }: { title: string }) => (
 const CalculatorPageFallback = () => (
   <div className="calculator-page calculator-page_empty">
     <div className="calculator-page__shell">
-      <div className="calculator-page__hero-copy calculator-page__hero-copy_empty">
-        <div className="calculator-page__eyebrow">Calculator</div>
-        <h1 className="calculator-page__title">Загружаем калькулятор</h1>
-        <p className="calculator-page__description">
-          Подготавливаем форму и расчёт для текущего шаблона.
-        </p>
+      <div className="app-skeleton app-skeleton_calculator">
+        <div className="app-skeleton__panel app-skeleton__panel_content">
+          <span className="app-skeleton__shine" />
+          <div className="app-skeleton__line app-skeleton__line_eyebrow" />
+          <div className="app-skeleton__line app-skeleton__line_heading" />
+          <div className="app-skeleton__line app-skeleton__line_body" />
+          <div className="app-skeleton__stack">
+            <div className="app-skeleton__card app-skeleton__card_field" />
+            <div className="app-skeleton__card app-skeleton__card_field" />
+            <div className="app-skeleton__card app-skeleton__card_field" />
+          </div>
+        </div>
+        <div className="app-skeleton__panel app-skeleton__panel_sidecard">
+          <span className="app-skeleton__shine" />
+          <div className="app-skeleton__card app-skeleton__card_side" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const BuilderPageFallback = () => (
+  <div className="builder-shell builder-shell_editor builder-shell_loading">
+    <div className="builder-editor__topbar builder-editor__topbar_loading">
+      <div className="app-skeleton__line app-skeleton__line_nav" />
+      <div className="app-skeleton__line app-skeleton__line_nav app-skeleton__line_nav_wide" />
+    </div>
+    <div className="app-skeleton app-skeleton_builder">
+      <div className="app-skeleton__panel app-skeleton__panel_sidebar">
+        <span className="app-skeleton__shine" />
+        <div className="app-skeleton__line app-skeleton__line_title" />
+        <div className="app-skeleton__stack">
+          <div className="app-skeleton__card app-skeleton__card_library" />
+          <div className="app-skeleton__card app-skeleton__card_library" />
+          <div className="app-skeleton__card app-skeleton__card_library" />
+        </div>
+      </div>
+      <div className="app-skeleton__panel app-skeleton__panel_content">
+        <span className="app-skeleton__shine" />
+        <div className="app-skeleton__line app-skeleton__line_heading" />
+        <div className="app-skeleton__canvas">
+          <div className="app-skeleton__card app-skeleton__card_builder-field" />
+          <div className="app-skeleton__card app-skeleton__card_builder-field" />
+          <div className="app-skeleton__card app-skeleton__card_builder-field app-skeleton__card_builder-field_half" />
+          <div className="app-skeleton__card app-skeleton__card_builder-field app-skeleton__card_builder-field_half" />
+        </div>
+      </div>
+      <div className="app-skeleton__panel app-skeleton__panel_sidebar">
+        <span className="app-skeleton__shine" />
+        <div className="app-skeleton__line app-skeleton__line_title" />
+        <div className="app-skeleton__card app-skeleton__card_inspector" />
       </div>
     </div>
   </div>
@@ -284,6 +345,8 @@ const App = () => {
   const [homeSection, setHomeSection] = useState<AdminSection>('calculators');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
+  const [isCommunitiesLoading, setIsCommunitiesLoading] = useState(true);
+  const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
   const [isDesktopClient, setIsDesktopClient] = useState(true);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [hasOpenedHome, setHasOpenedHome] = useState(false);
@@ -435,6 +498,7 @@ const App = () => {
 
   useEffect(() => {
     let isCancelled = false;
+    setIsCommunitiesLoading(true);
 
     const syncCommunities = async () => {
       try {
@@ -495,6 +559,10 @@ const App = () => {
         if (!isCancelled && fallbackCommunity) {
           setConnectedCommunities([fallbackCommunity]);
         }
+      } finally {
+        if (!isCancelled) {
+          setIsCommunitiesLoading(false);
+        }
       }
     };
 
@@ -543,6 +611,7 @@ const App = () => {
   useEffect(() => {
     let isCancelled = false;
     const syncVersion = templatesSyncVersionRef.current;
+    setIsTemplatesLoading(true);
 
     const syncTemplatesFromServer = async () => {
       try {
@@ -591,6 +660,10 @@ const App = () => {
         }
       } catch {
         // Keep local templates as a fallback when API is unavailable.
+      } finally {
+        if (!isCancelled && templatesSyncVersionRef.current === syncVersion) {
+          setIsTemplatesLoading(false);
+        }
       }
     };
 
@@ -1540,6 +1613,8 @@ const App = () => {
                   activeFolderId={activeFolderId}
                   allTemplates={sortedTemplates}
                   templates={visibleTemplates}
+                  isTemplatesLoading={isTemplatesLoading}
+                  isCommunitiesLoading={isCommunitiesLoading}
                   adminSettings={adminSettings}
                   adminProfile={adminProfile}
                   vkAuthHeaders={vkAuthHeaders}
@@ -1594,7 +1669,7 @@ const App = () => {
           </Panel>
           <Panel id="builder">
             {hasOpenedBuilder || activeView === 'builder' ? (
-              <Suspense fallback={null}>
+              <Suspense fallback={<BuilderPageFallback />}>
                 <BuilderPage
                   initialTemplate={selectedTemplate}
                   onBack={() => setActiveView('home')}

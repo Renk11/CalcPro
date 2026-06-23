@@ -818,6 +818,7 @@ export const BuilderPage = ({
             : item,
   );
   const [saveStatus, setSaveStatus] = useState('');
+  const [saveToastKey, setSaveToastKey] = useState(0);
   const saveToastTimeoutRef = useRef<number | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
@@ -848,6 +849,10 @@ export const BuilderPage = ({
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
   const [jsonDraft, setJsonDraft] = useState('');
   const [jsonError, setJsonError] = useState('');
+  const [fieldEntranceDelays, setFieldEntranceDelays] = useState<Record<string, number>>({});
+  const previousFieldIdsRef = useRef(template.fields.map((field) => field.id));
+  const hasTrackedFieldInsertionsRef = useRef(false);
+  const staggerTimeoutsRef = useRef<number[]>([]);
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocKey | null>(null);
   const [previewConsentChecked, setPreviewConsentChecked] = useState(false);
   const [previewValues, setPreviewValues] = useState<CalculatorValues>(() =>
@@ -1059,14 +1064,6 @@ export const BuilderPage = ({
 
     autoSaveTimeoutRef.current = window.setTimeout(() => {
       onSave(template);
-      setSaveStatus('Автосохранение');
-      if (saveToastTimeoutRef.current !== null) {
-        window.clearTimeout(saveToastTimeoutRef.current);
-      }
-      saveToastTimeoutRef.current = window.setTimeout(() => {
-        setSaveStatus((current) => (current === 'Автосохранение' ? '' : current));
-        saveToastTimeoutRef.current = null;
-      }, 1800);
       autoSaveTimeoutRef.current = null;
     }, 800);
 
@@ -1084,6 +1081,19 @@ export const BuilderPage = ({
       ...patch,
       updatedAt: new Date().toISOString(),
     }));
+  };
+
+  const showSaveToast = (status: string, duration = 1800) => {
+    if (saveToastTimeoutRef.current !== null) {
+      window.clearTimeout(saveToastTimeoutRef.current);
+    }
+
+    setSaveStatus(status);
+    setSaveToastKey((current) => current + 1);
+    saveToastTimeoutRef.current = window.setTimeout(() => {
+      setSaveStatus((current) => (current === status ? '' : current));
+      saveToastTimeoutRef.current = null;
+    }, duration);
   };
 
   const updateFormulaDraft = (
@@ -1370,6 +1380,55 @@ export const BuilderPage = ({
     setIsPreview(false);
   };
 
+  useEffect(() => {
+    const nextFieldIds = template.fields.map((field) => field.id);
+
+    if (!hasTrackedFieldInsertionsRef.current) {
+      hasTrackedFieldInsertionsRef.current = true;
+      previousFieldIdsRef.current = nextFieldIds;
+      return;
+    }
+
+    const previousFieldIdSet = new Set(previousFieldIdsRef.current);
+    const addedFieldIds = nextFieldIds.filter((fieldId) => !previousFieldIdSet.has(fieldId));
+
+    if (addedFieldIds.length > 0) {
+      setFieldEntranceDelays((current) => {
+        const next = { ...current };
+
+        addedFieldIds.forEach((fieldId, index) => {
+          next[fieldId] = index * 40;
+        });
+
+        return next;
+      });
+
+      addedFieldIds.forEach((fieldId, index) => {
+        const timeoutId = window.setTimeout(() => {
+          setFieldEntranceDelays((current) => {
+            if (!(fieldId in current)) {
+              return current;
+            }
+
+            const next = { ...current };
+            delete next[fieldId];
+            return next;
+          });
+        }, 360 + index * 40);
+
+        staggerTimeoutsRef.current.push(timeoutId);
+      });
+    }
+
+    previousFieldIdsRef.current = nextFieldIds;
+  }, [template.fields]);
+
+  useEffect(() => {
+    return () => {
+      staggerTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    };
+  }, []);
+
   const duplicateField = (fieldId: string) => {
     const sourceField = template.fields.find((field) => field.id === fieldId);
     const sourceIndex = template.fields.findIndex((field) => field.id === fieldId);
@@ -1521,15 +1580,7 @@ export const BuilderPage = ({
 
   const handleSave = () => {
     onSave(template);
-    if (saveToastTimeoutRef.current !== null) {
-      window.clearTimeout(saveToastTimeoutRef.current);
-    }
-
-    setSaveStatus('\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e');
-    saveToastTimeoutRef.current = window.setTimeout(() => {
-      setSaveStatus((current) => (current === '\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e' ? '' : current));
-      saveToastTimeoutRef.current = null;
-    }, 1800);
+    showSaveToast('\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e');
   };
 
   const openJsonStorage = () => {
@@ -1568,7 +1619,7 @@ export const BuilderPage = ({
     try {
       await navigator.clipboard.writeText(jsonDraft);
       setJsonError('');
-      setSaveStatus('JSON скопирован');
+      showSaveToast('JSON скопирован');
     } catch {
       setJsonError('Не удалось скопировать JSON');
     }
@@ -1639,7 +1690,9 @@ export const BuilderPage = ({
 
       {saveStatus ? (
         <div className="builder-editor__save-toast" aria-live="polite" aria-atomic="true">
-          <div className="builder-editor__save-toast-badge">{saveStatus}</div>
+          <div key={saveToastKey} className="builder-editor__save-toast-badge">
+            {saveStatus}
+          </div>
         </div>
       ) : null}
 
@@ -1798,8 +1851,13 @@ export const BuilderPage = ({
                       template.fields.map((field) => (
                         <div
                           key={field.id}
-                          className={`builder-preview__field builder-preview__field_${field.layout === 'half' ? 'half' : 'full'}`}
-                          style={getFieldSpacingStyle(field)}
+                          className={`builder-preview__field builder-preview__field_${field.layout === 'half' ? 'half' : 'full'} ${fieldEntranceDelays[field.id] != null ? 'builder-preview__field_entering' : ''}`}
+                          style={
+                            {
+                              ...getFieldSpacingStyle(field),
+                              '--builder-field-enter-delay': `${fieldEntranceDelays[field.id] ?? 0}ms`,
+                            } as React.CSSProperties
+                          }
                         >
                           <CalculatorFieldInput
                             field={field}
@@ -2151,8 +2209,13 @@ export const BuilderPage = ({
                     <div
                       key={field.id}
                       data-builder-field-id={field.id}
-                      className={`builder-preview__field builder-preview__field_editable builder-preview__field_${field.layout === 'half' ? 'half' : 'full'} ${selectedFieldId === field.id ? 'builder-preview__field_active' : ''} ${draggedFieldId === field.id ? 'builder-preview__field_dragging' : ''} ${dragOverFieldId === field.id ? `builder-preview__field_drop-target builder-preview__field_drop-${dragOverPlacement}` : ''} ${field.hidden ? 'builder-preview__field_hidden' : ''}`}
-                      style={getFieldSpacingStyle(field)}
+                      className={`builder-preview__field builder-preview__field_editable builder-preview__field_${field.layout === 'half' ? 'half' : 'full'} ${selectedFieldId === field.id ? 'builder-preview__field_active' : ''} ${draggedFieldId === field.id ? 'builder-preview__field_dragging' : ''} ${dragOverFieldId === field.id ? `builder-preview__field_drop-target builder-preview__field_drop-${dragOverPlacement}` : ''} ${field.hidden ? 'builder-preview__field_hidden' : ''} ${fieldEntranceDelays[field.id] != null ? 'builder-preview__field_entering' : ''}`}
+                      style={
+                        {
+                          ...getFieldSpacingStyle(field),
+                          '--builder-field-enter-delay': `${fieldEntranceDelays[field.id] ?? 0}ms`,
+                        } as React.CSSProperties
+                      }
                       draggable
                       onClick={() => selectField(field.id)}
                       onDragStart={() => startFieldDrag(field.id)}
