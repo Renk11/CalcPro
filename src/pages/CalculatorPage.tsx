@@ -445,6 +445,15 @@ export const CalculatorPage = ({
   const isRequestSubmitDisabled =
     !canSubmitRequests || !name || !phone || Boolean(phoneError) || isSubmitting;
   const shouldShowResultDetails = !template.requestForm.enabled || missingRequestItems.length === 0;
+  const shouldShowSubtotalRow =
+    template.resultCardShowSubtotal !== false &&
+    (result.discountAmount > 0 || result.subtotal !== result.total);
+  const shouldShowDiscountRow =
+    template.resultCardShowDiscount !== false && result.discountAmount > 0;
+  const shouldShowMinPriceRow =
+    template.resultCardShowMinPrice !== false && template.minPrice > 0;
+  const shouldShowAnyResultRow =
+    shouldShowSubtotalRow || shouldShowDiscountRow || shouldShowMinPriceRow;
 
   const validate = () => {
     const nextErrors: Record<string, string> = {};
@@ -775,21 +784,21 @@ export const CalculatorPage = ({
                     <div className="result-card__amount result-card__amount_compact">{`${result.total} ₽`}</div>
                   ) : null}
                   <div className="result-card__description">{resultCardDescription}</div>
-                  {shouldShowResultDetails ? (
+                  {shouldShowResultDetails && shouldShowAnyResultRow ? (
                     <div className="result-card__list result-card__list_compact">
-                      {template.resultCardShowSubtotal !== false ? (
+                      {shouldShowSubtotalRow ? (
                         <div className="result-card__row">
                           <span>{template.resultSubtotalLabel ?? 'Подытог'}</span>
                           <strong>{result.subtotal} ₽</strong>
                         </div>
                       ) : null}
-                      {template.resultCardShowDiscount !== false ? (
+                      {shouldShowDiscountRow ? (
                         <div className="result-card__row">
                           <span>{template.resultDiscountLabel ?? 'Скидка'}</span>
                           <strong>{result.discountAmount} ₽</strong>
                         </div>
                       ) : null}
-                      {template.resultCardShowMinPrice !== false ? (
+                      {shouldShowMinPriceRow ? (
                         <div className="result-card__row">
                           <span>{template.resultMinPriceLabel ?? 'Минимальная цена'}</span>
                           <strong>{template.minPrice} ₽</strong>
