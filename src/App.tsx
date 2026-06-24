@@ -13,7 +13,6 @@ import {
   createTemplatePublicId,
   MAX_TEMPLATE_TITLE_LENGTH,
 } from './entities/calculator/model';
-import { createTemplateFromPreset } from './entities/calculator/templateCatalog';
 import {
   deleteRequest,
   getAdminSettings,
@@ -392,6 +391,7 @@ const App = () => {
   const viewerGroupRole = launchParams?.vk_viewer_group_role ?? 'none';
   const isViewerGroupAdmin = COMMUNITY_ADMIN_ROLES.has(viewerGroupRole);
   const isSuperAdmin = Boolean(adminProfile.id && SUPER_ADMIN_IDS.has(adminProfile.id));
+  const isPublicViewer = !isViewerGroupAdmin;
   const vkAuthHeaders = useMemo(() => createVkAuthHeaders(launchParams), [launchParams]);
   const fallbackCommunity = useMemo(
     () => (isViewerGroupAdmin ? createFallbackCommunity(currentGroupId, viewerGroupRole) : null),
@@ -435,6 +435,10 @@ const App = () => {
   }, [selectedTemplate]);
 
   useEffect(() => {
+    if (isPublicViewer) {
+      return;
+    }
+
     bridge
       .send('VKWebAppGetUserInfo')
       .then((user) => {
@@ -449,7 +453,7 @@ const App = () => {
       .catch(() => {
         setAdminProfile(FALLBACK_PROFILE);
       });
-  }, []);
+  }, [isPublicViewer]);
 
   useEffect(() => {
     bridge
@@ -486,6 +490,12 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    if (isPublicViewer) {
+      setConnectedCommunities([]);
+      setIsCommunitiesLoading(false);
+      return;
+    }
+
     let isCancelled = false;
     setIsCommunitiesLoading(true);
 
@@ -560,9 +570,13 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [currentGroupId, currentPlan.id, viewerGroupRole, fallbackCommunity]);
+  }, [currentGroupId, currentPlan.id, viewerGroupRole, fallbackCommunity, isPublicViewer]);
 
   useEffect(() => {
+    if (isPublicViewer && isTemplatesLoading) {
+      return;
+    }
+
     let isCancelled = false;
 
     const syncAdminSettings = async () => {
@@ -595,7 +609,7 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [effectiveAdminGroupId]);
+  }, [effectiveAdminGroupId, isPublicViewer, isTemplatesLoading]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -758,7 +772,7 @@ const App = () => {
     setActiveView('builder');
   };
 
-  const createTemplateFromCatalog = (presetId: string) => {
+  const createTemplateFromCatalog = async (presetId: string) => {
     if (!isViewerGroupAdmin) {
       return;
     }
@@ -775,6 +789,7 @@ const App = () => {
       return;
     }
 
+    const { createTemplateFromPreset } = await import('./entities/calculator/templateCatalog');
     const nextTemplate = createTemplateFromPreset(
       presetId,
       activeFolderId === 'all' ? undefined : activeFolderId,
