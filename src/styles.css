@@ -3278,8 +3278,7 @@ body,
   min-height: 100dvh;
   height: auto;
   max-height: none;
-  overflow-x: hidden;
-  overflow-y: visible;
+  overflow: visible;
 }
 
 .builder-editor__topbar {
@@ -3446,8 +3445,7 @@ body,
   flex: 1;
   display: flex;
   min-height: calc(100dvh - 88px);
-  overflow-x: hidden;
-  overflow-y: visible;
+  overflow: visible;
   padding-top: 0;
   box-sizing: border-box;
 }
