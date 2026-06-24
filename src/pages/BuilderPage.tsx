@@ -1890,6 +1890,16 @@ export const BuilderPage = ({
             <div className="builder-library__head">
               <div className='builder-library__eyebrow'>{'\u0411\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0430'}</div>
               <h2 className='builder-library__title'>{'\u042d\u043b\u0435\u043c\u0435\u043d\u0442\u044b'}</h2>
+              {isOverlayViewport ? (
+                <button
+                  className="builder-panel-close"
+                  type="button"
+                  aria-label="Скрыть библиотеку"
+                  onClick={openLibrary}
+                >
+                  {'Закрыть'}
+                </button>
+              ) : null}
             </div>
 
             <div className="builder-library__list">
@@ -2663,6 +2673,18 @@ export const BuilderPage = ({
 
         <aside className={`builder-inspector ${isInspectorOpen ? 'builder-inspector_open' : 'builder-inspector_closed'}`}>
           <div ref={inspectorPanelRef} className="builder-inspector__panel">
+          {isOverlayViewport ? (
+            <div className="builder-inspector__panel-head">
+              <button
+                className="builder-panel-close builder-panel-close_right"
+                type="button"
+                aria-label="Скрыть настройки"
+                onClick={openInspector}
+              >
+                {'Закрыть'}
+              </button>
+            </div>
+          ) : null}
           {mode === 'formula' ? (
             <div className="builder-inspector__section">
               <div className="builder-inspector__eyebrow">{'\u0420\u0435\u0436\u0438\u043c \u0444\u043e\u0440\u043c\u0443\u043b\u044b'}</div>
