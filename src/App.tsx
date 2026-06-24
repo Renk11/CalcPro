@@ -22,6 +22,7 @@ import {
   normalizeTemplateRecord,
   saveAdminSettings,
   saveFolders,
+  saveRequests,
   saveTemplates,
   setStorageGroupScope,
   updateRequest,
@@ -686,6 +687,76 @@ const App = () => {
     };
   }, [effectiveAdminGroupId, vkAuthHeaders]);
 
+  useEffect(() => {
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
+    let isCancelled = false;
+    const localRequests = getRequests();
+
+    const syncRequestsFromServer = async () => {
+      try {
+        const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
+        const response = await fetch(`/api/requests${query}`, {
+          headers: vkAuthHeaders,
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; data?: CalculatorRequest[]; error?: string }
+          | null;
+
+        if (isProtectedApiUnavailable(payload, response.status)) {
+          return;
+        }
+
+        if (!response.ok || !payload?.ok || !Array.isArray(payload.data) || isCancelled) {
+          return;
+        }
+
+        const serverRequests = payload.data;
+        const missingLocalRequests = localRequests.filter(
+          (localRequest) =>
+            !serverRequests.some((serverRequest) => serverRequest.id === localRequest.id),
+        );
+
+        if (missingLocalRequests.length > 0) {
+          const syncResponse = await fetch(`/api/requests${query}&action=sync`.replace('?&', '?'), {
+            method: 'POST',
+            headers: createJsonHeaders(),
+            body: JSON.stringify({
+              groupId: effectiveAdminGroupId,
+              requests: missingLocalRequests,
+            }),
+          });
+          const syncPayload = (await syncResponse.json().catch(() => null)) as
+            | { ok?: boolean; data?: CalculatorRequest[]; error?: string }
+            | null;
+
+          if (
+            syncResponse.ok &&
+            syncPayload?.ok &&
+            Array.isArray(syncPayload.data) &&
+            !isCancelled
+          ) {
+            persistRequests(syncPayload.data);
+          }
+
+          return;
+        }
+
+        persistRequests(serverRequests);
+      } catch {
+        // Keep local requests as a fallback when API is unavailable.
+      }
+    };
+
+    syncRequestsFromServer();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [effectiveAdminGroupId, isViewerGroupAdmin, vkAuthHeaders]);
+
   const sortedTemplates = useMemo(
     () =>
       [...templates].sort(
@@ -912,6 +983,11 @@ const App = () => {
     setAdminSettings(settings);
   };
 
+  const persistRequests = (nextRequests: CalculatorRequest[]) => {
+    saveRequests(nextRequests);
+    setRequests(nextRequests);
+  };
+
   const syncTemplatesToServer = async (nextTemplates: CalculatorTemplate[]) => {
     const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
     const response = await fetch(`/api/templates${query}`, {
@@ -955,6 +1031,26 @@ const App = () => {
   ) => {
     const next = updateRequestStatus(requestId, status);
     setRequests(next);
+
+    const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}&action=update` : '?action=update';
+    fetch(`/api/requests${query}`, {
+      method: 'POST',
+      headers: createJsonHeaders(),
+      body: JSON.stringify({
+        groupId: effectiveAdminGroupId,
+        requestId,
+        patch: { status },
+      }),
+    })
+      .then((response) => response.json().catch(() => null))
+      .then((payload: { ok?: boolean; data?: CalculatorRequest[] } | null) => {
+        if (payload?.ok && Array.isArray(payload.data)) {
+          persistRequests(payload.data);
+        }
+      })
+      .catch(() => {
+        // Keep local request status when server sync fails.
+      });
   };
 
   const handleUpdateRequest = (
@@ -965,6 +1061,26 @@ const App = () => {
   ) => {
     const next = updateRequest(requestId, patch);
     setRequests(next);
+
+    const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}&action=update` : '?action=update';
+    fetch(`/api/requests${query}`, {
+      method: 'POST',
+      headers: createJsonHeaders(),
+      body: JSON.stringify({
+        groupId: effectiveAdminGroupId,
+        requestId,
+        patch,
+      }),
+    })
+      .then((response) => response.json().catch(() => null))
+      .then((payload: { ok?: boolean; data?: CalculatorRequest[] } | null) => {
+        if (payload?.ok && Array.isArray(payload.data)) {
+          persistRequests(payload.data);
+        }
+      })
+      .catch(() => {
+        // Keep local request edits when server sync fails.
+      });
   };
 
   const clearPaymentIdFromUrl = () => {
@@ -1437,6 +1553,25 @@ const App = () => {
 
     const next = deleteRequest(requestId);
     setRequests(next);
+
+    const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}&action=delete` : '?action=delete';
+    fetch(`/api/requests${query}`, {
+      method: 'POST',
+      headers: createJsonHeaders(),
+      body: JSON.stringify({
+        groupId: effectiveAdminGroupId,
+        requestId,
+      }),
+    })
+      .then((response) => response.json().catch(() => null))
+      .then((payload: { ok?: boolean; data?: CalculatorRequest[] } | null) => {
+        if (payload?.ok && Array.isArray(payload.data)) {
+          persistRequests(payload.data);
+        }
+      })
+      .catch(() => {
+        // Keep local deletion when server sync fails.
+      });
   };
 
   const updateTemplatePublicationStatus = async (
@@ -1738,7 +1873,7 @@ const App = () => {
                   requestsUsedThisMonth={monthlyRequestsUsed}
                   showBranding={!canHideBranding}
                   onRequestCreated={(request) =>
-                    setRequests((current) => [request, ...current.filter((item) => item.id !== request.id)])
+                    persistRequests([request, ...requests.filter((item) => item.id !== request.id)])
                   }
                 />
               </Suspense>
