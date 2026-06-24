@@ -70,6 +70,12 @@ interface HomePageProps {
     requestId: string,
     status: CalculatorRequestStatus,
   ) => void;
+  onUpdateRequest: (
+    requestId: string,
+    patch: Partial<
+      Pick<CalculatorRequest, 'name' | 'phone' | 'comment' | 'amount' | 'status'>
+    >,
+  ) => void;
   onDeleteRequest: (requestId: string) => void;
   onToggleAdminNav: () => void;
   onCreateFolder: () => void;
@@ -801,6 +807,7 @@ export const HomePage = ({
   onSectionChange,
   onSaveAdminSettings,
   onUpdateRequestStatus,
+  onUpdateRequest,
   onDeleteRequest,
   onToggleAdminNav,
   onCreateFolder,
@@ -859,6 +866,13 @@ export const HomePage = ({
     null,
   );
   const [pendingDeleteRequest, setPendingDeleteRequest] = useState<CalculatorRequest | null>(null);
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+  const [requestDraft, setRequestDraft] = useState({
+    name: '',
+    phone: '',
+    amount: '',
+    comment: '',
+  });
   const [managerVkId, setManagerVkId] = useState(adminSettings.managerVkId);
   const [superAdminGroupId, setSuperAdminGroupId] = useState(
     currentGroupId > 0 ? String(currentGroupId) : '',
@@ -1010,6 +1024,49 @@ export const HomePage = ({
         .slice(0, 8),
     [requests],
   );
+  const canEditRequests = currentPlan.id === 'pro';
+
+  useEffect(() => {
+    if (!editingRequestId) {
+      return;
+    }
+
+    const editingRequest = requests.find((request) => request.id === editingRequestId);
+    if (!editingRequest) {
+      setEditingRequestId(null);
+    }
+  }, [editingRequestId, requests]);
+
+  const startRequestEditing = (request: CalculatorRequest) => {
+    setEditingRequestId(request.id);
+    setRequestDraft({
+      name: request.name,
+      phone: request.phone,
+      amount: String(request.amount),
+      comment: request.comment ?? '',
+    });
+  };
+
+  const cancelRequestEditing = () => {
+    setEditingRequestId(null);
+    setRequestDraft({
+      name: '',
+      phone: '',
+      amount: '',
+      comment: '',
+    });
+  };
+
+  const saveRequestEditing = (request: CalculatorRequest) => {
+    const normalizedAmount = Number(requestDraft.amount.replace(',', '.'));
+    onUpdateRequest(request.id, {
+      name: requestDraft.name.trim() || request.name,
+      phone: requestDraft.phone.trim() || request.phone,
+      amount: Number.isFinite(normalizedAmount) ? normalizedAmount : request.amount,
+      comment: requestDraft.comment.trim(),
+    });
+    cancelRequestEditing();
+  };
   const subscriptionPaidUntilLabel = formatSubscriptionDate(adminSettings.subscription.paidUntil);
   const subscriptionDaysLeft = useMemo(() => {
     const paidUntil = parseSubscriptionDate(adminSettings.subscription.paidUntil);
@@ -2377,18 +2434,23 @@ export const HomePage = ({
             лимите текущего тарифа.
           </div>
 
-          {!canUseRequestStatuses ? (
-            <div className="settings-form__hint">
-              Статусы заявок доступны на тарифах Start и Pro.
-            </div>
-          ) : latestRequests.length === 0 ? (
-            <div className="settings-form__hint">
-              Пока нет заявок, которые можно разобрать по статусам.
-            </div>
-          ) : (
-            <div className="settings-support__tickets">
-              {latestRequests.map((request) => (
-                <div key={request.id} className="settings-support__ticket">
+	          {!canUseRequestStatuses ? (
+	            <div className="settings-form__hint">
+	              Статусы заявок доступны на тарифах Start и Pro.
+	            </div>
+	          ) : latestRequests.length === 0 ? (
+	            <div className="settings-form__hint">
+	              Пока нет заявок, которые можно разобрать по статусам.
+	            </div>
+	          ) : (
+	            <div className="settings-support__tickets">
+	              {!canEditRequests ? (
+	                <div className="settings-form__hint">
+	                  Редактирование заявки доступно только на тарифе Pro.
+	                </div>
+	              ) : null}
+	              {latestRequests.map((request) => (
+	                <div key={request.id} className="settings-support__ticket">
                   <div className="settings-support__ticket-head">
                     <div className="settings-support__ticket-head-main">
                       <strong>{request.templateTitle}</strong>
@@ -2409,17 +2471,65 @@ export const HomePage = ({
                   <div className="settings-support__note">
                     {request.name} · {request.phone}
                   </div>
-                  <div className="settings-support__note">
-                    Сумма: {formatCurrency(request.amount)}
-                  </div>
-                  {request.comment ? (
-                    <div className="settings-support__ticket-message settings-support__ticket-message_expanded">
-                      {request.comment}
-                    </div>
-                  ) : null}
-                  <label className="settings-support__status-control">
-                    <span className="settings-support__label">Статус</span>
-                    <select
+	                  <div className="settings-support__note">
+	                    Сумма: {formatCurrency(request.amount)}
+	                  </div>
+	                  {request.comment ? (
+	                    <div className="settings-support__ticket-message settings-support__ticket-message_expanded">
+	                      {request.comment}
+	                    </div>
+	                  ) : null}
+	                  {editingRequestId === request.id ? (
+	                    <>
+	                      <label className="settings-support__status-control">
+	                        <span className="settings-support__label">Имя</span>
+	                        <input
+	                          className="settings-support__input"
+	                          value={requestDraft.name}
+	                          onChange={(event) =>
+	                            setRequestDraft((current) => ({ ...current, name: event.target.value }))
+	                          }
+	                        />
+	                      </label>
+	                      <label className="settings-support__status-control">
+	                        <span className="settings-support__label">Телефон</span>
+	                        <input
+	                          className="settings-support__input"
+	                          value={requestDraft.phone}
+	                          onChange={(event) =>
+	                            setRequestDraft((current) => ({ ...current, phone: event.target.value }))
+	                          }
+	                        />
+	                      </label>
+	                      <label className="settings-support__status-control">
+	                        <span className="settings-support__label">Сумма</span>
+	                        <input
+	                          className="settings-support__input"
+	                          inputMode="decimal"
+	                          value={requestDraft.amount}
+	                          onChange={(event) =>
+	                            setRequestDraft((current) => ({ ...current, amount: event.target.value }))
+	                          }
+	                        />
+	                      </label>
+	                      <label className="settings-support__status-control">
+	                        <span className="settings-support__label">Комментарий</span>
+	                        <textarea
+	                          className="settings-support__textarea settings-support__textarea_compact"
+	                          value={requestDraft.comment}
+	                          onChange={(event) =>
+	                            setRequestDraft((current) => ({
+	                              ...current,
+	                              comment: event.target.value,
+	                            }))
+	                          }
+	                        />
+	                      </label>
+	                    </>
+	                  ) : null}
+	                  <label className="settings-support__status-control">
+	                    <span className="settings-support__label">Статус</span>
+	                    <select
                       className="settings-support__input"
                       value={request.status}
                       onChange={(event) =>
@@ -2428,13 +2538,43 @@ export const HomePage = ({
                     >
                       <option value="new">Новая</option>
                       <option value="in_progress">В работе</option>
-                      <option value="done">Закрыта</option>
-                      <option value="rejected">Отклонена</option>
-                    </select>
-                  </label>
-                  <button
-                    className="settings-support__button settings-support__button_danger"
-                    type="button"
+	                      <option value="done">Закрыта</option>
+	                      <option value="rejected">Отклонена</option>
+	                    </select>
+	                  </label>
+	                  {canEditRequests ? (
+	                    <div className="settings-support__button-row">
+	                      {editingRequestId === request.id ? (
+	                        <>
+	                          <button
+	                            className="settings-support__button"
+	                            type="button"
+	                            onClick={() => saveRequestEditing(request)}
+	                          >
+	                            Сохранить
+	                          </button>
+	                          <button
+	                            className="settings-support__button settings-support__button_secondary"
+	                            type="button"
+	                            onClick={cancelRequestEditing}
+	                          >
+	                            Отмена
+	                          </button>
+	                        </>
+	                      ) : (
+	                        <button
+	                          className="settings-support__button settings-support__button_secondary"
+	                          type="button"
+	                          onClick={() => startRequestEditing(request)}
+	                        >
+	                          Редактировать
+	                        </button>
+	                      )}
+	                    </div>
+	                  ) : null}
+	                  <button
+	                    className="settings-support__button settings-support__button_danger"
+	                    type="button"
                     onClick={() => setPendingDeleteRequest(request)}
                   >
                     Удалить заявку

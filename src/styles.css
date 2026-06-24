@@ -1850,6 +1850,13 @@ body,
   transition: transform 0.2s ease, filter 0.2s ease;
 }
 
+.settings-support__button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
 .settings-support__button:hover {
   transform: translateY(-1px);
   filter: brightness(1.02);

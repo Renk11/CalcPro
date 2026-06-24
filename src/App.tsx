@@ -25,6 +25,7 @@ import {
   saveFolders,
   saveTemplates,
   setStorageGroupScope,
+  updateRequest,
   updateRequestStatus,
   upsertFolder,
   upsertTemplate,
@@ -939,6 +940,16 @@ const App = () => {
     setRequests(next);
   };
 
+  const handleUpdateRequest = (
+    requestId: string,
+    patch: Partial<
+      Pick<CalculatorRequest, 'name' | 'phone' | 'comment' | 'amount' | 'status'>
+    >,
+  ) => {
+    const next = updateRequest(requestId, patch);
+    setRequests(next);
+  };
+
   const clearPaymentIdFromUrl = () => {
     if (typeof window === 'undefined') {
       return;
@@ -1624,6 +1635,7 @@ const App = () => {
                   onSectionChange={setHomeSection}
                   onSaveAdminSettings={handleSaveAdminSettings}
                   onUpdateRequestStatus={handleUpdateRequestStatus}
+                  onUpdateRequest={handleUpdateRequest}
                   onDeleteRequest={handleDeleteRequest}
                   onToggleAdminNav={() => setIsAdminNavOpen((current) => !current)}
                   onCreateFolder={createFolder}

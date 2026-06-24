@@ -410,6 +410,25 @@ export const updateRequestStatus = (
   return next;
 };
 
+export const updateRequest = (
+  requestId: string,
+  patch: Partial<
+    Pick<CalculatorRequest, 'name' | 'phone' | 'comment' | 'amount' | 'status'>
+  >,
+) => {
+  const requests = getRequests();
+  const next = requests.map((request) =>
+    request.id === requestId
+      ? {
+          ...request,
+          ...patch,
+        }
+      : request,
+  );
+  saveRequests(next);
+  return next;
+};
+
 export const deleteRequest = (requestId: string) => {
   const requests = getRequests();
   const next = requests.filter((request) => request.id !== requestId);
