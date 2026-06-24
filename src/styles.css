@@ -7365,6 +7365,14 @@ body::-webkit-scrollbar-thumb:hover,
     font-size: 20px;
   }
 
+  .builder-preview_design .builder-preview__fields {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-preview_design .builder-preview__field_half {
+    grid-column: 1 / -1;
+  }
+
   .builder-inspector__grid,
   .builder-formula__grid {
     grid-template-columns: 1fr;

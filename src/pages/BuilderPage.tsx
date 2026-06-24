@@ -1713,6 +1713,11 @@ export const BuilderPage = ({
     const topZone = bounds.height * 0.3;
     const bottomZone = bounds.height * 0.7;
 
+    if (isOverlayViewport) {
+      setDragOverPlacement(verticalPoint < bounds.height / 2 ? 'before' : 'after');
+      return;
+    }
+
     if (verticalPoint <= topZone) {
       setDragOverPlacement('before');
     } else if (verticalPoint >= bottomZone) {
