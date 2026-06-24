@@ -6,7 +6,9 @@ const initializeVkBridge = async () => {
   }
 
   try {
-    await bridge.send('VKWebAppInit');
+    if (bridge.isWebView()) {
+      await bridge.send('VKWebAppInit');
+    }
   } catch {
     // Keep loading the app even if the VK container rejects init.
   }

@@ -461,6 +461,10 @@ const App = () => {
   }, [isPublicViewer]);
 
   useEffect(() => {
+    if (!bridge.isWebView()) {
+      return;
+    }
+
     bridge
       .send('VKWebAppGetLaunchParams')
       .then((params) => {
