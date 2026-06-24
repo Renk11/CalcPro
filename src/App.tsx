@@ -850,7 +850,11 @@ const App = () => {
     });
   };
 
-  const handleGrantProAccess = async (targetGroupId: number, days = 30) => {
+  const handleGrantProAccess = async (
+    targetGroupId: number,
+    plan: CalculatorSubscriptionPlan,
+    days = 30,
+  ) => {
     if (!isSuperAdmin || !adminProfile.id || targetGroupId <= 0) {
       return {
         ok: false,
@@ -864,6 +868,7 @@ const App = () => {
         headers: createJsonHeaders(),
         body: JSON.stringify({
           targetGroupId,
+          plan,
           days,
         }),
       });
@@ -879,7 +884,7 @@ const App = () => {
       }
 
       if (!response.ok || !payload?.ok || !payload.data) {
-        throw new Error(payload?.error || 'Не удалось выдать доступ Про.');
+        throw new Error(payload?.error || 'Не удалось выдать доступ к тарифу.');
       }
 
       if (targetGroupId === effectiveAdminGroupId) {
@@ -888,12 +893,12 @@ const App = () => {
 
       return {
         ok: true,
-        message: `Доступ Про выдан для группы ${targetGroupId}.`,
+        message: `Тариф ${getSubscriptionPlanConfig(plan).name} выдан для группы ${targetGroupId}.`,
       };
     } catch (error) {
       return {
         ok: false,
-        message: error instanceof Error ? error.message : 'Не удалось выдать доступ Про.',
+        message: error instanceof Error ? error.message : 'Не удалось выдать доступ к тарифу.',
       };
     }
   };

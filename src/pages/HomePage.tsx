@@ -114,6 +114,7 @@ interface HomePageProps {
   onInstallInCommunity: () => void;
   onGrantProAccess: (
     targetGroupId: number,
+    plan: CalculatorSubscriptionPlan,
     days?: number,
   ) => Promise<{ ok: boolean; message: string }>;
   isProcessingPayment: boolean;
@@ -881,6 +882,7 @@ export const HomePage = ({
   const [superAdminGroupId, setSuperAdminGroupId] = useState(
     currentGroupId > 0 ? String(currentGroupId) : '',
   );
+  const [superAdminPlan, setSuperAdminPlan] = useState<CalculatorSubscriptionPlan>('pro');
   const [superAdminDays, setSuperAdminDays] = useState('30');
   const [superAdminStatus, setSuperAdminStatus] = useState('');
   const [supportTickets, setSupportTickets] = useState<CalculatorSupportTicket[]>(() =>
@@ -2427,7 +2429,7 @@ export const HomePage = ({
       return;
     }
 
-    const result = await onGrantProAccess(targetGroupId, days);
+    const result = await onGrantProAccess(targetGroupId, superAdminPlan, days);
     setSuperAdminStatus(result.message);
   };
 
@@ -2660,10 +2662,10 @@ export const HomePage = ({
         {isSuperAdmin ? (
           <article className="settings-card">
             <div className="settings-card__eyebrow">Супер-админ</div>
-            <h2 className="settings-card__title">Ручная выдача тарифа Про</h2>
+            <h2 className="settings-card__title">Ручная выдача тарифа</h2>
             <p className="settings-card__text">
-              Здесь можно вручную открыть доступ Про для любой группы VK по её ID. Блок виден
-              только вашему аккаунту.
+              Здесь можно вручную открыть доступ Start или Pro для любой группы VK по её ID. Блок
+              виден только вашему аккаунту.
             </p>
 
             <label className="settings-form__field">
@@ -2676,6 +2678,20 @@ export const HomePage = ({
                 value={superAdminGroupId}
                 onChange={(event) => setSuperAdminGroupId(event.target.value.replace(/[^\d]/g, ''))}
               />
+            </label>
+
+            <label className="settings-form__field">
+              <span className="settings-form__label">Тариф</span>
+              <select
+                className="settings-form__input"
+                value={superAdminPlan}
+                onChange={(event) =>
+                  setSuperAdminPlan(event.target.value as Extract<CalculatorSubscriptionPlan, 'start' | 'pro'>)
+                }
+              >
+                <option value="start">Start</option>
+                <option value="pro">Pro</option>
+              </select>
             </label>
 
             <label className="settings-form__field">
@@ -2692,13 +2708,13 @@ export const HomePage = ({
 
             <div className="settings-form__hint">
               {currentGroupId > 0
-                ? `Текущая группа: ${currentGroupId}. Можно выдать Про ей или ввести другой ID.`
+                ? `Текущая группа: ${currentGroupId}. Можно выдать тариф ${superAdminPlan === 'pro' ? 'Pro' : 'Start'} ей или ввести другой ID.`
                 : 'Откройте приложение внутри сообщества или введите ID группы вручную.'}
             </div>
             {superAdminStatus ? <div className="settings-form__hint">{superAdminStatus}</div> : null}
 
             <button className="settings-form__button" type="button" onClick={handleGrantProSubmit}>
-              Выдать Про группе
+              {`Выдать ${superAdminPlan === 'pro' ? 'Pro' : 'Start'} группе`}
             </button>
           </article>
         ) : null}

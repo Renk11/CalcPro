@@ -106,6 +106,8 @@ export default async function handler(request, response) {
 
         const viewerId = String(auth.viewerId || '').trim();
         const targetGroupId = parseGroupId(incomingSettings.targetGroupId);
+        const requestedPlan = String(incomingSettings.plan || 'pro').toLowerCase();
+        const targetPlan = requestedPlan === 'start' ? 'start' : 'pro';
         const days = Math.max(1, Number(incomingSettings.days) || 30);
 
         if (!isSuperAdmin(viewerId)) {
@@ -117,12 +119,12 @@ export default async function handler(request, response) {
         }
 
         const currentSettings = await getServerAdminSettings(targetGroupId);
-        const proPlan = getSubscriptionPlanConfig('pro');
+        const nextPlan = getSubscriptionPlanConfig(targetPlan);
         const baseSubscription = {
           ...createDefaultSubscriptionSettings(),
           ...currentSettings.subscription,
-          plan: proPlan.id,
-          priceRub: proPlan.monthlyPriceRub,
+          plan: nextPlan.id,
+          priceRub: nextPlan.monthlyPriceRub,
         };
         const paidUntil = buildNextPaidUntil(
           baseSubscription.status === 'active' ? baseSubscription.paidUntil : '',
@@ -147,8 +149,8 @@ export default async function handler(request, response) {
             ...currentSettings,
             subscription: {
               ...baseSubscription,
-              plan: proPlan.id,
-              priceRub: proPlan.monthlyPriceRub,
+              plan: nextPlan.id,
+              priceRub: nextPlan.monthlyPriceRub,
               status: 'active',
               provider: 'super-admin',
               externalPaymentId: '',
