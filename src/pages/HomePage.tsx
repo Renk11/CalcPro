@@ -2074,12 +2074,6 @@ export const HomePage = ({
               dev.vk.com/ru/mini-apps-rules
             </a>
           </p>
-          <p className="admin-placeholder__text">
-            Правила размещения приложений-магазинов:{' '}
-            <a href="https://dev.vk.com/ru/market-rules" target="_blank" rel="noreferrer">
-              dev.vk.com/ru/market-rules
-            </a>
-          </p>
         </section>
       ) : (
       <section className="payments-section">
@@ -2122,12 +2116,6 @@ export const HomePage = ({
               {isCommunityContext
                 ? 'Приложение уже открыто в группе VK. Теперь оплатите доступ и завершите настройку админки.'
                 : 'После подключения откройте приложение в вашей группе VK.'}
-            </div>
-            <div className="payments-activation-banner">
-              Правила размещения:{' '}
-              <a href="https://dev.vk.com/ru/market-rules" target="_blank" rel="noreferrer">
-                dev.vk.com/ru/market-rules
-              </a>
             </div>
           </div>
 
