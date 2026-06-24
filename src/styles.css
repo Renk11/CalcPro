@@ -3966,6 +3966,53 @@ body,
     linear-gradient(180deg, rgba(255, 252, 248, 0.96), rgba(245, 238, 229, 0.98));
 }
 
+.builder-scroll-jump {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 36;
+  pointer-events: none;
+  transition: right 0.28s ease;
+}
+
+.builder-scroll-jump_with-inspector {
+  right: 297px;
+}
+
+.builder-scroll-jump__button {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 173, 102, 0.22);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #232930 0%, #1d232a 100%);
+  color: #ffb36b;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.builder-scroll-jump__button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 179, 107, 0.34);
+  background: linear-gradient(180deg, #2a3139 0%, #222930 100%);
+  color: #ffc58f;
+}
+
+.builder-scroll-jump__button span {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 700;
+  transform: translateY(-1px);
+}
+
 .builder-canvas__ghost-panel {
   position: absolute;
   top: 52px;
@@ -4800,7 +4847,10 @@ body,
 }
 
 .builder-inspector {
-  position: relative;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100dvh;
   width: 320px;
   min-width: 320px;
   padding: 0;
@@ -4818,10 +4868,9 @@ body,
 }
 
 .builder-inspector__panel {
-  position: sticky;
-  top: 0;
-  height: 100dvh;
-  max-height: 100dvh;
+  position: relative;
+  height: 100%;
+  max-height: 100%;
   padding: 26px 22px;
   box-sizing: border-box;
   overflow-y: auto;

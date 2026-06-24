@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect } from 'react';
 import {
   Icon20AddSquareOutline,
   Icon20ArrowLeftOutline,
@@ -821,6 +822,8 @@ export const BuilderPage = ({
   const [saveStatus, setSaveStatus] = useState('');
   const [saveToastKey, setSaveToastKey] = useState(0);
   const [floatingToggleTop, setFloatingToggleTop] = useState(100);
+  const [isScrollJumpUp, setIsScrollJumpUp] = useState(false);
+  const [isScrollJumpVisible, setIsScrollJumpVisible] = useState(false);
   const saveToastTimeoutRef = useRef<number | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
@@ -899,6 +902,8 @@ export const BuilderPage = ({
     globalCoefficient: String((initialTemplate ?? createEmptyTemplate()).globalCoefficient),
   }));
   const canvasRef = useRef<HTMLElement | null>(null);
+  const libraryPanelRef = useRef<HTMLDivElement | null>(null);
+  const inspectorPanelRef = useRef<HTMLDivElement | null>(null);
   const customFormulaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const selectedField = useMemo(
@@ -940,6 +945,32 @@ export const BuilderPage = ({
   }, [selectedFieldId]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const updateScrollJumpState = () => {
+      const scrollTop = window.scrollY || window.pageYOffset || 0;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+      const remainingDistance = scrollHeight - clientHeight - scrollTop;
+      const bottomThreshold = Math.min(320, Math.max(120, Math.round(clientHeight * 0.35)));
+
+      setIsScrollJumpVisible(scrollHeight - clientHeight > 80);
+      setIsScrollJumpUp(remainingDistance <= bottomThreshold);
+    };
+
+    updateScrollJumpState();
+    window.addEventListener('scroll', updateScrollJumpState, { passive: true });
+    window.addEventListener('resize', updateScrollJumpState);
+
+    return () => {
+      window.removeEventListener('scroll', updateScrollJumpState);
+      window.removeEventListener('resize', updateScrollJumpState);
+    };
+  }, [isInspectorOpen, isPreview, mode, template.fields.length, template.requestForm.enabled, template.resultCardShow]);
+
+  useEffect(() => {
     const canvasElement = canvasRef.current;
     if (!canvasElement || mode === 'formula') {
       return;
@@ -965,6 +996,34 @@ export const BuilderPage = ({
       inline: 'nearest',
     });
   }, [mode, selectedFieldId]);
+
+  useLayoutEffect(() => {
+    const inspectorPanelElement = inspectorPanelRef.current;
+    if (!inspectorPanelElement || !isInspectorOpen) {
+      return;
+    }
+
+    inspectorPanelElement.scrollTop = 0;
+    const frameId = window.requestAnimationFrame(() => {
+      inspectorPanelElement.scrollTop = 0;
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isInspectorOpen, mode, selectedFieldId]);
+
+  useLayoutEffect(() => {
+    const libraryPanelElement = libraryPanelRef.current;
+    if (!libraryPanelElement || !isLibraryOpen || mode === 'formula') {
+      return;
+    }
+
+    libraryPanelElement.scrollTop = 0;
+    const frameId = window.requestAnimationFrame(() => {
+      libraryPanelElement.scrollTop = 0;
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isLibraryOpen, mode]);
 
   useEffect(() => {
     try {
@@ -1691,6 +1750,18 @@ export const BuilderPage = ({
     setIsInspectorOpen(true);
   };
 
+  const scrollCanvasToEdge = () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const scrollHeight = document.documentElement.scrollHeight;
+    window.scrollTo({
+      top: isScrollJumpUp ? 0 : scrollHeight,
+      behavior: 'smooth',
+    });
+  };
+
   return (
     <div className="builder-shell builder-shell_editor">
       <header ref={topbarRef} className="builder-editor__topbar">
@@ -1752,7 +1823,7 @@ export const BuilderPage = ({
         style={{ '--builder-floating-toggle-top': `${floatingToggleTop}px` } as React.CSSProperties}
       >
         <aside className={`builder-library ${isLibraryOpen ? 'builder-library_open' : 'builder-library_closed'}`}>
-          <div className="builder-library__panel">
+          <div ref={libraryPanelRef} className="builder-library__panel">
             <div className="builder-library__head">
               <div className='builder-library__eyebrow'>{'\u0411\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0430'}</div>
               <h2 className='builder-library__title'>{'\u042d\u043b\u0435\u043c\u0435\u043d\u0442\u044b'}</h2>
@@ -2498,6 +2569,22 @@ export const BuilderPage = ({
           </div>
         </main>
 
+        {isScrollJumpVisible ? (
+          <div
+            className={`builder-scroll-jump ${isInspectorOpen ? 'builder-scroll-jump_with-inspector' : ''}`}
+          >
+            <button
+              className={`builder-scroll-jump__button ${isScrollJumpUp ? 'builder-scroll-jump__button_up' : 'builder-scroll-jump__button_down'}`}
+              type="button"
+              title={isScrollJumpUp ? 'Вверх' : 'Вниз'}
+              aria-label={isScrollJumpUp ? 'Прокрутить вверх' : 'Прокрутить вниз'}
+              onClick={scrollCanvasToEdge}
+            >
+              <span aria-hidden="true">{isScrollJumpUp ? '↑' : '↓'}</span>
+            </button>
+          </div>
+        ) : null}
+
         <button
           className={`builder-inspector__toggle builder-floating-toggle_legacy ${isInspectorOpen ? 'builder-inspector__toggle_open' : ''} ${!selectedField && !isRequestFormSelected && !isResultCardSelected && mode !== 'formula' ? 'builder-inspector__toggle_muted' : ''}`}
           type="button"
@@ -2508,7 +2595,7 @@ export const BuilderPage = ({
         </button>
 
         <aside className={`builder-inspector ${isInspectorOpen ? 'builder-inspector_open' : 'builder-inspector_closed'}`}>
-          <div className="builder-inspector__panel">
+          <div ref={inspectorPanelRef} className="builder-inspector__panel">
           {mode === 'formula' ? (
             <div className="builder-inspector__section">
               <div className="builder-inspector__eyebrow">{'\u0420\u0435\u0436\u0438\u043c \u0444\u043e\u0440\u043c\u0443\u043b\u044b'}</div>
