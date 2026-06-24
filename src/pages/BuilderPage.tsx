@@ -824,6 +824,7 @@ export const BuilderPage = ({
   const [floatingToggleTop, setFloatingToggleTop] = useState(100);
   const [isScrollJumpUp, setIsScrollJumpUp] = useState(false);
   const [isScrollJumpVisible, setIsScrollJumpVisible] = useState(false);
+  const [isOverlayViewport, setIsOverlayViewport] = useState(false);
   const saveToastTimeoutRef = useRef<number | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
@@ -969,6 +970,25 @@ export const BuilderPage = ({
       window.removeEventListener('resize', updateScrollJumpState);
     };
   }, [isInspectorOpen, isPreview, mode, template.fields.length, template.requestForm.enabled, template.resultCardShow]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 900px)');
+    const updateViewportMode = () => setIsOverlayViewport(mediaQuery.matches);
+
+    updateViewportMode();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', updateViewportMode);
+      return () => mediaQuery.removeEventListener('change', updateViewportMode);
+    }
+
+    mediaQuery.addListener(updateViewportMode);
+    return () => mediaQuery.removeListener(updateViewportMode);
+  }, []);
 
   useEffect(() => {
     const canvasElement = canvasRef.current;
@@ -1438,10 +1458,33 @@ export const BuilderPage = ({
     updateField(field.id, { defaultValue: checked });
   };
 
+  const openLibrary = () => {
+    setIsLibraryOpen((current) => {
+      const next = !current;
+      if (next && isOverlayViewport) {
+        setIsInspectorOpen(false);
+      }
+      return next;
+    });
+  };
+
+  const openInspector = () => {
+    setIsInspectorOpen((current) => {
+      const next = !current;
+      if (next && isOverlayViewport) {
+        setIsLibraryOpen(false);
+      }
+      return next;
+    });
+  };
+
   const selectField = (fieldId: string) => {
     setSelectedFieldId(fieldId);
     setIsPreview(false);
     setMode('design');
+    if (isOverlayViewport) {
+      setIsLibraryOpen(false);
+    }
     setIsInspectorOpen(true);
   };
 
@@ -1871,7 +1914,7 @@ export const BuilderPage = ({
           className={`builder-library__toggle builder-floating-toggle_legacy ${isLibraryOpen ? 'builder-library__toggle_open' : ''}`}
           type="button"
           aria-label={isLibraryOpen ? '\u0421\u043a\u0440\u044b\u0442\u044c \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0443' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0443'}
-          onClick={() => setIsLibraryOpen((value) => !value)}
+          onClick={openLibrary}
         >
           {renderPanelToggleIcon('left')}
         </button>
@@ -1887,7 +1930,7 @@ export const BuilderPage = ({
                 className={`builder-library__toggle ${isLibraryOpen ? 'builder-library__toggle_open' : ''}`}
                 type="button"
                 aria-label={isLibraryOpen ? '\u0421\u043a\u0440\u044b\u0442\u044c \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0443' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0443'}
-                onClick={() => setIsLibraryOpen((value) => !value)}
+                onClick={openLibrary}
               >
                 {renderPanelToggleIcon('left')}
               </button>
@@ -1897,7 +1940,7 @@ export const BuilderPage = ({
                 className={`builder-inspector__toggle ${isInspectorOpen ? 'builder-inspector__toggle_open' : ''} ${!selectedField ? 'builder-inspector__toggle_muted' : ''}`}
                 type="button"
                 aria-label={isInspectorOpen ? '\u0421\u043a\u0440\u044b\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438'}
-                onClick={() => setIsInspectorOpen((value) => !value)}
+                onClick={openInspector}
               >
                 {renderPanelToggleIcon('right')}
               </button>
@@ -2589,7 +2632,7 @@ export const BuilderPage = ({
           className={`builder-inspector__toggle builder-floating-toggle_legacy ${isInspectorOpen ? 'builder-inspector__toggle_open' : ''} ${!selectedField && !isRequestFormSelected && !isResultCardSelected && mode !== 'formula' ? 'builder-inspector__toggle_muted' : ''}`}
           type="button"
           aria-label={isInspectorOpen ? '\u0421\u043a\u0440\u044b\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438'}
-          onClick={() => setIsInspectorOpen((value) => !value)}
+          onClick={openInspector}
         >
           {renderPanelToggleIcon('right')}
         </button>

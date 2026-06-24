@@ -350,8 +350,6 @@ const App = () => {
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
   const [isDesktopClient, setIsDesktopClient] = useState(true);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
-  const [hasOpenedHome, setHasOpenedHome] = useState(false);
-  const [hasOpenedBuilder, setHasOpenedBuilder] = useState(false);
   const [launchParams, setLaunchParams] = useState<Partial<GetLaunchParamsResponse> | null>(() => {
     if (typeof window === 'undefined') {
       return null;
@@ -435,16 +433,6 @@ const App = () => {
       void preloadCalculatorPage().catch(() => undefined);
     }
   }, [selectedTemplate]);
-
-  useEffect(() => {
-    if (activeView === 'home') {
-      setHasOpenedHome(true);
-    }
-
-    if (activeView === 'builder') {
-      setHasOpenedBuilder(true);
-    }
-  }, [activeView]);
 
   useEffect(() => {
     bridge
@@ -1616,7 +1604,7 @@ const App = () => {
       <SplitCol width="100%" maxWidth="100%">
         <View activePanel={activeView}>
           <Panel id="home">
-            {isViewerGroupAdmin && (hasOpenedHome || activeView === 'home') ? (
+            {isViewerGroupAdmin && activeView === 'home' ? (
               <Suspense fallback={<AdminPageFallback title="Загружаем кабинет" />}>
                 <HomePage
                   connectedCommunities={connectedCommunities}
@@ -1680,7 +1668,7 @@ const App = () => {
             ) : null}
           </Panel>
           <Panel id="builder">
-            {hasOpenedBuilder || activeView === 'builder' ? (
+            {activeView === 'builder' ? (
               <Suspense fallback={<BuilderPageFallback />}>
                 <BuilderPage
                   initialTemplate={selectedTemplate}
@@ -1693,7 +1681,7 @@ const App = () => {
             ) : null}
           </Panel>
           <Panel id="calculator">
-            {selectedTemplate ? (
+            {activeView === 'calculator' && selectedTemplate ? (
               <Suspense fallback={<CalculatorPageFallback />}>
                 <CalculatorPage
                   template={selectedTemplate}
@@ -1708,7 +1696,7 @@ const App = () => {
                   }
                 />
               </Suspense>
-            ) : (
+            ) : activeView === 'calculator' ? (
               <div className="calculator-page calculator-page_empty">
                 <div className="calculator-page__shell">
                   <div className="calculator-page__hero-copy calculator-page__hero-copy_empty">
@@ -1747,7 +1735,7 @@ const App = () => {
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
           </Panel>
         </View>
       </SplitCol>
