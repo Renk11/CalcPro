@@ -38,17 +38,20 @@ function formatRequestValue(value) {
 }
 
 function buildMessage(request) {
-  const details = Object.entries(request?.values || {})
-    .map(([key, value]) => `${key}: ${formatRequestValue(value)}`)
+  const details = (Array.isArray(request?.details) && request.details.length > 0
+    ? request.details.map((item) => `${item.label}: ${item.value}`)
+    : Object.entries(request?.values || {}).map(([key, value]) => `${key}: ${formatRequestValue(value)}`))
+    .map((item) => `• ${item}`)
     .join('\n');
 
   return [
-    `Новая заявка: ${request?.templateTitle || 'Калькулятор'}`,
-    `Имя: ${request?.name || '-'}`,
-    `Телефон: ${request?.phone || '-'}`,
-    `Комментарий: ${request?.comment || 'Без комментария'}`,
-    `Сумма: ${Number(request?.amount) || 0} ₽`,
-    details ? `\nДетали:\n${details}` : '',
+    '🆕 Новая заявка',
+    `🧮 Калькулятор: ${request?.templateTitle || 'Калькулятор'}`,
+    `👤 Имя: ${request?.name || '-'}`,
+    `📞 Телефон: ${request?.phone || '-'}`,
+    `💬 Комментарий: ${request?.comment || 'Без комментария'}`,
+    `💰 Сумма: ${Number(request?.amount) || 0} ₽`,
+    details ? `\n📋 Детали:\n${details}` : '',
   ].join('\n');
 }
 

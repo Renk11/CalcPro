@@ -57,6 +57,76 @@ const isUploadedFileArray = (value: CalculatorFieldValue): value is CalculatorUp
       'type' in item,
   );
 
+const isEmptyDetailValue = (value: CalculatorFieldValue) => {
+  if (value === '' || value === undefined || value === null) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+
+  if (typeof value === 'boolean') {
+    return value === false;
+  }
+
+  return false;
+};
+
+const getOptionLabelByValue = (field: CalculatorField, value: string | number) => {
+  const normalizedValue = String(value);
+  return (
+    field.options?.find((option) => String(option.value) === normalizedValue)?.label ||
+    normalizedValue
+  );
+};
+
+const formatRequestDetailValue = (field: CalculatorField, value: CalculatorFieldValue) => {
+  if (isBookingValue(value)) {
+    return value.surcharge > 0 ? `${value.label} (+${value.surcharge} ₽)` : value.label;
+  }
+
+  if (isUploadedFileArray(value)) {
+    return value.map((item) => item.name).join(', ') || '-';
+  }
+
+  if (Array.isArray(value)) {
+    if (field.type === 'checkbox' && (field.options?.length ?? 0) > 0) {
+      const labels = value
+        .map((item) => String(item))
+        .filter((item) => item !== '__primary__')
+        .map((item) => getOptionLabelByValue(field, item));
+      return labels.join(', ') || 'Да';
+    }
+
+    return value.map((item) => String(item)).join(', ') || '-';
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? 'Да' : 'Нет';
+  }
+
+  if (field.type === 'select' || field.type === 'radio') {
+    return getOptionLabelByValue(field, String(value));
+  }
+
+  return String(value || '-');
+};
+
+const buildRequestDetails = (template: CalculatorTemplate, values: CalculatorValues) =>
+  template.fields
+    .filter((field) => field.type !== 'button' && field.type !== 'result')
+    .map((field) => ({
+      field,
+      value: values[field.key] ?? getInitialFieldValue(field),
+    }))
+    .filter(({ value }) => !isEmptyDetailValue(value))
+    .map(({ field, value }) => ({
+      key: field.key,
+      label: field.label.trim() || 'Поле',
+      value: formatRequestDetailValue(field, value),
+    }));
+
 const getInitialFieldValue = (field: CalculatorField): CalculatorFieldValue => {
   if (field.defaultValue !== undefined) {
     return field.defaultValue;
@@ -239,6 +309,8 @@ const createInitialValues = (template: CalculatorTemplate): CalculatorValues =>
   }, {});
 
 const COMMENT_MAX_LENGTH = 250;
+const SUCCESS_MODAL_DURATION_MS = 12000;
+
 const getPhoneValidationError = (value: string) => {
   const normalized = value.replace(/[\s()-]/g, '');
 
@@ -275,6 +347,7 @@ export const CalculatorPage = ({
   const [isConsentChecked, setIsConsentChecked] = useState(false);
   const [consentError, setConsentError] = useState('');
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocKey | null>(null);
+  const [successModalMessage, setSuccessModalMessage] = useState('');
   const phoneError = useMemo(() => getPhoneValidationError(phone), [phone]);
 
   useEffect(() => {
@@ -303,6 +376,18 @@ export const CalculatorPage = ({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!successModalMessage) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSuccessModalMessage('');
+    }, SUCCESS_MODAL_DURATION_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [successModalMessage]);
 
   const result = useMemo(() => calculateTemplate(template, values), [template, values]);
 
@@ -434,6 +519,7 @@ export const CalculatorPage = ({
       amount: result.total,
       createdAt: new Date().toISOString(),
       values,
+      details: buildRequestDetails(template, values),
     };
 
     try {
@@ -441,6 +527,9 @@ export const CalculatorPage = ({
       setRequests((current) => [request, ...current]);
       onRequestCreated(request);
       setStatus(response.message);
+      if (response.ok) {
+        setSuccessModalMessage(response.message);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -763,6 +852,32 @@ export const CalculatorPage = ({
                 Закрыть
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+      {successModalMessage ? (
+        <div className="request-success-modal" role="dialog" aria-modal="true" aria-labelledby="request-success-title">
+          <div
+            className="request-success-modal__backdrop"
+            onClick={() => setSuccessModalMessage('')}
+          />
+          <div className="request-success-modal__card">
+            <div className="request-success-modal__badge">Заявка отправлена</div>
+            <button
+              className="request-success-modal__close"
+              type="button"
+              aria-label="Закрыть сообщение"
+              onClick={() => setSuccessModalMessage('')}
+            >
+              ×
+            </button>
+            <h3 className="request-success-modal__title" id="request-success-title">
+              Менеджер получил вашу заявку
+            </h3>
+            <p className="request-success-modal__text">{successModalMessage}</p>
+            <p className="request-success-modal__hint">
+              Окно закроется автоматически через несколько секунд.
+            </p>
           </div>
         </div>
       ) : null}

@@ -39,17 +39,20 @@ const formatRequestValue = (value: CalculatorFieldValue) => {
 };
 
 const buildMessage = (request: CalculatorRequest) => {
-  const details = Object.entries(request.values)
-    .map(([key, value]) => `${key}: ${formatRequestValue(value)}`)
+  const details = (request.details?.length
+    ? request.details.map((item) => `${item.label}: ${item.value}`)
+    : Object.entries(request.values).map(([key, value]) => `${key}: ${formatRequestValue(value)}`))
+    .map((item) => `• ${item}`)
     .join('\n');
 
   return [
-    `Новая заявка: ${request.templateTitle}`,
-    `Имя: ${request.name}`,
-    `Телефон: ${request.phone}`,
-    `Комментарий: ${request.comment || 'Без комментария'}`,
-    `Сумма: ${request.amount} ₽`,
-    details ? `\nДетали:\n${details}` : '',
+    '🆕 Новая заявка',
+    `🧮 Калькулятор: ${request.templateTitle}`,
+    `👤 Имя: ${request.name}`,
+    `📞 Телефон: ${request.phone}`,
+    `💬 Комментарий: ${request.comment || 'Без комментария'}`,
+    `💰 Сумма: ${request.amount} ₽`,
+    details ? `\n📋 Детали:\n${details}` : '',
   ].join('\n');
 };
 
@@ -92,7 +95,7 @@ export const submitRequest = async (request: CalculatorRequest, groupId = 0) => 
     await navigator.clipboard.writeText(message).catch(() => undefined);
     return {
       ok: true,
-      message: 'Заявка сохранена локально. Текст заявки подготовлен для отправки.',
+      message: 'Заявка сохранена локально. Текст подготовлен для отправки.',
     };
   }
 };

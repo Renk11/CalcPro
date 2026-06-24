@@ -290,4 +290,9 @@ export interface CalculatorRequest {
   amount: number;
   createdAt: string;
   values: CalculatorValues;
+  details?: Array<{
+    key: string;
+    label: string;
+    value: string;
+  }>;
 }
