@@ -3113,7 +3113,7 @@ export const HomePage = ({
               )
             ) : (
               <div className="admin-nav__plan-meta">
-                {canManageMonetization && hasActiveSubscription && currentPlan.id !== 'free'
+                {hasActiveSubscription && currentPlan.id !== 'free'
                   ? subscriptionDaysLeftLabel
                   : currentPlan.name}
               </div>
