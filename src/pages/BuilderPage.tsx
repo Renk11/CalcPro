@@ -43,6 +43,7 @@ interface BuilderPageProps {
   onSave: (template: CalculatorTemplate) => void;
   canUseBooking?: boolean;
   canUseProFeatures?: boolean;
+  isMonetizationRestricted?: boolean;
 }
 
 interface LocalizedBuilderDateTimeInputProps {
@@ -773,8 +774,14 @@ export const BuilderPage = ({
   onSave,
   canUseBooking = true,
   canUseProFeatures = true,
+  isMonetizationRestricted = false,
 }: BuilderPageProps) => {
   const topbarRef = useRef<HTMLElement | null>(null);
+  const restrictedFeatureHint = isMonetizationRestricted
+    ? 'Эта настройка недоступна на текущей платформе. Для управления доступом используйте веб-версию VK.'
+    : '';
+  const proFeatureHint = (message: string) =>
+    isMonetizationRestricted ? restrictedFeatureHint : message;
   const [template, setTemplate] = useState<CalculatorTemplate>(
     normalizeTemplateContent(initialTemplate ?? createEmptyTemplate()),
   );
@@ -784,7 +791,11 @@ export const BuilderPage = ({
       ? {
           ...item,
           supported: canUseProFeatures,
-          label: canUseProFeatures ? item.label : 'Флажок (Про)',
+          label: canUseProFeatures
+            ? item.label
+            : isMonetizationRestricted
+              ? 'Флажок (Недоступно)'
+              : 'Флажок (Про)',
           createField: () =>
             createField('radio', '\u0424\u043b\u0430\u0436\u043e\u043a', 'flag', {
               placeholder: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043e\u0434\u0438\u043d \u0432\u0430\u0440\u0438\u0430\u043d\u0442',
@@ -803,19 +814,28 @@ export const BuilderPage = ({
             label:
               canUseProFeatures || resultFieldCount === 0
                 ? item.label
-                : 'Доп. результат (Про)',
+                : isMonetizationRestricted
+                  ? 'Доп. результат (Недоступно)'
+                  : 'Доп. результат (Про)',
           }
         : item.id === 'booking'
           ? {
               ...item,
               supported: canUseBooking && canUseProFeatures,
-              label: canUseBooking && canUseProFeatures ? item.label : 'Бронирование (Про)',
+              label:
+                canUseBooking && canUseProFeatures
+                  ? item.label
+                  : isMonetizationRestricted
+                    ? 'Бронирование (Недоступно)'
+                    : 'Бронирование (Про)',
             }
           : PRO_LIBRARY_ITEM_IDS.has(item.id)
             ? {
                 ...item,
                 supported: canUseProFeatures,
-                label: canUseProFeatures ? item.label : `${item.label} (Про)`,
+                label: canUseProFeatures
+                  ? item.label
+                  : `${item.label} (${isMonetizationRestricted ? 'Недоступно' : 'Про'})`,
               }
             : item,
   );
@@ -2245,7 +2265,9 @@ export const BuilderPage = ({
                     />
                     {!canUseProFeatures ? (
                       <span className="builder-inspector__field-hint">
-                        Кастомная формула доступна на тарифе Про. В Базовом тарифе работает простой расчет.
+                        {proFeatureHint(
+                          'Кастомная формула доступна на тарифе Про. В Базовом тарифе работает простой расчет.',
+                        )}
                       </span>
                   ) : null}
                 </label>
@@ -2363,7 +2385,9 @@ export const BuilderPage = ({
                       </div>
                       {!canUseProFeatures ? (
                         <div className="builder-inspector__field-hint">
-                          Префикс, суффикс, округление, формат и показ после кнопки доступны на тарифе Про.
+                          {proFeatureHint(
+                            'Префикс, суффикс, округление, формат и показ после кнопки доступны на тарифе Про.',
+                          )}
                         </div>
                       ) : null}
 
@@ -2911,7 +2935,7 @@ export const BuilderPage = ({
 	                    )}
                     {!canUseProFeatures ? (
                       <div className="builder-inspector__field-hint">
-                        Описания и показ цены у вариантов доступны на тарифе Про.
+                        {proFeatureHint('Описания и показ цены у вариантов доступны на тарифе Про.')}
                       </div>
                     ) : null}
 
@@ -3358,7 +3382,7 @@ export const BuilderPage = ({
                     </div>
                     {!canUseProFeatures ? (
                       <div className="builder-inspector__field-hint">
-                        Дополнительные строки чекбокса доступны на тарифе Про.
+                        {proFeatureHint('Дополнительные строки чекбокса доступны на тарифе Про.')}
                       </div>
                     ) : null}
 
@@ -3582,7 +3606,9 @@ export const BuilderPage = ({
 	                      ) : null}
                       {!canUseProFeatures ? (
                         <span className="builder-inspector__field-hint">
-                          Ссылка, сообщение в VK и копирование результата доступны на тарифе Про.
+                          {proFeatureHint(
+                            'Ссылка, сообщение в VK и копирование результата доступны на тарифе Про.',
+                          )}
                         </span>
                       ) : null}
                     </label>
@@ -4173,7 +4199,7 @@ export const BuilderPage = ({
                 </label>
                 {!canUseProFeatures ? (
                   <div className="builder-inspector__field-hint">
-                    Подытог, скидка и минимальная цена доступны на тарифе Про.
+                    {proFeatureHint('Подытог, скидка и минимальная цена доступны на тарифе Про.')}
                   </div>
                 ) : null}
               </div>

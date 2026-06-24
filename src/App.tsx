@@ -105,6 +105,7 @@ const getProfileLabel = (profile: AdminProfile) =>
   'Администратор';
 
 const SUPER_ADMIN_IDS = new Set([139346496]);
+const WEB_MONETIZATION_PLATFORMS = new Set(['desktop_web', 'mobile_web']);
 
 type PaymentStatusTone = 'neutral' | 'success' | 'error';
 
@@ -392,6 +393,10 @@ const App = () => {
   const isViewerGroupAdmin = COMMUNITY_ADMIN_ROLES.has(viewerGroupRole);
   const isSuperAdmin = Boolean(adminProfile.id && SUPER_ADMIN_IDS.has(adminProfile.id));
   const isPublicViewer = !isViewerGroupAdmin;
+  const launchPlatform = String(launchParams?.vk_platform || '');
+  const isWebMonetizationPlatform =
+    WEB_MONETIZATION_PLATFORMS.has(launchPlatform) ||
+    (launchPlatform === '' && !bridge.isWebView());
   const vkAuthHeaders = useMemo(() => createVkAuthHeaders(launchParams), [launchParams]);
   const fallbackCommunity = useMemo(
     () => (isViewerGroupAdmin ? createFallbackCommunity(currentGroupId, viewerGroupRole) : null),
@@ -1130,6 +1135,16 @@ const App = () => {
       return;
     }
 
+    if (!isWebMonetizationPlatform) {
+      setActiveView('home');
+      setHomeSection('payments');
+      setPaymentStatus({
+        tone: 'neutral',
+        message: 'Управление подпиской доступно только в веб-версии VK.',
+      });
+      return;
+    }
+
     const planConfig = getSubscriptionPlanConfig(plan);
     setHomeSection('payments');
     setPaymentStatus({
@@ -1185,6 +1200,10 @@ const App = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (!isWebMonetizationPlatform) {
       return;
     }
 
@@ -1302,6 +1321,7 @@ const App = () => {
     currentPlan.id,
     effectiveAdminGroupId,
     hasActiveSubscription,
+    isWebMonetizationPlatform,
     paidPlanConfig.id,
   ]);
 
@@ -1675,6 +1695,7 @@ const App = () => {
                   onGrantProAccess={handleGrantProAccess}
                   isProcessingPayment={isProcessingPayment}
                   paymentStatus={paymentStatus}
+                  canManageMonetization={isWebMonetizationPlatform}
                   isDesktopClient={isDesktopClient}
                   isCompactViewport={isCompactViewport}
                   isCommunityContext={currentGroupId > 0}
@@ -1691,6 +1712,7 @@ const App = () => {
                   onSave={handleSaveTemplate}
                   canUseBooking={canUseBooking}
                   canUseProFeatures={canUseAdvancedFormulas}
+                  isMonetizationRestricted={!isWebMonetizationPlatform}
                 />
               </Suspense>
             ) : null}

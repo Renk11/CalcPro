@@ -121,6 +121,7 @@ interface HomePageProps {
     tone: 'neutral' | 'success' | 'error';
     message: string;
   } | null;
+  canManageMonetization: boolean;
   isDesktopClient: boolean;
   isCompactViewport: boolean;
   isCommunityContext: boolean;
@@ -844,6 +845,7 @@ export const HomePage = ({
   onGrantProAccess,
   isProcessingPayment,
   paymentStatus,
+  canManageMonetization,
   isDesktopClient,
   isCompactViewport,
   isCommunityContext,
@@ -853,9 +855,11 @@ export const HomePage = ({
     (section === 'integrations' && !canUseNotifications) ||
     (section === 'templates' && !canUseTemplates);
   const showCreateCalculatorLimitHint = !canCreateMoreTemplates;
+  const restrictedMonetizationMessage =
+    'Управление подпиской и расширенными возможностями доступно только в веб-версии VK.';
 
   const handleSectionSelect = (section: AdminSection) => {
-    onSectionChange(isSectionLocked(section) ? 'payments' : section);
+    onSectionChange(isSectionLocked(section) && canManageMonetization ? 'payments' : section);
     onToggleAdminNav();
   };
 
@@ -2059,6 +2063,25 @@ export const HomePage = ({
         <div className="admin-home__role-badge">Подписка</div>
       </div>
 
+      {!canManageMonetization ? (
+        <section className="admin-placeholder">
+          <div className="admin-placeholder__eyebrow">Раздел недоступен</div>
+          <h2 className="admin-placeholder__title">На этой платформе раздел оплаты скрыт</h2>
+          <p className="admin-placeholder__text">{restrictedMonetizationMessage}</p>
+          <p className="admin-placeholder__text">
+            Правила VK Mini Apps:{' '}
+            <a href="https://dev.vk.com/ru/mini-apps-rules" target="_blank" rel="noreferrer">
+              dev.vk.com/ru/mini-apps-rules
+            </a>
+          </p>
+          <p className="admin-placeholder__text">
+            Правила размещения приложений-магазинов:{' '}
+            <a href="https://dev.vk.com/ru/market-rules" target="_blank" rel="noreferrer">
+              dev.vk.com/ru/market-rules
+            </a>
+          </p>
+        </section>
+      ) : (
       <section className="payments-section">
         <article className="payments-hero">
           <div className="payments-hero__copy">
@@ -2099,6 +2122,12 @@ export const HomePage = ({
               {isCommunityContext
                 ? 'Приложение уже открыто в группе VK. Теперь оплатите доступ и завершите настройку админки.'
                 : 'После подключения откройте приложение в вашей группе VK.'}
+            </div>
+            <div className="payments-activation-banner">
+              Правила размещения:{' '}
+              <a href="https://dev.vk.com/ru/market-rules" target="_blank" rel="noreferrer">
+                dev.vk.com/ru/market-rules
+              </a>
             </div>
           </div>
 
@@ -2254,6 +2283,7 @@ export const HomePage = ({
           </ol>
         </article>
       </section>
+      )}
     </main>
   );
 
@@ -2953,15 +2983,28 @@ export const HomePage = ({
       </div>
 
       <section className="admin-placeholder">
-        <div className="admin-placeholder__eyebrow">Доступно на платном тарифе</div>
-        <h2 className="admin-placeholder__title">{feature} откроется после апгрейда</h2>
+        <div className="admin-placeholder__eyebrow">
+          {canManageMonetization ? 'Доступно на платном тарифе' : 'Раздел ограничен'}
+        </div>
+        <h2 className="admin-placeholder__title">
+          {canManageMonetization
+            ? `${feature} откроется после апгрейда`
+            : `${feature} недоступен на текущей платформе`}
+        </h2>
         <p className="admin-placeholder__text">
-          Бесплатный тариф подходит для быстрого старта. Перейдите на Start или Pro, чтобы
-          расширить лимиты и открыть дополнительные возможности.
+          {canManageMonetization
+            ? 'Бесплатный тариф подходит для быстрого старта. Перейдите на Start или Pro, чтобы расширить лимиты и открыть дополнительные возможности.'
+            : restrictedMonetizationMessage}
         </p>
-        <button className="admin-nav__plan-button" type="button" onClick={() => onSectionChange('payments')}>
-          Перейти к оплате
-        </button>
+        {canManageMonetization ? (
+          <button
+            className="admin-nav__plan-button"
+            type="button"
+            onClick={() => onSectionChange('payments')}
+          >
+            Перейти к оплате
+          </button>
+        ) : null}
       </section>
     </main>
   );
@@ -3016,7 +3059,7 @@ export const HomePage = ({
 
         <nav className="admin-nav__menu" aria-label="Разделы администратора">
           {navItems
-            .filter((item) => isDesktopClient || item.key !== 'payments')
+            .filter((item) => canManageMonetization || item.key !== 'payments')
             .map((item) => {
             const Icon = item.icon;
 
@@ -3052,7 +3095,7 @@ export const HomePage = ({
               </span>
             </div>
             <div className="admin-nav__plan-usage">{requestQuotaLabel}</div>
-            {isDesktopClient && !isCompactViewport ? (
+            {canManageMonetization && isDesktopClient && !isCompactViewport ? (
               hasActiveSubscription && currentPlan.id !== 'free' ? (
                 <div className="admin-nav__plan-meta">{subscriptionDaysLeftLabel}</div>
               ) : (
@@ -3066,7 +3109,9 @@ export const HomePage = ({
               )
             ) : (
               <div className="admin-nav__plan-meta">
-                {hasActiveSubscription && currentPlan.id !== 'free' ? subscriptionDaysLeftLabel : currentPlan.name}
+                {canManageMonetization && hasActiveSubscription && currentPlan.id !== 'free'
+                  ? subscriptionDaysLeftLabel
+                  : currentPlan.name}
               </div>
             )}
           </div>
