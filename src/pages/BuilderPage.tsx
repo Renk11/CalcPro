@@ -2653,7 +2653,7 @@ export const BuilderPage = ({
 
         {isScrollJumpVisible ? (
           <div
-            className={`builder-scroll-jump ${isInspectorOpen ? 'builder-scroll-jump_with-inspector' : ''}`}
+            className={`builder-scroll-jump ${isInspectorOpen && mode !== 'formula' ? 'builder-scroll-jump_with-inspector' : ''}`}
           >
             <button
               className={`builder-scroll-jump__button ${isScrollJumpUp ? 'builder-scroll-jump__button_up' : 'builder-scroll-jump__button_down'}`}
@@ -2667,14 +2667,16 @@ export const BuilderPage = ({
           </div>
         ) : null}
 
-        <button
-          className={`builder-inspector__toggle builder-floating-toggle_legacy ${isInspectorOpen ? 'builder-inspector__toggle_open' : ''} ${!selectedField && !isRequestFormSelected && !isResultCardSelected && mode !== 'formula' ? 'builder-inspector__toggle_muted' : ''}`}
-          type="button"
-          aria-label={isInspectorOpen ? '\u0421\u043a\u0440\u044b\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438'}
-          onClick={openInspector}
-        >
-          {renderPanelToggleIcon('right')}
-        </button>
+        {mode !== 'formula' ? (
+          <button
+            className={`builder-inspector__toggle builder-floating-toggle_legacy ${isInspectorOpen ? 'builder-inspector__toggle_open' : ''} ${!selectedField && !isRequestFormSelected && !isResultCardSelected ? 'builder-inspector__toggle_muted' : ''}`}
+            type="button"
+            aria-label={isInspectorOpen ? '\u0421\u043a\u0440\u044b\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438'}
+            onClick={openInspector}
+          >
+            {renderPanelToggleIcon('right')}
+          </button>
+        ) : null}
 
         <aside className={`builder-inspector ${isInspectorOpen ? 'builder-inspector_open' : 'builder-inspector_closed'}`}>
           <div ref={inspectorPanelRef} className="builder-inspector__panel">
