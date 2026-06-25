@@ -58,6 +58,13 @@ const REQUEST_FORM_SELECTION_ID = '__request_form__';
 const RESULT_CARD_SELECTION_ID = '__result_card__';
 const PRO_LIBRARY_ITEM_IDS = new Set(['range', 'flag', 'image', 'booking', 'html']);
 const BASIC_BUTTON_ACTIONS: ButtonActionType[] = ['calculate', 'submit', 'reset'];
+const PREVIEW_DEVICE_CONFIG = {
+  desktop: { label: 'ПК', width: '100%', height: null },
+  tablet: { label: 'Планшет', width: 834, height: 1112 },
+  mobile: { label: 'Телефон', width: 360, height: 780 },
+} as const;
+
+type PreviewDevice = keyof typeof PREVIEW_DEVICE_CONFIG;
 
 type BuilderLibraryItem = {
   id: string;
@@ -849,6 +856,7 @@ export const BuilderPage = ({
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
+  const [previewDevice, setPreviewDevice] = useState<PreviewDevice>('desktop');
   const [isSpacingOpen, setIsSpacingOpen] = useState(false);
   const [mode, setMode] = useState<'design' | 'formula'>('design');
   const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(() => {
@@ -925,6 +933,7 @@ export const BuilderPage = ({
   const canvasRef = useRef<HTMLElement | null>(null);
   const libraryPanelRef = useRef<HTMLDivElement | null>(null);
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null);
+  const previewScrollRef = useRef<HTMLDivElement | null>(null);
   const customFormulaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const selectedField = useMemo(
@@ -970,6 +979,33 @@ export const BuilderPage = ({
       return;
     }
 
+    if (isPreview && previewDevice !== 'desktop') {
+      const previewScrollElement = previewScrollRef.current;
+      if (!previewScrollElement) {
+        return;
+      }
+
+      const updatePreviewScrollJumpState = () => {
+        const { scrollTop, scrollHeight, clientHeight } = previewScrollElement;
+        const remainingDistance = scrollHeight - clientHeight - scrollTop;
+        const bottomThreshold = Math.min(320, Math.max(120, Math.round(clientHeight * 0.35)));
+
+        setIsScrollJumpVisible(scrollHeight - clientHeight > 80);
+        setIsScrollJumpUp(remainingDistance <= bottomThreshold);
+      };
+
+      updatePreviewScrollJumpState();
+      previewScrollElement.addEventListener('scroll', updatePreviewScrollJumpState, {
+        passive: true,
+      });
+      window.addEventListener('resize', updatePreviewScrollJumpState);
+
+      return () => {
+        previewScrollElement.removeEventListener('scroll', updatePreviewScrollJumpState);
+        window.removeEventListener('resize', updatePreviewScrollJumpState);
+      };
+    }
+
     const updateScrollJumpState = () => {
       const scrollTop = window.scrollY || window.pageYOffset || 0;
       const scrollHeight = document.documentElement.scrollHeight;
@@ -989,7 +1025,15 @@ export const BuilderPage = ({
       window.removeEventListener('scroll', updateScrollJumpState);
       window.removeEventListener('resize', updateScrollJumpState);
     };
-  }, [isInspectorOpen, isPreview, mode, template.fields.length, template.requestForm.enabled, template.resultCardShow]);
+  }, [
+    isInspectorOpen,
+    isPreview,
+    mode,
+    previewDevice,
+    template.fields.length,
+    template.requestForm.enabled,
+    template.resultCardShow,
+  ]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -1819,6 +1863,19 @@ export const BuilderPage = ({
   };
 
   const scrollCanvasToEdge = () => {
+    if (isPreview && previewDevice !== 'desktop') {
+      const previewScrollElement = previewScrollRef.current;
+      if (!previewScrollElement) {
+        return;
+      }
+
+      previewScrollElement.scrollTo({
+        top: isScrollJumpUp ? 0 : previewScrollElement.scrollHeight,
+        behavior: 'smooth',
+      });
+      return;
+    }
+
     if (typeof window === 'undefined') {
       return;
     }
@@ -1944,7 +2001,7 @@ export const BuilderPage = ({
           </div>
         </aside>
 
-        {mode !== 'formula' ? (
+        {mode !== 'formula' && !isPreview ? (
         <button
           className={`builder-library__toggle builder-floating-toggle_legacy ${isLibraryOpen ? 'builder-library__toggle_open' : ''}`}
           type="button"
@@ -2044,119 +2101,175 @@ export const BuilderPage = ({
 
             <div className={`builder-canvas__scene ${isInspectorOpen ? 'builder-canvas__scene_compact' : 'builder-canvas__scene_expanded'}`}>
               {isPreview ? (
-                <div className="builder-preview">
-                  <div className="builder-preview__header">
-                    <h3 className='builder-preview__title'>{template.title || '\u0411\u0435\u0437 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f'}</h3>
-                    <p className="builder-preview__description">
-                      {template.description || '\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u0437\u0434\u0435\u0441\u044c'}
-                    </p>
-                  </div>
-                  <div className="builder-preview__fields">
-                    {template.fields.length > 0 ? (
-                      template.fields.map((field) => (
-                        <div
-                          key={field.id}
-                          className={`builder-preview__field builder-preview__field_${field.layout === 'half' ? 'half' : 'full'} ${fieldEntranceDelays[field.id] != null ? 'builder-preview__field_entering' : ''}`}
-                          style={
-                            {
-                              ...getFieldSpacingStyle(field),
-                              '--builder-field-enter-delay': `${fieldEntranceDelays[field.id] ?? 0}ms`,
-                            } as React.CSSProperties
-                          }
+                <div className="builder-preview-shell">
+                  <div className="builder-preview-devices" role="tablist" aria-label="Размер предпросмотра">
+                    {(Object.entries(PREVIEW_DEVICE_CONFIG) as Array<[PreviewDevice, (typeof PREVIEW_DEVICE_CONFIG)[PreviewDevice]]>).map(
+                      ([device, config]) => (
+                        <button
+                          key={device}
+                          className={`builder-preview-devices__button ${previewDevice === device ? 'builder-preview-devices__button_active' : ''}`}
+                          type="button"
+                          role="tab"
+                          aria-selected={previewDevice === device}
+                          onClick={() => setPreviewDevice(device)}
                         >
-                          <CalculatorFieldInput
-                            field={field}
-                            value={previewValues[field.key] ?? getPreviewFieldValue(field)}
-                            template={template}
-                            allValues={previewValues}
-                            isCalculationTriggered
-                            onChange={(value) =>
-                              setPreviewValues((current) => ({
-                                ...current,
-                                [field.key]: value,
-                              }))
-                            }
+                          <span
+                            className={`builder-preview-devices__icon builder-preview-devices__icon_${device}`}
+                            aria-hidden="true"
                           />
-                        </div>
-                      ))
-                    ) : (
-                      <div className="builder-empty-state">
-                        {'\u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u044d\u043b\u0435\u043c\u0435\u043d\u0442\u044b \u0438\u0437 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438, \u0447\u0442\u043e\u0431\u044b \u0443\u0432\u0438\u0434\u0435\u0442\u044c \u043f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440.'}
-                      </div>
+                          <span className="builder-preview-devices__label">{config.label}</span>
+                        </button>
+                      ),
                     )}
-                    {template.requestForm.enabled ? (
-                      <div className="builder-preview__request-block">
-                        <div className="calculator-panel__head">
-                          <h2 className="calculator-panel__title">{template.requestForm.title}</h2>
-                          <div className="calculator-panel__caption">
-                            {template.requestForm.description}
+                  </div>
+                <div
+                  className={`builder-preview-frame builder-preview-frame_${previewDevice}`}
+                  style={
+                    {
+                      '--builder-preview-width':
+                        typeof PREVIEW_DEVICE_CONFIG[previewDevice].width === 'number'
+                          ? `${PREVIEW_DEVICE_CONFIG[previewDevice].width}px`
+                          : PREVIEW_DEVICE_CONFIG[previewDevice].width,
+                      '--builder-preview-height':
+                        typeof PREVIEW_DEVICE_CONFIG[previewDevice].height === 'number'
+                          ? `${PREVIEW_DEVICE_CONFIG[previewDevice].height}px`
+                          : 'auto',
+                    } as React.CSSProperties
+                  }
+                >
+                  <div className="builder-preview-frame__screen">
+                    <div
+                      ref={previewDevice !== 'desktop' ? previewScrollRef : null}
+                      className={`builder-preview builder-preview_device_${previewDevice} ${previewDevice !== 'desktop' ? 'builder-preview_embedded-scroll' : ''}`}
+                    >
+                      <div className="builder-preview__header">
+                        <h3 className='builder-preview__title'>{template.title || '\u0411\u0435\u0437 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f'}</h3>
+                        <p className="builder-preview__description">
+                          {template.description || '\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u0437\u0434\u0435\u0441\u044c'}
+                        </p>
+                      </div>
+                      <div className="builder-preview__fields">
+                        {template.fields.length > 0 ? (
+                          template.fields.map((field) => (
+                            <div
+                              key={field.id}
+                              className={`builder-preview__field builder-preview__field_${field.layout === 'half' ? 'half' : 'full'} ${fieldEntranceDelays[field.id] != null ? 'builder-preview__field_entering' : ''}`}
+                              style={
+                                {
+                                  ...getFieldSpacingStyle(field),
+                                  '--builder-field-enter-delay': `${fieldEntranceDelays[field.id] ?? 0}ms`,
+                                } as React.CSSProperties
+                              }
+                            >
+                              <CalculatorFieldInput
+                                field={field}
+                                value={previewValues[field.key] ?? getPreviewFieldValue(field)}
+                                template={template}
+                                allValues={previewValues}
+                                isCalculationTriggered
+                                onChange={(value) =>
+                                  setPreviewValues((current) => ({
+                                    ...current,
+                                    [field.key]: value,
+                                  }))
+                                }
+                              />
+                            </div>
+                          ))
+                        ) : (
+                          <div className="builder-empty-state">
+                            {'\u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u044d\u043b\u0435\u043c\u0435\u043d\u0442\u044b \u0438\u0437 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438, \u0447\u0442\u043e\u0431\u044b \u0443\u0432\u0438\u0434\u0435\u0442\u044c \u043f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440.'}
                           </div>
-                        </div>
-                        <div className="calculator-request">
-                          <label className="calc-field">
-                            <span className="calc-field__label">{template.requestForm.nameLabel}</span>
-                            <input
-                              className="calc-field__control"
-                              value=""
-                              placeholder={template.requestForm.namePlaceholder}
-                              readOnly
-                            />
-                          </label>
-                          <label className="calc-field">
-                            <span className="calc-field__label">{template.requestForm.phoneLabel}</span>
-                            <input
-                              className="calc-field__control"
-                              value=""
-                              placeholder={template.requestForm.phonePlaceholder}
-                              readOnly
-                            />
-                          </label>
-                        <label className="calc-field">
-                          <span className="calc-field__label">{template.requestForm.commentLabel}</span>
-                          <textarea
-                            className="calc-field__control calc-field__control_textarea"
-                            value=""
-                            maxLength={250}
-                            placeholder={template.requestForm.commentPlaceholder}
-                            readOnly
-                          />
-                          <span className="calc-field__hint">
-                            0 / 250
-                          </span>
-                        </label>
-                        <label className="calculator-request__consent">
-                          <span className="calculator-request__consent-row">
-                            <input
-                              className="calculator-request__consent-checkbox"
-                              type="checkbox"
-                              checked={previewConsentChecked}
-                              onChange={(event) => setPreviewConsentChecked(event.target.checked)}
-                            />
-                            <span className="calculator-request__consent-text">
-                              Я принимаю{' '}
-                              <button
-                                className="calculator-request__consent-link"
-                                type="button"
-                                onClick={() => setActiveLegalDoc('agreement')}
-                              >
-                                пользовательское соглашение
-                              </button>{' '}
-                              и{' '}
-                              <button
-                                className="calculator-request__consent-link"
-                                type="button"
-                                onClick={() => setActiveLegalDoc('privacy')}
-                              >
-                                политику конфиденциальности
-                              </button>
-                            </span>
-                          </span>
-                        </label>
-                        </div>
+                        )}
+                        {template.requestForm.enabled ? (
+                          <div className="builder-preview__request-block">
+                            <div className="calculator-panel__head">
+                              <h2 className="calculator-panel__title">{template.requestForm.title}</h2>
+                              <div className="calculator-panel__caption">
+                                {template.requestForm.description}
+                              </div>
+                            </div>
+                            <div className="calculator-request">
+                              <label className="calc-field">
+                                <span className="calc-field__label">{template.requestForm.nameLabel}</span>
+                                <input
+                                  className="calc-field__control"
+                                  value=""
+                                  placeholder={template.requestForm.namePlaceholder}
+                                  readOnly
+                                />
+                              </label>
+                              <label className="calc-field">
+                                <span className="calc-field__label">{template.requestForm.phoneLabel}</span>
+                                <input
+                                  className="calc-field__control"
+                                  value=""
+                                  placeholder={template.requestForm.phonePlaceholder}
+                                  readOnly
+                                />
+                              </label>
+                            <label className="calc-field">
+                              <span className="calc-field__label">{template.requestForm.commentLabel}</span>
+                              <textarea
+                                className="calc-field__control calc-field__control_textarea"
+                                value=""
+                                maxLength={250}
+                                placeholder={template.requestForm.commentPlaceholder}
+                                readOnly
+                              />
+                              <span className="calc-field__hint">
+                                0 / 250
+                              </span>
+                            </label>
+                            <label className="calculator-request__consent">
+                              <span className="calculator-request__consent-row">
+                                <input
+                                  className="calculator-request__consent-checkbox"
+                                  type="checkbox"
+                                  checked={previewConsentChecked}
+                                  onChange={(event) => setPreviewConsentChecked(event.target.checked)}
+                                />
+                                <span className="calculator-request__consent-text">
+                                  Я принимаю{' '}
+                                  <button
+                                    className="calculator-request__consent-link"
+                                    type="button"
+                                    onClick={() => setActiveLegalDoc('agreement')}
+                                  >
+                                    пользовательское соглашение
+                                  </button>{' '}
+                                  и{' '}
+                                  <button
+                                    className="calculator-request__consent-link"
+                                    type="button"
+                                    onClick={() => setActiveLegalDoc('privacy')}
+                                  >
+                                    политику конфиденциальности
+                                  </button>
+                                </span>
+                              </span>
+                            </label>
+                            </div>
+                          </div>
+                        ) : null}
+                        {renderPreviewResultCard()}
+                      </div>
+                    </div>
+                    {isScrollJumpVisible && previewDevice !== 'desktop' ? (
+                      <div className="builder-scroll-jump builder-scroll-jump_embedded">
+                        <button
+                          className={`builder-scroll-jump__button ${isScrollJumpUp ? 'builder-scroll-jump__button_up' : 'builder-scroll-jump__button_down'}`}
+                          type="button"
+                          title={isScrollJumpUp ? 'Вверх' : 'Вниз'}
+                          aria-label={isScrollJumpUp ? 'Прокрутить вверх' : 'Прокрутить вниз'}
+                          onClick={scrollCanvasToEdge}
+                        >
+                          <span aria-hidden="true">{isScrollJumpUp ? '↑' : '↓'}</span>
+                        </button>
                       </div>
                     ) : null}
-                    {renderPreviewResultCard()}
-                    </div>
+                  </div>
+                </div>
                 </div>
               ) : mode === 'formula' ? (
                 <div className="builder-formula">
@@ -2651,9 +2764,9 @@ export const BuilderPage = ({
           </div>
         </main>
 
-        {isScrollJumpVisible ? (
+        {isScrollJumpVisible && (!isPreview || previewDevice === 'desktop') ? (
           <div
-            className={`builder-scroll-jump ${isInspectorOpen && mode !== 'formula' ? 'builder-scroll-jump_with-inspector' : ''}`}
+            className={`builder-scroll-jump ${isInspectorOpen && mode !== 'formula' && !isPreview ? 'builder-scroll-jump_with-inspector' : ''} ${isPreview ? 'builder-scroll-jump_preview' : ''}`}
           >
             <button
               className={`builder-scroll-jump__button ${isScrollJumpUp ? 'builder-scroll-jump__button_up' : 'builder-scroll-jump__button_down'}`}
@@ -2667,7 +2780,7 @@ export const BuilderPage = ({
           </div>
         ) : null}
 
-        {mode !== 'formula' ? (
+        {mode !== 'formula' && !isPreview ? (
           <button
             className={`builder-inspector__toggle builder-floating-toggle_legacy ${isInspectorOpen ? 'builder-inspector__toggle_open' : ''} ${!selectedField && !isRequestFormSelected && !isResultCardSelected ? 'builder-inspector__toggle_muted' : ''}`}
             type="button"
