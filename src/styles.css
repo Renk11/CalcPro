@@ -2081,12 +2081,6 @@ body,
   color: #fff4ef;
 }
 
-.settings-form__button_secondary-action {
-  margin-top: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #f7f0e5;
-}
-
 .superadmin-reset {
   display: grid;
   gap: 14px;

@@ -905,7 +905,6 @@ export const HomePage = ({
   const [superAdminPlan, setSuperAdminPlan] = useState<CalculatorSubscriptionPlan>('pro');
   const [superAdminDays, setSuperAdminDays] = useState('30');
   const [superAdminStatus, setSuperAdminStatus] = useState('');
-  const [showResetCommand, setShowResetCommand] = useState(false);
   const [resetCommandValue, setResetCommandValue] = useState('');
   const [supportTickets, setSupportTickets] = useState<CalculatorSupportTicket[]>(() =>
     getSupportTickets(),
@@ -2550,7 +2549,6 @@ export const HomePage = ({
 
     if (result.ok) {
       setResetCommandValue('');
-      setShowResetCommand(false);
     }
   };
 
@@ -3040,47 +3038,30 @@ export const HomePage = ({
               {`Выдать ${superAdminPlan === 'pro' ? 'Pro' : 'Start'} группе`}
             </button>
 
-            <button
-              className="settings-form__button settings-form__button_secondary-action"
-              type="button"
-              onClick={() => {
-                setShowResetCommand((current) => !current);
-                setSuperAdminStatus(
-                  showResetCommand
-                    ? 'Reset-команда скрыта.'
-                    : 'Reset-команда открыта. Введите: reset all groups',
-                );
-              }}
-            >
-              {showResetCommand ? 'Скрыть reset-команду' : 'Показать reset-команду'}
-            </button>
-
-            {showResetCommand ? (
-              <div className="superadmin-reset">
-                <div className="settings-form__hint settings-form__hint_warning">
-                  Скрытая команда. Это удалит данные всех подключённых групп из серверного хранилища
-                  и очистит локальный кэш CalcPro в текущем браузере.
-                </div>
-                <label className="settings-form__field">
-                  <span className="settings-form__label">Команда подтверждения</span>
-                  <input
-                    className="settings-form__input"
-                    type="text"
-                    inputMode="text"
-                    placeholder="reset all groups"
-                    value={resetCommandValue}
-                    onChange={(event) => setResetCommandValue(event.target.value)}
-                  />
-                </label>
-                <button
-                  className="settings-form__button settings-form__button_danger"
-                  type="button"
-                  onClick={handleResetAllGroupsSubmit}
-                >
-                  Reset all groups
-                </button>
+            <div className="superadmin-reset">
+              <div className="settings-form__hint settings-form__hint_warning">
+                Массовый сброс всех групп. Команда удалит данные подключённых групп из серверного
+                хранилища и очистит локальный кэш CalcPro в текущем браузере.
               </div>
-            ) : null}
+              <label className="settings-form__field">
+                <span className="settings-form__label">Команда подтверждения</span>
+                <input
+                  className="settings-form__input"
+                  type="text"
+                  inputMode="text"
+                  placeholder="reset all groups"
+                  value={resetCommandValue}
+                  onChange={(event) => setResetCommandValue(event.target.value)}
+                />
+              </label>
+              <button
+                className="settings-form__button settings-form__button_danger"
+                type="button"
+                onClick={handleResetAllGroupsSubmit}
+              >
+                Reset all groups
+              </button>
+            </div>
           </article>
         ) : null}
 
