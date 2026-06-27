@@ -205,6 +205,48 @@ const BuilderPageFallback = () => (
   </div>
 );
 
+const StartupSplash = () => (
+  <div className="startup-splash" role="status" aria-live="polite" aria-label="Загрузка CalcPro">
+    <div className="startup-splash__panel">
+      <div className="startup-splash__eyebrow">CalcPro</div>
+      <div className="startup-splash__mark" aria-hidden="true">
+        <span className="startup-splash__glow startup-splash__glow_left" />
+        <span className="startup-splash__glow startup-splash__glow_right" />
+        <span className="startup-splash__orbit startup-splash__orbit_outer">
+          <span className="startup-splash__satellite startup-splash__satellite_orange" />
+        </span>
+        <span className="startup-splash__orbit startup-splash__orbit_mid">
+          <span className="startup-splash__satellite startup-splash__satellite_teal" />
+        </span>
+        <span className="startup-splash__orbit startup-splash__orbit_inner">
+          <span className="startup-splash__satellite startup-splash__satellite_light" />
+        </span>
+        <span className="startup-splash__core-shell">
+          <span className="startup-splash__core">C</span>
+        </span>
+      </div>
+      <h1 className="startup-splash__title">Собираем ваш калькулятор</h1>
+      <p className="startup-splash__text">
+        Шаблоны, настройки и рабочий контекст сообщества уже на подходе.
+      </p>
+      <div className="startup-splash__wave" aria-hidden="true">
+        <span className="startup-splash__wave-bar" />
+        <span className="startup-splash__wave-bar" />
+        <span className="startup-splash__wave-bar" />
+        <span className="startup-splash__wave-bar" />
+        <span className="startup-splash__wave-bar" />
+        <span className="startup-splash__wave-bar" />
+        <span className="startup-splash__wave-bar" />
+        <span className="startup-splash__wave-bar" />
+        <span className="startup-splash__wave-bar" />
+        <span className="startup-splash__wave-bar" />
+        <span className="startup-splash__wave-bar" />
+        <span className="startup-splash__wave-bar" />
+      </div>
+    </div>
+  </div>
+);
+
 const COMMUNITY_ADMIN_ROLES = new Set(['admin', 'editor', 'moder']);
 const DEFAULT_FOLDER_NAME = 'Новая папка';
 
@@ -369,6 +411,8 @@ const App = () => {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [isCommunitiesLoading, setIsCommunitiesLoading] = useState(true);
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
+  const [isStartupSplashVisible, setIsStartupSplashVisible] = useState(true);
+  const [hasStartupDelayElapsed, setHasStartupDelayElapsed] = useState(false);
   const [isDesktopClient, setIsDesktopClient] = useState(true);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [launchParams, setLaunchParams] = useState<Partial<GetLaunchParamsResponse> | null>(() => {
@@ -518,6 +562,24 @@ const App = () => {
     mediaQuery.addListener(updateViewportState);
     return () => mediaQuery.removeListener(updateViewportState);
   }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setHasStartupDelayElapsed(true);
+    }, 950);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    if (!isStartupSplashVisible) {
+      return;
+    }
+
+    if (hasStartupDelayElapsed && !isTemplatesLoading) {
+      setIsStartupSplashVisible(false);
+    }
+  }, [hasStartupDelayElapsed, isStartupSplashVisible, isTemplatesLoading]);
 
   useEffect(() => {
     if (isPublicViewer) {
@@ -1933,149 +1995,155 @@ const App = () => {
   };
 
   return (
-    <SplitLayout>
-      <SplitCol width="100%" maxWidth="100%">
-        <View activePanel={activeView}>
-          <Panel id="home">
-            {isViewerGroupAdmin && activeView === 'home' ? (
-              <Suspense fallback={<AdminPageFallback title="Загружаем кабинет" />}>
-                <HomePage
-                  connectedCommunities={connectedCommunities}
-                  folders={folders}
-                  activeFolderId={activeFolderId}
-                  allTemplates={sortedTemplates}
-                  templates={visibleTemplates}
-                  isTemplatesLoading={isTemplatesLoading}
-                  isCommunitiesLoading={isCommunitiesLoading}
-                  adminSettings={adminSettings}
-                  adminProfile={adminProfile}
-                  vkAuthHeaders={vkAuthHeaders}
-                  isAdminNavOpen={isAdminNavOpen}
-                  currentSection={homeSection}
-                  requests={requests}
-                  onSectionChange={setHomeSection}
-                  onSaveAdminSettings={handleSaveAdminSettings}
-                  onUpdateRequestStatus={handleUpdateRequestStatus}
-                  onUpdateRequest={handleUpdateRequest}
-                  onDeleteRequest={handleDeleteRequest}
-                  onToggleAdminNav={() => setIsAdminNavOpen((current) => !current)}
-                  onCreateFolder={createFolder}
-                  onDeleteFolder={deleteFolder}
-                  onRenameFolder={renameFolder}
-                  onSelectFolder={setActiveFolderId}
-                  onCreate={createTemplateInActiveFolder}
-                  onUsePreset={createTemplateFromCatalog}
-                  onOpen={openCalculator}
-                  onEdit={openBuilder}
-                  onDuplicateTemplate={duplicateTemplate}
-                  onDeleteTemplate={deleteTemplate}
-                  onMoveTemplateToFolder={moveTemplateToFolder}
-                  onUpdateTemplateStatus={updateTemplatePublicationStatus}
-                  currentPlan={currentPlan}
-                  configuredPlan={paidPlanConfig}
-                  hasActiveSubscription={hasActiveSubscription}
-                  isSuperAdmin={isSuperAdmin}
-                  currentGroupId={effectiveAdminGroupId}
-                  launchGroupId={currentGroupId}
-                  canCreateMoreTemplates={canCreateMoreTemplates}
-                  canCreateMoreRequests={canCreateMoreRequests}
-                  monthlyRequestsUsed={monthlyRequestsUsed}
-                  onSelectAdminGroup={handleSelectAdminGroup}
-                  onDisconnectCommunity={handleDisconnectCommunity}
-                  onStartPayment={startSubscriptionPayment}
-                  onInstallInCommunity={openCommunityInstall}
-                  requestLimit={requestLimit}
-                  canUseTemplates={canUseTemplates}
-                  canUseAnalytics={canUseAnalytics}
-                  canUseNotifications={canUseNotifications}
-                  canUseRequestStatuses={canUseRequestStatuses}
-                  canUseFolders={canUseFolders}
-                  onGrantProAccess={handleGrantProAccess}
-                  onResetAllGroups={handleResetAllGroups}
-                  isProcessingPayment={isProcessingPayment}
-                  paymentStatus={paymentStatus}
-                  canManageMonetization={isWebMonetizationPlatform}
-                  isDesktopClient={isDesktopClient}
-                  isCompactViewport={isCompactViewport}
-                  isCommunityContext={currentGroupId > 0}
-                />
-              </Suspense>
-            ) : null}
-          </Panel>
-          <Panel id="builder">
-            {activeView === 'builder' ? (
-              <Suspense fallback={<BuilderPageFallback />}>
-                <BuilderPage
-                  initialTemplate={selectedTemplate}
-                  onBack={() => setActiveView('home')}
-                  onSave={handleSaveTemplate}
-                  canUseBooking={canUseBooking}
-                  canUseProFeatures={canUseAdvancedFormulas}
-                  isMonetizationRestricted={!isWebMonetizationPlatform}
-                />
-              </Suspense>
-            ) : null}
-          </Panel>
-          <Panel id="calculator">
-            {activeView === 'calculator' && selectedTemplate ? (
-              <Suspense fallback={<CalculatorPageFallback />}>
-                <CalculatorPage
-                  template={selectedTemplate}
-                  onOpenAdmin={isViewerGroupAdmin ? openAdminHome : undefined}
-                  currentGroupId={currentGroupId}
-                  canSubmitRequests={canCreateMoreRequests}
-                  requestLimit={requestLimit}
-                  requestsUsedThisMonth={monthlyRequestsUsed}
-                  showBranding={!canHideBranding}
-                  onRequestCreated={(request) =>
-                    persistRequests([request, ...requests.filter((item) => item.id !== request.id)])
-                  }
-                />
-              </Suspense>
-            ) : activeView === 'calculator' ? (
-              <div className="calculator-page calculator-page_empty">
-                <div className="calculator-page__shell">
-                  <div className="calculator-page__hero-copy calculator-page__hero-copy_empty">
-                    <div className="calculator-page__eyebrow">
-                      {currentGroupId > 0
-                        ? '\u041f\u0443\u0431\u043b\u0438\u0447\u043d\u0430\u044f \u0432\u0435\u0440\u0441\u0438\u044f'
-                        : '\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f'}
+    <>
+      {isStartupSplashVisible ? <StartupSplash /> : null}
+      <SplitLayout>
+        <SplitCol width="100%" maxWidth="100%">
+          <View activePanel={activeView}>
+            <Panel id="home">
+              {isViewerGroupAdmin && activeView === 'home' ? (
+                <Suspense fallback={<AdminPageFallback title="Загружаем кабинет" />}>
+                  <HomePage
+                    connectedCommunities={connectedCommunities}
+                    folders={folders}
+                    activeFolderId={activeFolderId}
+                    allTemplates={sortedTemplates}
+                    templates={visibleTemplates}
+                    isTemplatesLoading={isTemplatesLoading}
+                    isCommunitiesLoading={isCommunitiesLoading}
+                    adminSettings={adminSettings}
+                    adminProfile={adminProfile}
+                    vkAuthHeaders={vkAuthHeaders}
+                    isAdminNavOpen={isAdminNavOpen}
+                    currentSection={homeSection}
+                    requests={requests}
+                    onSectionChange={setHomeSection}
+                    onSaveAdminSettings={handleSaveAdminSettings}
+                    onUpdateRequestStatus={handleUpdateRequestStatus}
+                    onUpdateRequest={handleUpdateRequest}
+                    onDeleteRequest={handleDeleteRequest}
+                    onToggleAdminNav={() => setIsAdminNavOpen((current) => !current)}
+                    onCreateFolder={createFolder}
+                    onDeleteFolder={deleteFolder}
+                    onRenameFolder={renameFolder}
+                    onSelectFolder={setActiveFolderId}
+                    onCreate={createTemplateInActiveFolder}
+                    onUsePreset={createTemplateFromCatalog}
+                    onOpen={openCalculator}
+                    onEdit={openBuilder}
+                    onDuplicateTemplate={duplicateTemplate}
+                    onDeleteTemplate={deleteTemplate}
+                    onMoveTemplateToFolder={moveTemplateToFolder}
+                    onUpdateTemplateStatus={updateTemplatePublicationStatus}
+                    currentPlan={currentPlan}
+                    configuredPlan={paidPlanConfig}
+                    hasActiveSubscription={hasActiveSubscription}
+                    isSuperAdmin={isSuperAdmin}
+                    currentGroupId={effectiveAdminGroupId}
+                    launchGroupId={currentGroupId}
+                    canCreateMoreTemplates={canCreateMoreTemplates}
+                    canCreateMoreRequests={canCreateMoreRequests}
+                    monthlyRequestsUsed={monthlyRequestsUsed}
+                    onSelectAdminGroup={handleSelectAdminGroup}
+                    onDisconnectCommunity={handleDisconnectCommunity}
+                    onStartPayment={startSubscriptionPayment}
+                    onInstallInCommunity={openCommunityInstall}
+                    requestLimit={requestLimit}
+                    canUseTemplates={canUseTemplates}
+                    canUseAnalytics={canUseAnalytics}
+                    canUseNotifications={canUseNotifications}
+                    canUseRequestStatuses={canUseRequestStatuses}
+                    canUseFolders={canUseFolders}
+                    onGrantProAccess={handleGrantProAccess}
+                    onResetAllGroups={handleResetAllGroups}
+                    isProcessingPayment={isProcessingPayment}
+                    paymentStatus={paymentStatus}
+                    canManageMonetization={isWebMonetizationPlatform}
+                    isDesktopClient={isDesktopClient}
+                    isCompactViewport={isCompactViewport}
+                    isCommunityContext={currentGroupId > 0}
+                  />
+                </Suspense>
+              ) : null}
+            </Panel>
+            <Panel id="builder">
+              {activeView === 'builder' ? (
+                <Suspense fallback={<BuilderPageFallback />}>
+                  <BuilderPage
+                    initialTemplate={selectedTemplate}
+                    onBack={() => setActiveView('home')}
+                    onSave={handleSaveTemplate}
+                    canUseBooking={canUseBooking}
+                    canUseProFeatures={canUseAdvancedFormulas}
+                    isMonetizationRestricted={!isWebMonetizationPlatform}
+                  />
+                </Suspense>
+              ) : null}
+            </Panel>
+            <Panel id="calculator">
+              {activeView === 'calculator' && selectedTemplate ? (
+                <Suspense fallback={<CalculatorPageFallback />}>
+                  <CalculatorPage
+                    template={selectedTemplate}
+                    onOpenAdmin={isViewerGroupAdmin ? openAdminHome : undefined}
+                    currentGroupId={currentGroupId}
+                    canSubmitRequests={canCreateMoreRequests}
+                    requestLimit={requestLimit}
+                    requestsUsedThisMonth={monthlyRequestsUsed}
+                    showBranding={!canHideBranding}
+                    onRequestCreated={(request) =>
+                      persistRequests([
+                        request,
+                        ...requests.filter((item) => item.id !== request.id),
+                      ])
+                    }
+                  />
+                </Suspense>
+              ) : activeView === 'calculator' ? (
+                <div className="calculator-page calculator-page_empty">
+                  <div className="calculator-page__shell">
+                    <div className="calculator-page__hero-copy calculator-page__hero-copy_empty">
+                      <div className="calculator-page__eyebrow">
+                        {currentGroupId > 0
+                          ? '\u041f\u0443\u0431\u043b\u0438\u0447\u043d\u0430\u044f \u0432\u0435\u0440\u0441\u0438\u044f'
+                          : '\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f'}
+                      </div>
+                      <h1 className="calculator-page__title">
+                        {currentGroupId > 0
+                          ? '\u041a\u0430\u043b\u044c\u043a\u0443\u043b\u044f\u0442\u043e\u0440 \u043f\u043e\u043a\u0430 \u043d\u0435 \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d'
+                          : '\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0432 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e'}
+                      </h1>
+                      <p className="calculator-page__description">
+                        {currentGroupId > 0
+                          ? '\u041f\u043e\u0441\u043b\u0435 \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438 \u0441\u043e\u0431\u0440\u0430\u043d\u043d\u044b\u0439 \u043a\u0430\u043b\u044c\u043a\u0443\u043b\u044f\u0442\u043e\u0440 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u0437\u0434\u0435\u0441\u044c \u043a\u0430\u043a \u0433\u043b\u0430\u0432\u043d\u0430\u044f \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0430 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f.'
+                          : '\u0421\u0435\u0439\u0447\u0430\u0441 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u043e\u0442\u043a\u0440\u044b\u0442\u043e \u0432\u043d\u0435 \u0433\u0440\u0443\u043f\u043f\u044b VK. \u0427\u0442\u043e\u0431\u044b \u043f\u043e\u0441\u0435\u0442\u0438\u0442\u0435\u043b\u0438 \u0443\u0432\u0438\u0434\u0435\u043b\u0438 \u043a\u0430\u043b\u044c\u043a\u0443\u043b\u044f\u0442\u043e\u0440, \u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e \u0438 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0442\u0443\u0434\u0430.'}
+                      </p>
+                      {currentGroupId === 0 ? (
+                        <button
+                          className="calculator-page__back"
+                          type="button"
+                          onClick={openCommunityInstall}
+                        >
+                          {'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u0432 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e'}
+                        </button>
+                      ) : isViewerGroupAdmin ? (
+                        <button
+                          className="calculator-page__back"
+                          type="button"
+                          onClick={openAdminHome}
+                        >
+                          {'\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0430\u0434\u043c\u0438\u043d\u043a\u0443'}
+                        </button>
+                      ) : null}
                     </div>
-                    <h1 className="calculator-page__title">
-                      {currentGroupId > 0
-                        ? '\u041a\u0430\u043b\u044c\u043a\u0443\u043b\u044f\u0442\u043e\u0440 \u043f\u043e\u043a\u0430 \u043d\u0435 \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d'
-                        : '\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0432 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e'}
-                    </h1>
-                    <p className="calculator-page__description">
-                      {currentGroupId > 0
-                        ? '\u041f\u043e\u0441\u043b\u0435 \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438 \u0441\u043e\u0431\u0440\u0430\u043d\u043d\u044b\u0439 \u043a\u0430\u043b\u044c\u043a\u0443\u043b\u044f\u0442\u043e\u0440 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u0437\u0434\u0435\u0441\u044c \u043a\u0430\u043a \u0433\u043b\u0430\u0432\u043d\u0430\u044f \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0430 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f.'
-                        : '\u0421\u0435\u0439\u0447\u0430\u0441 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u043e\u0442\u043a\u0440\u044b\u0442\u043e \u0432\u043d\u0435 \u0433\u0440\u0443\u043f\u043f\u044b VK. \u0427\u0442\u043e\u0431\u044b \u043f\u043e\u0441\u0435\u0442\u0438\u0442\u0435\u043b\u0438 \u0443\u0432\u0438\u0434\u0435\u043b\u0438 \u043a\u0430\u043b\u044c\u043a\u0443\u043b\u044f\u0442\u043e\u0440, \u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e \u0438 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0442\u0443\u0434\u0430.'}
-                    </p>
-                    {currentGroupId === 0 ? (
-                      <button
-                        className="calculator-page__back"
-                        type="button"
-                        onClick={openCommunityInstall}
-                      >
-                        {'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u0432 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e'}
-                      </button>
-                    ) : isViewerGroupAdmin ? (
-                      <button
-                        className="calculator-page__back"
-                        type="button"
-                        onClick={openAdminHome}
-                      >
-                        {'\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0430\u0434\u043c\u0438\u043d\u043a\u0443'}
-                      </button>
-                    ) : null}
                   </div>
                 </div>
-              </div>
-            ) : null}
-          </Panel>
-        </View>
-      </SplitCol>
-    </SplitLayout>
+              ) : null}
+            </Panel>
+          </View>
+        </SplitCol>
+      </SplitLayout>
+    </>
   );
 };
 
