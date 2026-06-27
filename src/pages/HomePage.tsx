@@ -1024,7 +1024,7 @@ export const HomePage = ({
 
     const timeoutId = window.setTimeout(() => {
       setSuperAdminTapCount(0);
-    }, 1800);
+    }, 7000);
 
     return () => window.clearTimeout(timeoutId);
   }, [superAdminTapCount]);
@@ -2548,13 +2548,22 @@ export const HomePage = ({
     setSuperAdminStatus(result.message);
   };
 
-  const handleSuperAdminEyebrowClick = () => {
+  const handleSuperAdminSecretTrigger = () => {
     setSuperAdminTapCount((current) => {
       const next = current + 1;
-      if (next >= 5) {
-        setShowResetCommand((value) => !value);
+      if (next >= 3) {
+        setShowResetCommand((value) => {
+          const nextValue = !value;
+          setSuperAdminStatus(
+            nextValue
+              ? 'Скрытая команда открыта. Введите: reset all groups'
+              : 'Скрытая команда скрыта.',
+          );
+          return nextValue;
+        });
         return 0;
       }
+      setSuperAdminStatus(`Секретная команда: ещё ${3 - next} нажатия.`);
       return next;
     });
   };
@@ -3009,13 +3018,18 @@ export const HomePage = ({
         {isSuperAdmin ? (
           <article className="settings-card">
             <button
-              className="settings-card__eyebrow-button"
+              className="superadmin-secret-trigger"
               type="button"
-              onClick={handleSuperAdminEyebrowClick}
+              onClick={handleSuperAdminSecretTrigger}
+              onDoubleClick={() => {
+                setShowResetCommand(true);
+                setSuperAdminTapCount(0);
+                setSuperAdminStatus('Скрытая команда открыта. Введите: reset all groups');
+              }}
             >
-              Супер-админ
+              <span className="settings-card__eyebrow-button">Супер-админ</span>
+              <h2 className="settings-card__title">Ручная выдача тарифа</h2>
             </button>
-            <h2 className="settings-card__title">Ручная выдача тарифа</h2>
             <p className="settings-card__text">
               Здесь можно вручную открыть доступ Start или Pro для любой группы VK по её ID. Блок
               виден только вашему аккаунту.
