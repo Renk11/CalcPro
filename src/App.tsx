@@ -20,13 +20,13 @@ import {
   getRequests,
   getTemplates,
   normalizeTemplateRecord,
+  resetAllCalcProStorage,
   saveAdminSettings,
   saveFolders,
   saveRequests,
   saveTemplates,
   setStorageGroupScope,
   updateRequest,
-  updateRequestStatus,
   upsertFolder,
   upsertTemplate,
 } from './shared/storage/localStorage';
@@ -49,6 +49,7 @@ import type {
   CalculatorAdminSettings,
   CalculatorConnectedCommunity,
   CalculatorFolder,
+  CalculatorRequestHistoryEntry,
   CalculatorRequest,
   CalculatorSubscriptionPlan,
   CalculatorTemplate,
@@ -329,6 +330,18 @@ const getFallbackGroupIdFromLocation = () => {
 
   return 0;
 };
+
+const appendRequestHistoryEntry = (
+  request: CalculatorRequest,
+  entry: Omit<CalculatorRequestHistoryEntry, 'id' | 'createdAt'> & { createdAt?: string },
+) => [
+  ...(request.history ?? []),
+  {
+    id: crypto.randomUUID(),
+    createdAt: entry.createdAt ?? new Date().toISOString(),
+    ...entry,
+  },
+];
 
 const App = () => {
   const [activeView, setActiveView] = useState<AppView>('calculator');
@@ -978,6 +991,63 @@ const App = () => {
     }
   };
 
+  const handleResetAllGroups = async (confirmation: string) => {
+    if (!isSuperAdmin || !adminProfile.id) {
+      return {
+        ok: false,
+        message: 'Недостаточно прав для полного сброса.',
+        clearedGroupIds: [],
+      };
+    }
+
+    try {
+      const response = await fetch('/api/admin-settings?action=reset-all-groups', {
+        method: 'POST',
+        headers: createJsonHeaders(),
+        body: JSON.stringify({
+          confirmation,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            ok?: boolean;
+            data?: { clearedGroupIds?: number[]; matchedKeys?: number };
+            error?: string;
+          }
+        | null;
+
+      if (!response.ok || !payload?.ok || !payload.data) {
+        throw new Error(payload?.error || 'Не удалось выполнить массовый сброс.');
+      }
+
+      resetAllCalcProStorage();
+      setConnectedCommunities([]);
+      setTemplates([]);
+      setFolders([]);
+      setRequests([]);
+      setAdminSettings(getAdminSettings());
+      setSelectedTemplate(undefined);
+      setActiveFolderId('all');
+      setActiveAdminGroupId(currentGroupId > 0 ? currentGroupId : 0);
+      setPaymentStatus({
+        tone: 'success',
+        message: `Сброс выполнен. Очищено групп: ${payload.data.clearedGroupIds?.length ?? 0}, ключей: ${payload.data.matchedKeys ?? 0}.`,
+      });
+
+      return {
+        ok: true,
+        message: `Очищено групп: ${payload.data.clearedGroupIds?.length ?? 0}.`,
+        clearedGroupIds: payload.data.clearedGroupIds ?? [],
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : 'Не удалось выполнить массовый сброс.',
+        clearedGroupIds: [],
+      };
+    }
+  };
+
   const persistAdminSettings = (settings: CalculatorAdminSettings) => {
     saveAdminSettings(settings);
     setAdminSettings(settings);
@@ -1025,44 +1095,12 @@ const App = () => {
     });
   };
 
-  const handleUpdateRequestStatus = (
-    requestId: string,
-    status: CalculatorRequest['status'],
-  ) => {
-    const next = updateRequestStatus(requestId, status);
-    setRequests(next);
+  const syncRequestPatchToServer = (requestId: string, patch: Partial<CalculatorRequest>) => {
+    const query =
+      effectiveAdminGroupId > 0
+        ? `?groupId=${effectiveAdminGroupId}&action=update`
+        : '?action=update';
 
-    const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}&action=update` : '?action=update';
-    fetch(`/api/requests${query}`, {
-      method: 'POST',
-      headers: createJsonHeaders(),
-      body: JSON.stringify({
-        groupId: effectiveAdminGroupId,
-        requestId,
-        patch: { status },
-      }),
-    })
-      .then((response) => response.json().catch(() => null))
-      .then((payload: { ok?: boolean; data?: CalculatorRequest[] } | null) => {
-        if (payload?.ok && Array.isArray(payload.data)) {
-          persistRequests(payload.data);
-        }
-      })
-      .catch(() => {
-        // Keep local request status when server sync fails.
-      });
-  };
-
-  const handleUpdateRequest = (
-    requestId: string,
-    patch: Partial<
-      Pick<CalculatorRequest, 'name' | 'phone' | 'comment' | 'amount' | 'status'>
-    >,
-  ) => {
-    const next = updateRequest(requestId, patch);
-    setRequests(next);
-
-    const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}&action=update` : '?action=update';
     fetch(`/api/requests${query}`, {
       method: 'POST',
       headers: createJsonHeaders(),
@@ -1079,8 +1117,129 @@ const App = () => {
         }
       })
       .catch(() => {
-        // Keep local request edits when server sync fails.
+        // Keep local request changes when server sync fails.
       });
+  };
+
+  const updateRequestWithHistory = (
+    requestId: string,
+    buildPatch: (request: CalculatorRequest) => Partial<CalculatorRequest> | null,
+  ) => {
+    const currentRequest = requests.find((request) => request.id === requestId);
+    if (!currentRequest) {
+      return;
+    }
+
+    const patch = buildPatch(currentRequest);
+    if (!patch) {
+      return;
+    }
+
+    const next = updateRequest(requestId, patch);
+    setRequests(next);
+    syncRequestPatchToServer(requestId, patch);
+  };
+
+  const handleUpdateRequestStatus = (
+    requestId: string,
+    status: CalculatorRequest['status'],
+  ) => {
+    updateRequestWithHistory(requestId, (request) => {
+      if (request.status === status) {
+        return null;
+      }
+
+      return {
+        status,
+        updatedAt: new Date().toISOString(),
+        history: appendRequestHistoryEntry(request, {
+          type: 'status_changed',
+          message: `Статус изменён: ${request.status} -> ${status}`,
+          author: currentAdminLabel,
+        }),
+      };
+    });
+  };
+
+  const handleUpdateRequest = (
+    requestId: string,
+    patch: Partial<
+      Pick<
+        CalculatorRequest,
+        'name' | 'phone' | 'comment' | 'amount' | 'status' | 'assignedTo' | 'updatedAt'
+      >
+    > & {
+      internalComments?: CalculatorRequest['internalComments'];
+      history?: CalculatorRequest['history'];
+    },
+  ) => {
+    updateRequestWithHistory(requestId, (request) => {
+      const updatedAt = patch.updatedAt ?? new Date().toISOString();
+      const nextPatch: Partial<CalculatorRequest> = {
+        ...patch,
+        updatedAt,
+      };
+      const history: CalculatorRequestHistoryEntry[] = [];
+      const hasChanged =
+        ('assignedTo' in patch && (patch.assignedTo ?? '') !== (request.assignedTo ?? '')) ||
+        ('name' in patch && patch.name !== request.name) ||
+        ('phone' in patch && patch.phone !== request.phone) ||
+        ('comment' in patch && patch.comment !== request.comment) ||
+        ('amount' in patch && patch.amount !== request.amount) ||
+        ('status' in patch && patch.status !== request.status) ||
+        ('internalComments' in patch &&
+          JSON.stringify(patch.internalComments ?? []) !==
+            JSON.stringify(request.internalComments ?? [])) ||
+        ('history' in patch &&
+          JSON.stringify(patch.history ?? []) !== JSON.stringify(request.history ?? []));
+
+      if (!hasChanged) {
+        return null;
+      }
+
+      if ('assignedTo' in patch && (patch.assignedTo ?? '') !== (request.assignedTo ?? '')) {
+        history.push({
+          id: crypto.randomUUID(),
+          type: 'assigned',
+          message: patch.assignedTo
+            ? `Ответственный назначен: ${patch.assignedTo}`
+            : 'Ответственный снят',
+          author: currentAdminLabel,
+          createdAt: updatedAt,
+        });
+      }
+
+      if (
+        ('name' in patch && patch.name !== request.name) ||
+        ('phone' in patch && patch.phone !== request.phone) ||
+        ('comment' in patch && patch.comment !== request.comment) ||
+        ('amount' in patch && patch.amount !== request.amount)
+      ) {
+        history.push({
+          id: crypto.randomUUID(),
+          type: 'updated',
+          message: 'Карточка заявки обновлена',
+          author: currentAdminLabel,
+          createdAt: updatedAt,
+        });
+      }
+
+      if ('status' in patch && patch.status && patch.status !== request.status) {
+        history.push({
+          id: crypto.randomUUID(),
+          type: 'status_changed',
+          message: `Статус изменён: ${request.status} -> ${patch.status}`,
+          author: currentAdminLabel,
+          createdAt: updatedAt,
+        });
+      }
+
+      if (history.length > 0) {
+        nextPatch.history = [...(request.history ?? []), ...history];
+      }
+
+      return nextPatch;
+    });
   };
 
   const clearPaymentIdFromUrl = () => {
@@ -1182,19 +1341,6 @@ const App = () => {
       );
       return;
     }
-
-    fetch('/api/communities?action=notify-connect-start', {
-      method: 'POST',
-      headers: createJsonHeaders(),
-      body: JSON.stringify({
-        groupId: addedGroupId,
-        fallbackGroupId: currentGroupId,
-        platform: launchParams?.vk_platform ?? '',
-        pathname: typeof window !== 'undefined' ? window.location.pathname : '',
-      }),
-    }).catch(() => {
-      // Skip notification failures and continue the install flow.
-    });
 
     try {
       if (addedGroupId > 0) {
@@ -1837,6 +1983,7 @@ const App = () => {
                   canUseRequestStatuses={canUseRequestStatuses}
                   canUseFolders={canUseFolders}
                   onGrantProAccess={handleGrantProAccess}
+                  onResetAllGroups={handleResetAllGroups}
                   isProcessingPayment={isProcessingPayment}
                   paymentStatus={paymentStatus}
                   canManageMonetization={isWebMonetizationPlatform}

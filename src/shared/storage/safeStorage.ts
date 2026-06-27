@@ -54,3 +54,30 @@ export const removeStorageItem = (key: string) => {
     // Ignore storage removal errors in restricted iframe environments.
   }
 };
+
+export const clearStorageByPrefix = (prefix: string) => {
+  [...memoryStorage.keys()]
+    .filter((key) => key.startsWith(prefix))
+    .forEach((key) => {
+      memoryStorage.delete(key);
+    });
+
+  const storage = getBrowserStorage();
+  if (!storage) {
+    return;
+  }
+
+  try {
+    const keysToRemove: string[] = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key && key.startsWith(prefix)) {
+        keysToRemove.push(key);
+      }
+    }
+
+    keysToRemove.forEach((key) => storage.removeItem(key));
+  } catch {
+    // Ignore storage cleanup errors in restricted iframe environments.
+  }
+};

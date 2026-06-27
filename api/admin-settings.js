@@ -7,6 +7,7 @@ import {
   getSubscriptionPlanConfig,
 } from '../server/subscription-config.js';
 import { getViewerCommunities } from '../server/community-store.js';
+import { resetAllGroupsData } from '../server/group-reset.js';
 
 const DEFAULT_SUPER_ADMIN_IDS = ['139346496'];
 
@@ -161,6 +162,29 @@ export default async function handler(request, response) {
         );
 
         return sendJson(response, 200, { ok: true, data: settings });
+      }
+
+      if (action === 'reset-all-groups') {
+        const auth = requireTrustedViewerContext(request, response);
+        if (!auth) {
+          return undefined;
+        }
+
+        const viewerId = String(auth.viewerId || '').trim();
+        if (!isSuperAdmin(viewerId)) {
+          return sendJson(response, 403, { ok: false, error: 'Super admin access required' });
+        }
+
+        const confirmation = String(incomingSettings.confirmation || '').trim().toLowerCase();
+        if (confirmation !== 'reset all groups') {
+          return sendJson(response, 400, {
+            ok: false,
+            error: 'Confirmation phrase must be "reset all groups"',
+          });
+        }
+
+        const result = await resetAllGroupsData();
+        return sendJson(response, 200, { ok: true, data: result });
       }
 
       const auth = await requireWorkspaceCommunityAdmin(request, response, groupId);

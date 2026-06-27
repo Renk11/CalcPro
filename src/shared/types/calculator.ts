@@ -279,6 +279,21 @@ export interface CalculationResult {
   breakdown: CalculationBreakdownItem[];
 }
 
+export interface CalculatorRequestComment {
+  id: string;
+  text: string;
+  author: string;
+  createdAt: string;
+}
+
+export interface CalculatorRequestHistoryEntry {
+  id: string;
+  type: 'created' | 'status_changed' | 'assigned' | 'updated' | 'comment_added';
+  message: string;
+  author: string;
+  createdAt: string;
+}
+
 export interface CalculatorRequest {
   id: string;
   templateId: string;
@@ -289,6 +304,10 @@ export interface CalculatorRequest {
   comment: string;
   amount: number;
   createdAt: string;
+  updatedAt?: string;
+  assignedTo?: string;
+  internalComments?: CalculatorRequestComment[];
+  history?: CalculatorRequestHistoryEntry[];
   values: CalculatorValues;
   details?: Array<{
     key: string;

@@ -50,6 +50,22 @@ function parseRequestPatch(rawValue) {
         : 'new';
   }
 
+  if ('assignedTo' in patch) {
+    nextPatch.assignedTo = String(patch.assignedTo || '');
+  }
+
+  if ('updatedAt' in patch) {
+    nextPatch.updatedAt = String(patch.updatedAt || new Date().toISOString());
+  }
+
+  if ('internalComments' in patch && Array.isArray(patch.internalComments)) {
+    nextPatch.internalComments = patch.internalComments;
+  }
+
+  if ('history' in patch && Array.isArray(patch.history)) {
+    nextPatch.history = patch.history;
+  }
+
   return nextPatch;
 }
 

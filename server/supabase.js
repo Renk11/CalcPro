@@ -65,3 +65,12 @@ export async function supabaseUpdate(table, filter, patch) {
     prefer: 'return=representation',
   });
 }
+
+export async function supabaseDelete(table, filter) {
+  const query = new URLSearchParams();
+  query.append(filter.key, filter.value);
+  return requestSupabase(`${table}?${query.toString()}`, {
+    method: 'DELETE',
+    prefer: 'return=representation',
+  });
+}

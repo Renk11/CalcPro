@@ -73,8 +73,14 @@ interface HomePageProps {
   onUpdateRequest: (
     requestId: string,
     patch: Partial<
-      Pick<CalculatorRequest, 'name' | 'phone' | 'comment' | 'amount' | 'status'>
-    >,
+      Pick<
+        CalculatorRequest,
+        'name' | 'phone' | 'comment' | 'amount' | 'status' | 'assignedTo' | 'updatedAt'
+      >
+    > & {
+      internalComments?: CalculatorRequest['internalComments'];
+      history?: CalculatorRequest['history'];
+    },
   ) => void;
   onDeleteRequest: (requestId: string) => void;
   onToggleAdminNav: () => void;
@@ -117,6 +123,9 @@ interface HomePageProps {
     plan: CalculatorSubscriptionPlan,
     days?: number,
   ) => Promise<{ ok: boolean; message: string }>;
+  onResetAllGroups: (
+    confirmation: string,
+  ) => Promise<{ ok: boolean; message: string; clearedGroupIds?: number[] }>;
   isProcessingPayment: boolean;
   paymentStatus: {
     tone: 'neutral' | 'success' | 'error';
@@ -656,11 +665,16 @@ const categoryLabels: Record<'all' | TemplateCatalogCategory, string> = {
 };
 
 const visualSymbols: Record<TemplateCatalogPreset['visual'], string> = {
-  repair: 'House',
-  delivery: 'Box',
+  ceiling: 'Line',
+  stretch: 'Glow',
+  repair: 'Build',
+  delivery: 'Route',
+  cleaning: 'Clean',
   mortgage: 'Home',
   credit: 'Card',
-  windows: 'Grid',
+  windows: 'View',
+  kitchen: 'Cook',
+  furniture: 'Form',
 };
 
 const analyticsRangeLabels: Record<AnalyticsRange, string> = {
@@ -844,6 +858,7 @@ export const HomePage = ({
   onStartPayment,
   onInstallInCommunity,
   onGrantProAccess,
+  onResetAllGroups,
   isProcessingPayment,
   paymentStatus,
   canManageMonetization,
@@ -872,12 +887,17 @@ export const HomePage = ({
   );
   const [pendingDeleteRequest, setPendingDeleteRequest] = useState<CalculatorRequest | null>(null);
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+  const [expandedRequestIds, setExpandedRequestIds] = useState<string[]>([]);
   const [requestDraft, setRequestDraft] = useState({
     name: '',
     phone: '',
     amount: '',
     comment: '',
   });
+  const [requestSearch, setRequestSearch] = useState('');
+  const [requestStatusFilter, setRequestStatusFilter] = useState<'all' | CalculatorRequestStatus>('all');
+  const [requestAssignedFilter, setRequestAssignedFilter] = useState('all');
+  const [requestCommentDraft, setRequestCommentDraft] = useState<Record<string, string>>({});
   const [managerVkId, setManagerVkId] = useState(adminSettings.managerVkId);
   const [superAdminGroupId, setSuperAdminGroupId] = useState(
     currentGroupId > 0 ? String(currentGroupId) : '',
@@ -885,6 +905,9 @@ export const HomePage = ({
   const [superAdminPlan, setSuperAdminPlan] = useState<CalculatorSubscriptionPlan>('pro');
   const [superAdminDays, setSuperAdminDays] = useState('30');
   const [superAdminStatus, setSuperAdminStatus] = useState('');
+  const [showResetCommand, setShowResetCommand] = useState(false);
+  const [resetCommandValue, setResetCommandValue] = useState('');
+  const [superAdminTapCount, setSuperAdminTapCount] = useState(0);
   const [supportTickets, setSupportTickets] = useState<CalculatorSupportTicket[]>(() =>
     getSupportTickets(),
   );
@@ -995,6 +1018,18 @@ export const HomePage = ({
   }, [currentGroupId]);
 
   useEffect(() => {
+    if (superAdminTapCount === 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSuperAdminTapCount(0);
+    }, 1800);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [superAdminTapCount]);
+
+  useEffect(() => {
     const currentFolder = folders.find((folder) => folder.id === activeFolderId);
     if (currentFolder && currentFolder.name === 'Новая папка') {
       setEditingFolderId(currentFolder.id);
@@ -1023,13 +1058,42 @@ export const HomePage = ({
     () => faqTopics.find((topic) => topic.id === selectedFaqTopicId) ?? faqTopics[0],
     [selectedFaqTopicId],
   );
-  const latestRequests = useMemo(
+  const requestAssignees = useMemo(
     () =>
-      [...requests]
-        .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
-        .slice(0, 8),
+      [...new Set(requests.map((request) => (request.assignedTo ?? '').trim()).filter(Boolean))].sort(
+        (left, right) => left.localeCompare(right, 'ru'),
+      ),
     [requests],
   );
+  const filteredRequests = useMemo(() => {
+    const normalizedQuery = requestSearch.trim().toLowerCase();
+
+    return [...requests]
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+      .filter((request) => {
+        const matchesStatus =
+          requestStatusFilter === 'all' ? true : request.status === requestStatusFilter;
+        const matchesAssignee =
+          requestAssignedFilter === 'all'
+            ? true
+            : (request.assignedTo ?? '').trim() === requestAssignedFilter;
+        const haystack = [
+          request.templateTitle,
+          request.name,
+          request.phone,
+          request.comment,
+          request.assignedTo ?? '',
+          ...(request.details ?? []).map((item) => `${item.label} ${item.value}`),
+          ...(request.internalComments ?? []).map((item) => item.text),
+          ...(request.history ?? []).map((item) => item.message),
+        ]
+          .join(' ')
+          .toLowerCase();
+        const matchesQuery = normalizedQuery.length === 0 || haystack.includes(normalizedQuery);
+
+        return matchesStatus && matchesAssignee && matchesQuery;
+      });
+  }, [requestAssignedFilter, requestSearch, requestStatusFilter, requests]);
   const canEditRequests = currentPlan.id === 'pro';
 
   useEffect(() => {
@@ -1042,6 +1106,12 @@ export const HomePage = ({
       setEditingRequestId(null);
     }
   }, [editingRequestId, requests]);
+
+  useEffect(() => {
+    setExpandedRequestIds((current) =>
+      current.filter((requestId) => requests.some((request) => request.id === requestId)),
+    );
+  }, [requests]);
 
   const startRequestEditing = (request: CalculatorRequest) => {
     setEditingRequestId(request.id);
@@ -1063,6 +1133,14 @@ export const HomePage = ({
     });
   };
 
+  const toggleRequestExpanded = (requestId: string) => {
+    setExpandedRequestIds((current) =>
+      current.includes(requestId)
+        ? current.filter((item) => item !== requestId)
+        : [...current, requestId],
+    );
+  };
+
   const saveRequestEditing = (request: CalculatorRequest) => {
     const normalizedAmount = Number(requestDraft.amount.replace(',', '.'));
     onUpdateRequest(request.id, {
@@ -1072,6 +1150,43 @@ export const HomePage = ({
       comment: requestDraft.comment.trim(),
     });
     cancelRequestEditing();
+  };
+
+  const addInternalRequestComment = (request: CalculatorRequest) => {
+    const text = (requestCommentDraft[request.id] ?? '').trim();
+    if (!text) {
+      return;
+    }
+
+    const createdAt = new Date().toISOString();
+    const nextComments = [
+      ...(request.internalComments ?? []),
+      {
+        id: crypto.randomUUID(),
+        text,
+        author: currentAdminLabel,
+        createdAt,
+      },
+    ];
+
+    onUpdateRequest(request.id, {
+      internalComments: nextComments,
+      updatedAt: createdAt,
+      history: [
+        ...(request.history ?? []),
+        {
+          id: crypto.randomUUID(),
+          type: 'comment_added',
+          message: 'Добавлен внутренний комментарий',
+          author: currentAdminLabel,
+          createdAt,
+        },
+      ],
+    });
+    setRequestCommentDraft((current) => ({ ...current, [request.id]: '' }));
+    if (!expandedRequestIds.includes(request.id)) {
+      setExpandedRequestIds((current) => [...current, request.id]);
+    }
   };
   const subscriptionPaidUntilLabel = formatSubscriptionDate(adminSettings.subscription.paidUntil);
   const subscriptionDaysLeft = useMemo(() => {
@@ -1743,8 +1858,8 @@ export const HomePage = ({
             <div className="templates-hub__eyebrow">Каталог шаблонов</div>
             <h2 className="templates-hub__title">Выберите основу и настройте под себя</h2>
             <p className="templates-hub__text">
-              Быстрый старт для популярных сценариев: доставка, строительство, финансы и
-              услуги.
+              Быстрый старт для популярных ниш: потолки, окна, кухни, ремонт, доставка,
+              мебель, натяжные потолки и клининг.
             </p>
           </div>
           <button
@@ -2433,6 +2548,36 @@ export const HomePage = ({
     setSuperAdminStatus(result.message);
   };
 
+  const handleSuperAdminEyebrowClick = () => {
+    setSuperAdminTapCount((current) => {
+      const next = current + 1;
+      if (next >= 5) {
+        setShowResetCommand((value) => !value);
+        return 0;
+      }
+      return next;
+    });
+  };
+
+  const handleResetAllGroupsSubmit = async () => {
+    if (resetCommandValue.trim().toLowerCase() !== 'reset all groups') {
+      setSuperAdminStatus('Для сброса введите команду: reset all groups');
+      return;
+    }
+
+    const result = await onResetAllGroups(resetCommandValue.trim());
+    setSuperAdminStatus(
+      result.ok && result.clearedGroupIds?.length
+        ? `${result.message} ID: ${result.clearedGroupIds.join(', ')}`
+        : result.message,
+    );
+
+    if (result.ok) {
+      setResetCommandValue('');
+      setShowResetCommand(false);
+    }
+  };
+
   const renderRequestsSection = () => (
     <main className="admin-home__content admin-home__content_wide">
       <div className="admin-home__content-head">
@@ -2443,165 +2588,367 @@ export const HomePage = ({
 
       <section className="settings-section">
         <article className="settings-card settings-card_requests">
-          <div className="settings-card__eyebrow">Заявки</div>
-          <h2 className="settings-card__title">Статусы и обработка обращений</h2>
+          <div className="settings-card__eyebrow">CRM</div>
+          <h2 className="settings-card__title">Статусы, ответственные и история работы</h2>
           <p className="settings-card__text">
-            На тарифах Start и Pro можно отмечать новые, активные и закрытые заявки, чтобы не
-            терять обработку лидов.
+            Разбирайте входящие заявки как мини-воронку: назначайте ответственного, оставляйте
+            внутренние заметки, ищите по базе и смотрите историю изменений по каждой карточке.
           </p>
           <div className="settings-form__hint settings-form__hint_warning">
             Удаление заявки очищает её из списка, но не уменьшает счётчик использованных заявок в
             лимите текущего тарифа.
           </div>
 
-	          {!canUseRequestStatuses ? (
-	            <div className="settings-form__hint">
-	              Статусы заявок доступны на тарифах Start и Pro.
-	            </div>
-	          ) : latestRequests.length === 0 ? (
-	            <div className="settings-form__hint">
-	              Пока нет заявок, которые можно разобрать по статусам.
-	            </div>
-	          ) : (
-	            <div className="settings-support__tickets">
-	              {!canEditRequests ? (
-	                <div className="settings-form__hint">
-	                  Редактирование заявки доступно только на тарифе Pro.
-	                </div>
-	              ) : null}
-	              {latestRequests.map((request) => (
-	                <div key={request.id} className="settings-support__ticket">
-                  <div className="settings-support__ticket-head">
-                    <div className="settings-support__ticket-head-main">
-                      <strong>{request.templateTitle}</strong>
-                      <span
-                        className={`settings-support__status settings-support__status_${request.status === 'done' ? 'reviewed' : request.status === 'rejected' ? 'rejected' : 'pending'}`}
-                      >
-                        {requestStatusLabels[request.status]}
-                      </span>
-                    </div>
-                    <span>
-                      {new Date(request.createdAt).toLocaleDateString('ru-RU')}{' '}
-                      {new Date(request.createdAt).toLocaleTimeString('ru-RU', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-                  <div className="settings-support__note">
-                    {request.name} · {request.phone}
-                  </div>
-	                  <div className="settings-support__note">
-	                    Сумма: {formatCurrency(request.amount)}
-	                  </div>
-	                  {request.comment ? (
-	                    <div className="settings-support__ticket-message settings-support__ticket-message_expanded">
-	                      {request.comment}
-	                    </div>
-	                  ) : null}
-	                  {editingRequestId === request.id ? (
-	                    <>
-	                      <label className="settings-support__status-control">
-	                        <span className="settings-support__label">Имя</span>
-	                        <input
-	                          className="settings-support__input"
-	                          value={requestDraft.name}
-	                          onChange={(event) =>
-	                            setRequestDraft((current) => ({ ...current, name: event.target.value }))
-	                          }
-	                        />
-	                      </label>
-	                      <label className="settings-support__status-control">
-	                        <span className="settings-support__label">Телефон</span>
-	                        <input
-	                          className="settings-support__input"
-	                          value={requestDraft.phone}
-	                          onChange={(event) =>
-	                            setRequestDraft((current) => ({ ...current, phone: event.target.value }))
-	                          }
-	                        />
-	                      </label>
-	                      <label className="settings-support__status-control">
-	                        <span className="settings-support__label">Сумма</span>
-	                        <input
-	                          className="settings-support__input"
-	                          inputMode="decimal"
-	                          value={requestDraft.amount}
-	                          onChange={(event) =>
-	                            setRequestDraft((current) => ({ ...current, amount: event.target.value }))
-	                          }
-	                        />
-	                      </label>
-	                      <label className="settings-support__status-control">
-	                        <span className="settings-support__label">Комментарий</span>
-	                        <textarea
-	                          className="settings-support__textarea settings-support__textarea_compact"
-	                          value={requestDraft.comment}
-	                          onChange={(event) =>
-	                            setRequestDraft((current) => ({
-	                              ...current,
-	                              comment: event.target.value,
-	                            }))
-	                          }
-	                        />
-	                      </label>
-	                    </>
-	                  ) : null}
-	                  <label className="settings-support__status-control">
-	                    <span className="settings-support__label">Статус</span>
-	                    <select
-                      className="settings-support__input"
-                      value={request.status}
-                      onChange={(event) =>
-                        onUpdateRequestStatus(request.id, event.target.value as CalculatorRequestStatus)
-                      }
-                    >
-                      <option value="new">Новая</option>
-                      <option value="in_progress">В работе</option>
-	                      <option value="done">Закрыта</option>
-	                      <option value="rejected">Отклонена</option>
-	                    </select>
-	                  </label>
-	                  {canEditRequests ? (
-	                    <div className="settings-support__button-row">
-	                      {editingRequestId === request.id ? (
-	                        <>
-	                          <button
-	                            className="settings-support__button"
-	                            type="button"
-	                            onClick={() => saveRequestEditing(request)}
-	                          >
-	                            Сохранить
-	                          </button>
-	                          <button
-	                            className="settings-support__button settings-support__button_secondary"
-	                            type="button"
-	                            onClick={cancelRequestEditing}
-	                          >
-	                            Отмена
-	                          </button>
-	                        </>
-	                      ) : (
-	                        <button
-	                          className="settings-support__button settings-support__button_secondary"
-	                          type="button"
-	                          onClick={() => startRequestEditing(request)}
-	                        >
-	                          Редактировать
-	                        </button>
-	                      )}
-	                    </div>
-	                  ) : null}
-	                  <button
-	                    className="settings-support__button settings-support__button_danger"
-	                    type="button"
-                    onClick={() => setPendingDeleteRequest(request)}
-                  >
-                    Удалить заявку
-                  </button>
-                </div>
-              ))}
+          {!canUseRequestStatuses ? (
+            <div className="settings-form__hint">
+              CRM-обработка заявок доступна на тарифах Start и Pro.
             </div>
+          ) : (
+            <>
+              {!canEditRequests ? (
+                <div className="settings-form__hint">
+                  Полное редактирование карточки, ответственный и внутренние комментарии доступны
+                  на тарифе Pro.
+                </div>
+              ) : null}
+
+              <div className="crm-requests__toolbar">
+                <label className="crm-requests__search">
+                  <Icon16SearchOutline />
+                  <input
+                    className="crm-requests__search-input"
+                    type="search"
+                    placeholder="Поиск по имени, телефону, калькулятору, заметкам"
+                    value={requestSearch}
+                    onChange={(event) => setRequestSearch(event.target.value)}
+                  />
+                </label>
+
+                <select
+                  className="crm-requests__filter"
+                  value={requestStatusFilter}
+                  onChange={(event) =>
+                    setRequestStatusFilter(event.target.value as 'all' | CalculatorRequestStatus)
+                  }
+                >
+                  <option value="all">Все статусы</option>
+                  <option value="new">Новая</option>
+                  <option value="in_progress">В работе</option>
+                  <option value="done">Закрыта</option>
+                  <option value="rejected">Отклонена</option>
+                </select>
+
+                <select
+                  className="crm-requests__filter"
+                  value={requestAssignedFilter}
+                  onChange={(event) => setRequestAssignedFilter(event.target.value)}
+                >
+                  <option value="all">Все ответственные</option>
+                  {requestAssignees.map((assignee) => (
+                    <option key={assignee} value={assignee}>
+                      {assignee}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="crm-requests__summary">
+                <span>Найдено: {filteredRequests.length}</span>
+                <span>Новых: {requests.filter((request) => request.status === 'new').length}</span>
+                <span>В работе: {requests.filter((request) => request.status === 'in_progress').length}</span>
+              </div>
+
+              {!filteredRequests.length ? (
+                <div className="settings-form__hint">
+                  По текущим фильтрам заявок не найдено.
+                </div>
+              ) : (
+                <div className="crm-requests__list">
+                  {filteredRequests.map((request) => {
+                    const isEditing = editingRequestId === request.id;
+                    const isExpanded = expandedRequestIds.includes(request.id);
+
+                    return (
+                      <article key={request.id} className="crm-request-card">
+                        <div className="crm-request-card__head">
+                          <div>
+                            <div className="crm-request-card__title-row">
+                              <strong>{request.templateTitle}</strong>
+                              <span
+                                className={`settings-support__status settings-support__status_${request.status === 'done' ? 'reviewed' : request.status === 'rejected' ? 'rejected' : 'pending'}`}
+                              >
+                                {requestStatusLabels[request.status]}
+                              </span>
+                            </div>
+                            <div className="crm-request-card__meta">
+                              {request.name} · {request.phone}
+                            </div>
+                          </div>
+
+                          <div className="crm-request-card__side">
+                            <div>{formatCurrency(request.amount)}</div>
+                            <div>
+                              {new Date(request.createdAt).toLocaleDateString('ru-RU')}{' '}
+                              {new Date(request.createdAt).toLocaleTimeString('ru-RU', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="crm-request-card__chips">
+                          <span className="crm-request-card__chip">
+                            Ответственный: {request.assignedTo?.trim() || 'Не назначен'}
+                          </span>
+                          <span className="crm-request-card__chip">
+                            История: {request.history?.length ?? 0}
+                          </span>
+                          <span className="crm-request-card__chip">
+                            Комментарии: {request.internalComments?.length ?? 0}
+                          </span>
+                        </div>
+
+                        {request.comment ? (
+                          <div className="settings-support__ticket-message settings-support__ticket-message_expanded">
+                            {request.comment}
+                          </div>
+                        ) : null}
+
+                        {isEditing ? (
+                          <div className="crm-request-card__grid">
+                            <label className="settings-support__status-control">
+                              <span className="settings-support__label">Имя</span>
+                              <input
+                                className="settings-support__input"
+                                value={requestDraft.name}
+                                onChange={(event) =>
+                                  setRequestDraft((current) => ({ ...current, name: event.target.value }))
+                                }
+                              />
+                            </label>
+                            <label className="settings-support__status-control">
+                              <span className="settings-support__label">Телефон</span>
+                              <input
+                                className="settings-support__input"
+                                value={requestDraft.phone}
+                                onChange={(event) =>
+                                  setRequestDraft((current) => ({ ...current, phone: event.target.value }))
+                                }
+                              />
+                            </label>
+                            <label className="settings-support__status-control">
+                              <span className="settings-support__label">Сумма</span>
+                              <input
+                                className="settings-support__input"
+                                inputMode="decimal"
+                                value={requestDraft.amount}
+                                onChange={(event) =>
+                                  setRequestDraft((current) => ({ ...current, amount: event.target.value }))
+                                }
+                              />
+                            </label>
+                            <label className="settings-support__status-control">
+                              <span className="settings-support__label">Комментарий клиента</span>
+                              <textarea
+                                className="settings-support__textarea settings-support__textarea_compact"
+                                value={requestDraft.comment}
+                                onChange={(event) =>
+                                  setRequestDraft((current) => ({
+                                    ...current,
+                                    comment: event.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
+                          </div>
+                        ) : null}
+
+                        <div className="crm-request-card__controls">
+                          <label className="settings-support__status-control">
+                            <span className="settings-support__label">Статус</span>
+                            <select
+                              className="settings-support__input"
+                              value={request.status}
+                              onChange={(event) =>
+                                onUpdateRequestStatus(
+                                  request.id,
+                                  event.target.value as CalculatorRequestStatus,
+                                )
+                              }
+                            >
+                              <option value="new">Новая</option>
+                              <option value="in_progress">В работе</option>
+                              <option value="done">Закрыта</option>
+                              <option value="rejected">Отклонена</option>
+                            </select>
+                          </label>
+
+                          <label className="settings-support__status-control">
+                            <span className="settings-support__label">Ответственный</span>
+                            <input
+                              key={`${request.id}-${request.assignedTo ?? ''}`}
+                              className="settings-support__input"
+                              placeholder={canEditRequests ? 'Имя менеджера' : 'Доступно на Pro'}
+                              disabled={!canEditRequests}
+                              defaultValue={request.assignedTo ?? ''}
+                              onBlur={(event) =>
+                                onUpdateRequest(request.id, {
+                                  assignedTo: event.target.value.trim(),
+                                })
+                              }
+                            />
+                          </label>
+                        </div>
+
+                        <div className="crm-request-card__actions">
+                          {canEditRequests ? (
+                            isEditing ? (
+                              <>
+                                <button
+                                  className="settings-support__button"
+                                  type="button"
+                                  onClick={() => saveRequestEditing(request)}
+                                >
+                                  Сохранить
+                                </button>
+                                <button
+                                  className="settings-support__button settings-support__button_secondary"
+                                  type="button"
+                                  onClick={cancelRequestEditing}
+                                >
+                                  Отмена
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                className="settings-support__button settings-support__button_secondary"
+                                type="button"
+                                onClick={() => startRequestEditing(request)}
+                              >
+                                Редактировать
+                              </button>
+                            )
+                          ) : null}
+                          <button
+                            className="settings-support__button settings-support__button_secondary"
+                            type="button"
+                            onClick={() => toggleRequestExpanded(request.id)}
+                          >
+                            {isExpanded ? 'Скрыть детали' : 'Открыть детали'}
+                          </button>
+                          <button
+                            className="settings-support__button settings-support__button_danger"
+                            type="button"
+                            onClick={() => setPendingDeleteRequest(request)}
+                          >
+                            Удалить
+                          </button>
+                        </div>
+
+                        {isExpanded ? (
+                          <div className="crm-request-card__details">
+                            {request.details?.length ? (
+                              <div className="crm-request-card__block">
+                                <div className="crm-request-card__block-title">Параметры заявки</div>
+                                <div className="crm-request-card__details-list">
+                                  {request.details.map((detail) => (
+                                    <div key={`${request.id}-${detail.key}-${detail.label}`} className="crm-request-card__details-item">
+                                      <span>{detail.label}</span>
+                                      <strong>{detail.value}</strong>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+
+                            <div className="crm-request-card__block">
+                              <div className="crm-request-card__block-title">Внутренние комментарии</div>
+                              {request.internalComments?.length ? (
+                                <div className="crm-request-card__timeline">
+                                  {request.internalComments.map((item) => (
+                                    <div key={item.id} className="crm-request-card__timeline-item">
+                                      <div className="crm-request-card__timeline-head">
+                                        <strong>{item.author}</strong>
+                                        <span>
+                                          {new Date(item.createdAt).toLocaleDateString('ru-RU')}{' '}
+                                          {new Date(item.createdAt).toLocaleTimeString('ru-RU', {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                          })}
+                                        </span>
+                                      </div>
+                                      <div>{item.text}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="settings-form__hint">Внутренних комментариев пока нет.</div>
+                              )}
+
+                              <div className="crm-request-card__comment-form">
+                                <textarea
+                                  className="settings-support__textarea settings-support__textarea_compact"
+                                  placeholder={canEditRequests ? 'Добавить внутренний комментарий' : 'Доступно на Pro'}
+                                  disabled={!canEditRequests}
+                                  value={requestCommentDraft[request.id] ?? ''}
+                                  onChange={(event) =>
+                                    setRequestCommentDraft((current) => ({
+                                      ...current,
+                                      [request.id]: event.target.value,
+                                    }))
+                                  }
+                                />
+                                <button
+                                  className="settings-support__button"
+                                  type="button"
+                                  disabled={!canEditRequests}
+                                  onClick={() => addInternalRequestComment(request)}
+                                >
+                                  Добавить комментарий
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="crm-request-card__block">
+                              <div className="crm-request-card__block-title">История изменений</div>
+                              {request.history?.length ? (
+                                <div className="crm-request-card__timeline">
+                                  {[...(request.history ?? [])]
+                                    .slice()
+                                    .sort(
+                                      (left, right) =>
+                                        new Date(right.createdAt).getTime() -
+                                        new Date(left.createdAt).getTime(),
+                                    )
+                                    .map((item) => (
+                                      <div key={item.id} className="crm-request-card__timeline-item">
+                                        <div className="crm-request-card__timeline-head">
+                                          <strong>{item.author}</strong>
+                                          <span>
+                                            {new Date(item.createdAt).toLocaleDateString('ru-RU')}{' '}
+                                            {new Date(item.createdAt).toLocaleTimeString('ru-RU', {
+                                              hour: '2-digit',
+                                              minute: '2-digit',
+                                            })}
+                                          </span>
+                                        </div>
+                                        <div>{item.message}</div>
+                                      </div>
+                                    ))}
+                                </div>
+                              ) : (
+                                <div className="settings-form__hint">История пока пуста.</div>
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </article>
       </section>
@@ -2661,7 +3008,13 @@ export const HomePage = ({
 
         {isSuperAdmin ? (
           <article className="settings-card">
-            <div className="settings-card__eyebrow">Супер-админ</div>
+            <button
+              className="settings-card__eyebrow-button"
+              type="button"
+              onClick={handleSuperAdminEyebrowClick}
+            >
+              Супер-админ
+            </button>
             <h2 className="settings-card__title">Ручная выдача тарифа</h2>
             <p className="settings-card__text">
               Здесь можно вручную открыть доступ Start или Pro для любой группы VK по её ID. Блок
@@ -2716,6 +3069,33 @@ export const HomePage = ({
             <button className="settings-form__button" type="button" onClick={handleGrantProSubmit}>
               {`Выдать ${superAdminPlan === 'pro' ? 'Pro' : 'Start'} группе`}
             </button>
+
+            {showResetCommand ? (
+              <div className="superadmin-reset">
+                <div className="settings-form__hint settings-form__hint_warning">
+                  Скрытая команда. Это удалит данные всех подключённых групп из серверного хранилища
+                  и очистит локальный кэш CalcPro в текущем браузере.
+                </div>
+                <label className="settings-form__field">
+                  <span className="settings-form__label">Команда подтверждения</span>
+                  <input
+                    className="settings-form__input"
+                    type="text"
+                    inputMode="text"
+                    placeholder="reset all groups"
+                    value={resetCommandValue}
+                    onChange={(event) => setResetCommandValue(event.target.value)}
+                  />
+                </label>
+                <button
+                  className="settings-form__button settings-form__button_danger"
+                  type="button"
+                  onClick={handleResetAllGroupsSubmit}
+                >
+                  Reset all groups
+                </button>
+              </div>
+            ) : null}
           </article>
         ) : null}
 

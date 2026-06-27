@@ -29,6 +29,36 @@ function normalizeRequest(request = {}) {
         }))
         .filter((item) => item.key || item.label || item.value)
     : undefined;
+  const createdAt = String(request.createdAt || new Date().toISOString());
+  const updatedAt = String(request.updatedAt || createdAt);
+  const internalComments = Array.isArray(request.internalComments)
+    ? request.internalComments
+        .map((comment) => ({
+          id: String(comment?.id || `comment-${Date.now()}`),
+          text: String(comment?.text || '').trim(),
+          author: String(comment?.author || 'Менеджер'),
+          createdAt: String(comment?.createdAt || updatedAt),
+        }))
+        .filter((comment) => comment.text)
+    : [];
+  const history = Array.isArray(request.history)
+    ? request.history
+        .map((entry) => ({
+          id: String(entry?.id || `history-${Date.now()}`),
+          type:
+            entry?.type === 'created' ||
+            entry?.type === 'status_changed' ||
+            entry?.type === 'assigned' ||
+            entry?.type === 'updated' ||
+            entry?.type === 'comment_added'
+              ? entry.type
+              : 'updated',
+          message: String(entry?.message || '').trim(),
+          author: String(entry?.author || 'Система'),
+          createdAt: String(entry?.createdAt || updatedAt),
+        }))
+        .filter((entry) => entry.message)
+    : [];
 
   return {
     id: String(request.id || `request-${Date.now()}`),
@@ -39,7 +69,11 @@ function normalizeRequest(request = {}) {
     phone: String(request.phone || ''),
     comment: String(request.comment || ''),
     amount: Number(request.amount) || 0,
-    createdAt: String(request.createdAt || new Date().toISOString()),
+    createdAt,
+    updatedAt,
+    assignedTo: String(request.assignedTo || ''),
+    internalComments,
+    history,
     values: request.values && typeof request.values === 'object' ? request.values : {},
     ...(details?.length ? { details } : {}),
   };

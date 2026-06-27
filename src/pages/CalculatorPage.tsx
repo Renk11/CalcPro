@@ -527,6 +527,18 @@ export const CalculatorPage = ({
       comment,
       amount: result.total,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      assignedTo: '',
+      internalComments: [],
+      history: [
+        {
+          id: crypto.randomUUID(),
+          type: 'created',
+          message: 'Заявка создана',
+          author: 'Клиент',
+          createdAt: new Date().toISOString(),
+        },
+      ],
       values,
       details: buildRequestDetails(template, values),
     };

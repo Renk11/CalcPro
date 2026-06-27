@@ -14,7 +14,7 @@ import {
   CURRENT_TEMPLATE_SCHEMA_VERSION,
 } from '../../entities/calculator/model';
 import { createDefaultSubscriptionSettings, getSubscriptionPlanConfig } from '../subscription';
-import { getStorageItem, setStorageItem } from './safeStorage';
+import { clearStorageByPrefix, getStorageItem, setStorageItem } from './safeStorage';
 
 const BASE_PREFIX = 'vk-community-calculator';
 const DEMO_TEMPLATE_IDS = ['manicure', 'delivery', 'apartment-repair', 'printing'];
@@ -156,6 +156,11 @@ export const setStorageGroupScope = (groupId?: number | string | null) => {
 };
 
 export const getStorageGroupScope = () => activeStorageGroupId;
+
+export const resetAllCalcProStorage = () => {
+  clearStorageByPrefix(BASE_PREFIX);
+  activeStorageGroupId = 0;
+};
 
 const getDefaultFieldPlaceholder = (field: Partial<CalculatorField>) => {
   if (
@@ -314,6 +319,36 @@ const sanitizeRequests = (requests: CalculatorRequest[]) =>
       request.status === 'new'
         ? request.status
         : 'new',
+    assignedTo: String(request.assignedTo ?? ''),
+    updatedAt: String(request.updatedAt ?? request.createdAt ?? new Date().toISOString()),
+    internalComments: Array.isArray(request.internalComments)
+      ? request.internalComments
+          .map((comment) => ({
+            id: String(comment?.id || crypto.randomUUID()),
+            text: String(comment?.text || '').trim(),
+            author: String(comment?.author || 'Менеджер'),
+            createdAt: String(comment?.createdAt || request.createdAt || new Date().toISOString()),
+          }))
+          .filter((comment) => Boolean(comment.text))
+      : [],
+    history: Array.isArray(request.history)
+      ? request.history
+          .map((entry) => ({
+            id: String(entry?.id || crypto.randomUUID()),
+            type:
+              entry?.type === 'created' ||
+              entry?.type === 'status_changed' ||
+              entry?.type === 'assigned' ||
+              entry?.type === 'updated' ||
+              entry?.type === 'comment_added'
+                ? entry.type
+                : 'updated',
+            message: String(entry?.message || '').trim(),
+            author: String(entry?.author || 'Система'),
+            createdAt: String(entry?.createdAt || request.createdAt || new Date().toISOString()),
+          }))
+          .filter((entry) => Boolean(entry.message))
+      : [],
   }));
 
 export const normalizeTemplateRecord = (template: CalculatorTemplate): CalculatorTemplate =>
@@ -413,8 +448,14 @@ export const updateRequestStatus = (
 export const updateRequest = (
   requestId: string,
   patch: Partial<
-    Pick<CalculatorRequest, 'name' | 'phone' | 'comment' | 'amount' | 'status'>
-  >,
+    Pick<
+      CalculatorRequest,
+      'name' | 'phone' | 'comment' | 'amount' | 'status' | 'assignedTo' | 'updatedAt'
+    >
+  > & {
+    internalComments?: CalculatorRequest['internalComments'];
+    history?: CalculatorRequest['history'];
+  },
 ) => {
   const requests = getRequests();
   const next = requests.map((request) =>
