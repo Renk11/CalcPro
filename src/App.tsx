@@ -225,7 +225,7 @@ const StartupSplash = () => (
           <span className="startup-splash__core">C</span>
         </span>
       </div>
-      <h1 className="startup-splash__title">Собираем ваш калькулятор</h1>
+      <h1 className="startup-splash__title">Подготавливаем калькулятор</h1>
       <p className="startup-splash__text">
         Шаблоны, настройки и рабочий контекст сообщества уже на подходе.
       </p>
@@ -566,7 +566,7 @@ const App = () => {
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       setHasStartupDelayElapsed(true);
-    }, 950);
+    }, 1400);
 
     return () => window.clearTimeout(timeoutId);
   }, []);
