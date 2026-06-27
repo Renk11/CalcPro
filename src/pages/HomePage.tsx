@@ -907,7 +907,6 @@ export const HomePage = ({
   const [superAdminStatus, setSuperAdminStatus] = useState('');
   const [showResetCommand, setShowResetCommand] = useState(false);
   const [resetCommandValue, setResetCommandValue] = useState('');
-  const [superAdminTapCount, setSuperAdminTapCount] = useState(0);
   const [supportTickets, setSupportTickets] = useState<CalculatorSupportTicket[]>(() =>
     getSupportTickets(),
   );
@@ -1016,18 +1015,6 @@ export const HomePage = ({
     setSupportTicketsPage(1);
     setExpandedSupportTicketIds([]);
   }, [currentGroupId]);
-
-  useEffect(() => {
-    if (superAdminTapCount === 0) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setSuperAdminTapCount(0);
-    }, 7000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [superAdminTapCount]);
 
   useEffect(() => {
     const currentFolder = folders.find((folder) => folder.id === activeFolderId);
@@ -2548,26 +2535,6 @@ export const HomePage = ({
     setSuperAdminStatus(result.message);
   };
 
-  const handleSuperAdminSecretTrigger = () => {
-    setSuperAdminTapCount((current) => {
-      const next = current + 1;
-      if (next >= 3) {
-        setShowResetCommand((value) => {
-          const nextValue = !value;
-          setSuperAdminStatus(
-            nextValue
-              ? 'Скрытая команда открыта. Введите: reset all groups'
-              : 'Скрытая команда скрыта.',
-          );
-          return nextValue;
-        });
-        return 0;
-      }
-      setSuperAdminStatus(`Секретная команда: ещё ${3 - next} нажатия.`);
-      return next;
-    });
-  };
-
   const handleResetAllGroupsSubmit = async () => {
     if (resetCommandValue.trim().toLowerCase() !== 'reset all groups') {
       setSuperAdminStatus('Для сброса введите команду: reset all groups');
@@ -3017,19 +2984,8 @@ export const HomePage = ({
 
         {isSuperAdmin ? (
           <article className="settings-card">
-            <button
-              className="superadmin-secret-trigger"
-              type="button"
-              onClick={handleSuperAdminSecretTrigger}
-              onDoubleClick={() => {
-                setShowResetCommand(true);
-                setSuperAdminTapCount(0);
-                setSuperAdminStatus('Скрытая команда открыта. Введите: reset all groups');
-              }}
-            >
-              <span className="settings-card__eyebrow-button">Супер-админ</span>
-              <h2 className="settings-card__title">Ручная выдача тарифа</h2>
-            </button>
+            <div className="settings-card__eyebrow">Супер-админ</div>
+            <h2 className="settings-card__title">Ручная выдача тарифа</h2>
             <p className="settings-card__text">
               Здесь можно вручную открыть доступ Start или Pro для любой группы VK по её ID. Блок
               виден только вашему аккаунту.
@@ -3082,6 +3038,21 @@ export const HomePage = ({
 
             <button className="settings-form__button" type="button" onClick={handleGrantProSubmit}>
               {`Выдать ${superAdminPlan === 'pro' ? 'Pro' : 'Start'} группе`}
+            </button>
+
+            <button
+              className="settings-form__button settings-form__button_secondary-action"
+              type="button"
+              onClick={() => {
+                setShowResetCommand((current) => !current);
+                setSuperAdminStatus(
+                  showResetCommand
+                    ? 'Reset-команда скрыта.'
+                    : 'Reset-команда открыта. Введите: reset all groups',
+                );
+              }}
+            >
+              {showResetCommand ? 'Скрыть reset-команду' : 'Показать reset-команду'}
             </button>
 
             {showResetCommand ? (

@@ -1555,36 +1555,6 @@ body,
   text-transform: uppercase;
 }
 
-.settings-card__eyebrow-button {
-  margin: 0 0 10px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #ffb36b;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  cursor: pointer;
-  text-align: left;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.superadmin-secret-trigger {
-  display: block;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
 .settings-card__title {
   margin: 0 0 10px;
   color: #f7f0e5;
@@ -2109,6 +2079,12 @@ body,
 .settings-form__button_danger {
   background: linear-gradient(135deg, #ff8470 0%, #ff5f5f 100%);
   color: #fff4ef;
+}
+
+.settings-form__button_secondary-action {
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f7f0e5;
 }
 
 .superadmin-reset {
