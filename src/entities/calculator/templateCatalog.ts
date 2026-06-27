@@ -19,7 +19,17 @@ export interface TemplateCatalogPreset {
   description: string;
   usesCount: number;
   category: TemplateCatalogCategory;
-  visual: 'repair' | 'delivery' | 'mortgage' | 'credit' | 'windows';
+  visual:
+    | 'ceiling'
+    | 'stretch'
+    | 'repair'
+    | 'delivery'
+    | 'cleaning'
+    | 'mortgage'
+    | 'credit'
+    | 'windows'
+    | 'kitchen'
+    | 'furniture';
   type: CalculatorType;
   basePrice: number;
   minPrice: number;
@@ -92,6 +102,56 @@ const checkboxField = (
 
 export const templateCatalog: TemplateCatalogPreset[] = [
   {
+    id: 'ceilings',
+    title: 'Потолки',
+    description: 'Расчет стоимости потолка по площади, фактуре и количеству светильников.',
+    usesCount: 118,
+    category: 'construction',
+    visual: 'ceiling',
+    type: 'construction',
+    basePrice: 12000,
+    minPrice: 18000,
+    globalCoefficient: 1,
+    discount: 0,
+    formulaMode: 'simple',
+    customFormula: '',
+    fields: [
+      numberField('area', 'Площадь, м²', 950),
+      selectField('texture', 'Фактура', [
+        { label: 'Матовая', value: 0, description: 'Классическое решение' },
+        { label: 'Сатиновая', value: 3500, description: 'Мягкий благородный блеск' },
+        { label: 'Глянцевая', value: 5200, description: 'Больше отражения и света' },
+      ]),
+      numberField('lights', 'Светильники, шт', 650, false),
+      checkboxField('cornice', 'Скрытый карниз', 4800),
+    ],
+  },
+  {
+    id: 'stretch-ceilings',
+    title: 'Натяжные потолки',
+    description: 'Готовый шаблон для расчета полотна, профиля, подсветки и монтажа.',
+    usesCount: 137,
+    category: 'construction',
+    visual: 'stretch',
+    type: 'construction',
+    basePrice: 15000,
+    minPrice: 22000,
+    globalCoefficient: 1,
+    discount: 0,
+    formulaMode: 'simple',
+    customFormula: '',
+    fields: [
+      numberField('area', 'Площадь, м²', 1100),
+      selectField('canvasType', 'Тип полотна', [
+        { label: 'Белое ПВХ', value: 0, description: 'Самый популярный вариант' },
+        { label: 'Тканевое', value: 7200, description: 'Премиум-фактура без швов' },
+        { label: 'Парящий потолок', value: 9800, description: 'С подсветкой по периметру' },
+      ]),
+      numberField('angles', 'Доп. углы, шт', 350, false),
+      checkboxField('lighting', 'Линейная подсветка', 8900),
+    ],
+  },
+  {
     id: 'repair-flat',
     title: 'Ремонт квартир',
     description: 'Смета по комнатам, площади и выбранному уровню отделки.',
@@ -137,6 +197,31 @@ export const templateCatalog: TemplateCatalogPreset[] = [
         { label: 'Сегодня', value: 700, description: 'Доставка в течение дня' },
         { label: 'Экспресс 2 часа', value: 1400, description: 'Максимальный приоритет' },
       ]),
+    ],
+  },
+  {
+    id: 'cleaning',
+    title: 'Клининг',
+    description: 'Расчет уборки по площади, типу услуги и дополнительным зонам.',
+    usesCount: 91,
+    category: 'services',
+    visual: 'cleaning',
+    type: 'services',
+    basePrice: 1800,
+    minPrice: 3500,
+    globalCoefficient: 1,
+    discount: 0,
+    formulaMode: 'simple',
+    customFormula: '',
+    fields: [
+      numberField('area', 'Площадь, м²', 120),
+      selectField('cleaningType', 'Тип уборки', [
+        { label: 'Поддерживающая', value: 0, description: 'Быстрый регулярный выезд' },
+        { label: 'Генеральная', value: 2800, description: 'Глубокая уборка всей квартиры' },
+        { label: 'После ремонта', value: 5400, description: 'Сбор пыли и строительных следов' },
+      ]),
+      checkboxField('windowsWash', 'Мытье окон', 2400),
+      checkboxField('fridge', 'Чистка холодильника', 900),
     ],
   },
   {
@@ -203,6 +288,110 @@ export const templateCatalog: TemplateCatalogPreset[] = [
         { label: 'Премиум', value: 12000, description: 'Максимальный комфорт' },
       ]),
       checkboxField('installation', 'Монтаж включен', 8500),
+    ],
+  },
+  {
+    id: 'kitchens',
+    title: 'Кухни на заказ',
+    description: 'Расчет кухни по длине, фасадам, столешнице и встроенной технике.',
+    usesCount: 104,
+    category: 'business',
+    visual: 'kitchen',
+    type: 'goods',
+    basePrice: 45000,
+    minPrice: 70000,
+    globalCoefficient: 1,
+    discount: 0,
+    formulaMode: 'simple',
+    customFormula: '',
+    fields: [
+      numberField('length', 'Длина кухни, м', 18000),
+      selectField('facade', 'Фасады', [
+        { label: 'ЛДСП', value: 0, description: 'Практичный базовый комплект' },
+        { label: 'МДФ эмаль', value: 24000, description: 'Гладкие цветные фасады' },
+        { label: 'Шпон / массив', value: 46000, description: 'Премиум-сегмент' },
+      ]),
+      selectField('countertop', 'Столешница', [
+        { label: 'Пластик', value: 0, description: 'Стандартное решение' },
+        { label: 'Акрил', value: 18000, description: 'Бесшовный современный вид' },
+        { label: 'Кварц', value: 39000, description: 'Максимальная износостойкость' },
+      ]),
+      checkboxField('appliances', 'Встроенная техника', 32000),
+    ],
+  },
+  {
+    id: 'furniture',
+    title: 'Мебель на заказ',
+    description: 'Подходит для шкафов, гардеробных и корпусной мебели с выбором материалов.',
+    usesCount: 76,
+    category: 'business',
+    visual: 'furniture',
+    type: 'goods',
+    basePrice: 16000,
+    minPrice: 28000,
+    globalCoefficient: 1,
+    discount: 0,
+    formulaMode: 'simple',
+    customFormula: '',
+    fields: [
+      numberField('modules', 'Модулей, шт', 4200),
+      numberField('height', 'Высота, см', 95),
+      selectField('material', 'Материал', [
+        { label: 'ЛДСП', value: 0, description: 'Базовый материал' },
+        { label: 'МДФ', value: 9500, description: 'Более плотный и долговечный' },
+        { label: 'Шпон', value: 22000, description: 'Премиальный внешний вид' },
+      ]),
+      checkboxField('fittings', 'Премиальная фурнитура', 7800),
+    ],
+  },
+  {
+    id: 'repair-turnkey',
+    title: 'Ремонт под ключ',
+    description: 'Шаблон сметы по площади, типу отделки, санузлам и комплектации материалами.',
+    usesCount: 97,
+    category: 'construction',
+    visual: 'repair',
+    type: 'repair',
+    basePrice: 40000,
+    minPrice: 65000,
+    globalCoefficient: 1,
+    discount: 0,
+    formulaMode: 'simple',
+    customFormula: '',
+    fields: [
+      numberField('area', 'Площадь, м²', 4600),
+      selectField('finishLevel', 'Уровень отделки', [
+        { label: 'Черновая', value: 0, description: 'Подготовка под дальнейшие работы' },
+        { label: 'Чистовая', value: 38000, description: 'Готовое жилое пространство' },
+        { label: 'Дизайн-ремонт', value: 86000, description: 'Индивидуальные решения и декор' },
+      ]),
+      numberField('bathrooms', 'Санузлы, шт', 18500, false),
+      checkboxField('materials', 'Закупка материалов подрядчиком', 26000),
+    ],
+  },
+  {
+    id: 'delivery-city',
+    title: 'Доставка по городу',
+    description: 'Быстрый тарифный расчет по расстоянию, весу, этажу и срочности.',
+    usesCount: 88,
+    category: 'services',
+    visual: 'delivery',
+    type: 'delivery',
+    basePrice: 500,
+    minPrice: 990,
+    globalCoefficient: 1,
+    discount: 0,
+    formulaMode: 'simple',
+    customFormula: '',
+    fields: [
+      numberField('distance', 'Расстояние, км', 28),
+      numberField('weight', 'Вес, кг', 10),
+      selectField('urgency', 'Срочность', [
+        { label: 'В течение дня', value: 0, description: 'Стандартная доставка' },
+        { label: 'За 3 часа', value: 600, description: 'Повышенный приоритет' },
+        { label: 'За 1 час', value: 1200, description: 'Максимально быстро' },
+      ]),
+      checkboxField('floorLift', 'Подъем на этаж', 450),
     ],
   },
 ];
