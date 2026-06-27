@@ -1814,8 +1814,37 @@ const App = () => {
 
     const rollbackTemplates = templates;
     const next = rollbackTemplates.some((item) => item.id === nextTemplate.id)
-      ? rollbackTemplates.map((item) => (item.id === nextTemplate.id ? nextTemplate : item))
-      : [nextTemplate, ...rollbackTemplates];
+      ? rollbackTemplates.map((item) => {
+          if (item.id === nextTemplate.id) {
+            return nextTemplate;
+          }
+
+          if (publicationStatus === 'published' && item.publicationStatus === 'published') {
+            return normalizeTemplateRecord({
+              ...item,
+              publicationStatus: 'draft',
+              publishedAt: undefined,
+              updatedAt: now,
+              lastModifiedBy: currentAdminLabel,
+            });
+          }
+
+          return item;
+        })
+      : [
+          nextTemplate,
+          ...rollbackTemplates.map((item) =>
+            publicationStatus === 'published' && item.publicationStatus === 'published'
+              ? normalizeTemplateRecord({
+                  ...item,
+                  publicationStatus: 'draft',
+                  publishedAt: undefined,
+                  updatedAt: now,
+                  lastModifiedBy: currentAdminLabel,
+                })
+              : item,
+          ),
+        ];
     saveTemplates(next);
     setTemplates(next);
 
@@ -1834,7 +1863,7 @@ const App = () => {
         tone: 'success',
         message:
           publicationStatus === 'published'
-            ? 'Калькулятор опубликован.'
+            ? 'Калькулятор опубликован. Предыдущая публикация автоматически снята.'
             : 'Публикация снята. Сохранены изменения на сервере.',
       });
     } catch (error) {
