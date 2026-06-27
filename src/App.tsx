@@ -283,13 +283,20 @@ const scopeCommunitiesToContext = (
   launchGroupId: number,
   fallbackCommunity: CalculatorConnectedCommunity | null,
 ) => {
-  if (launchGroupId <= 0) {
-    return communities;
-  }
+  if (communities.length > 0) {
+    const unique = new Map<number, CalculatorConnectedCommunity>();
+    communities.forEach((community) => {
+      unique.set(community.groupId, community);
+    });
 
-  const scoped = communities.filter((community) => community.groupId === launchGroupId);
-  if (scoped.length > 0) {
-    return scoped;
+    if (launchGroupId > 0 && fallbackCommunity && !unique.has(launchGroupId)) {
+      unique.set(launchGroupId, fallbackCommunity);
+    }
+
+    return [...unique.values()].sort(
+      (left, right) =>
+        new Date(right.lastUsedAt).getTime() - new Date(left.lastUsedAt).getTime(),
+    );
   }
 
   return fallbackCommunity ? [fallbackCommunity] : [];
