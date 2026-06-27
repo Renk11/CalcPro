@@ -1568,6 +1568,8 @@ body,
   text-transform: uppercase;
   cursor: pointer;
   text-align: left;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .superadmin-secret-trigger {
@@ -1579,6 +1581,8 @@ body,
   background: transparent;
   text-align: left;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .settings-card__title {
