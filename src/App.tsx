@@ -1356,6 +1356,7 @@ const App = () => {
           headers: createJsonHeaders(),
           body: JSON.stringify({
             groupId: addedGroupId,
+            workspaceGroupId: currentGroupId,
             role: viewerGroupRole,
             workspacePlan: currentPlan.id,
             platform: launchParams?.vk_platform ?? '',

@@ -50,17 +50,17 @@ function formatCommunityBlock(group) {
 
   if (groupId > 0) {
     return [
-      `Сообщество: ${group?.name || `Сообщество ${groupId}`}`,
-      `Ссылка: ${link || 'Ссылка не найдена'}`,
-      `ID сообщества: ${groupId}`,
+      `🏘️ Сообщество: ${group?.name || `Сообщество ${groupId}`}`,
+      `🔗 Ссылка: ${link || 'Ссылка не найдена'}`,
+      `🆔 ID сообщества: ${groupId}`,
     ];
   }
 
   return [
-    'Сообщество: ID не вернулся от VK',
-    'Ссылка: Откройте приложение из добавленной группы, чтобы увидеть точное сообщество',
-    'ID сообщества: не вернулся от VK',
-    'VK mobile пока не передал ID выбранной группы.',
+    '🏘️ Сообщество: ID не вернулся от VK',
+    '🔗 Ссылка: Откройте приложение из добавленной группы, чтобы увидеть точное сообщество',
+    '🆔 ID сообщества: не вернулся от VK',
+    '📱 VK mobile пока не передал ID выбранной группы.',
   ];
 }
 
@@ -69,15 +69,40 @@ function formatViewerBlock(viewer) {
   const fullName = [viewer?.firstName, viewer?.lastName].filter(Boolean).join(' ').trim();
 
   return [
-    `Администратор: ${fullName || 'Не удалось определить'}`,
-    `VK ID: ${viewerId > 0 ? viewerId : 'не определён'}`,
-    `Профиль: ${viewerId > 0 ? `https://vk.com/id${viewerId}` : 'не определён'}`,
+    `👤 Администратор: ${fullName || 'Не удалось определить'}`,
+    `🪪 VK ID: ${viewerId > 0 ? viewerId : 'не определён'}`,
+    `🔗 Профиль: ${viewerId > 0 ? `https://vk.com/id${viewerId}` : 'не определён'}`,
   ];
 }
 
 function formatPlatform(platform) {
   const normalized = String(platform || '').trim();
   return normalized || 'не определена';
+}
+
+function formatWorkspaceBlock(workspaceGroup, targetGroupId) {
+  const workspaceGroupId = normalizeGroupId(workspaceGroup?.groupId);
+  if (!workspaceGroupId) {
+    return [];
+  }
+
+  const workspaceName = workspaceGroup?.name || `Сообщество ${workspaceGroupId}`;
+  const workspaceLink = buildCommunityLink(workspaceGroup);
+  const isSameGroup = workspaceGroupId === normalizeGroupId(targetGroupId);
+  const lines = [
+    `📂 Рабочий кабинет: ${workspaceName}${isSameGroup ? ' (текущая группа)' : ''}`,
+    `🆔 ID кабинета: ${workspaceGroupId}`,
+  ];
+
+  if (workspaceLink) {
+    lines.push(`🔗 Кабинет группы: ${workspaceLink}`);
+  }
+
+  if (!isSameGroup) {
+    lines.push(`🧭 Контекст подключения: дочерняя группа рабочего кабинета ${workspaceName}`);
+  }
+
+  return lines;
 }
 
 function formatTimestamp(date = new Date()) {
@@ -93,16 +118,19 @@ function formatTimestamp(date = new Date()) {
   }).format(date);
 }
 
-function buildConnectMessage(title, group, viewer, platform) {
+function buildConnectMessage(title, group, viewer, platform, workspaceGroup) {
+  const workspaceBlock = formatWorkspaceBlock(workspaceGroup, group?.groupId);
+
   return [
     title,
     '',
     ...formatCommunityBlock(group),
+    ...(workspaceBlock.length > 0 ? ['', ...workspaceBlock] : []),
     '',
     ...formatViewerBlock(viewer),
     '',
-    `Платформа: ${formatPlatform(platform)}`,
-    `Время: ${formatTimestamp()}`,
+    `💻 Платформа: ${formatPlatform(platform)}`,
+    `🕒 Время: ${formatTimestamp()}`,
   ].join('\n');
 }
 
@@ -166,7 +194,8 @@ export async function notifyConnectStarted({
     resolveGroupInfo(effectiveGroupId),
   ]);
 
-  const title = effectiveGroupId > 0 ? 'Начато подключение CalcPro' : 'Начато подключение CalcPro';
+  const title =
+    effectiveGroupId > 0 ? '📣 Начато подключение CalcPro' : '📣 Начато подключение CalcPro';
   await sendVkMessage(recipientId, buildConnectMessage(title, group, viewer, platform));
   return true;
 }
@@ -174,6 +203,7 @@ export async function notifyConnectStarted({
 export async function notifyCommunityConnected({
   viewerId,
   groupId,
+  workspaceGroupId,
   platform,
   communityName,
   communityScreenName,
@@ -188,14 +218,15 @@ export async function notifyCommunityConnected({
     return false;
   }
 
-  const [viewer, group] = await Promise.all([
+  const [viewer, group, workspaceGroup] = await Promise.all([
     resolveViewerInfo(viewerId),
     resolveGroupInfo(normalizedGroupId, communityName, communityScreenName),
+    resolveGroupInfo(workspaceGroupId),
   ]);
 
   await sendVkMessage(
     recipientId,
-    buildConnectMessage('Новое подключение CalcPro', group, viewer, platform),
+    buildConnectMessage('📣 Новое подключение CalcPro', group, viewer, platform, workspaceGroup),
   );
   return true;
 }

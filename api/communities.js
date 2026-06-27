@@ -96,6 +96,7 @@ export default async function handler(request, response) {
         await notifyCommunityConnected({
           viewerId: auth.viewerId,
           groupId: community.groupId,
+          workspaceGroupId: request.body?.workspaceGroupId,
           platform: request.body?.platform || request.body?.vkPlatform,
           communityName: community.name,
           communityScreenName: community.screenName,
