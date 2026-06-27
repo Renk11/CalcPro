@@ -81,12 +81,48 @@ async function requireWorkspaceCommunityAdmin(request, response, groupId) {
   return auth;
 }
 
+async function requireCommunitySettingsReadAccess(request, response, groupId) {
+  const auth = getTrustedViewerContext(request);
+  if (!auth) {
+    sendJson(response, 401, {
+      ok: false,
+      error: 'VK launch params verification failed',
+    });
+    return null;
+  }
+
+  if (auth.isCommunityAdmin) {
+    if (groupId > 0) {
+      const availableGroupIds = await resolveAvailableGroupIds(auth);
+      if (!availableGroupIds.has(groupId)) {
+        sendJson(response, 403, {
+          ok: false,
+          error: 'The requested group is not connected to the current workspace',
+        });
+        return null;
+      }
+    }
+
+    return auth;
+  }
+
+  if (groupId > 0 && auth.groupId === groupId) {
+    return auth;
+  }
+
+  sendJson(response, 403, {
+    ok: false,
+    error: 'Community access required',
+  });
+  return null;
+}
+
 export default async function handler(request, response) {
   try {
     const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
 
     if (request.method === 'GET') {
-      const auth = await requireWorkspaceCommunityAdmin(request, response, groupId);
+      const auth = await requireCommunitySettingsReadAccess(request, response, groupId);
       if (!auth) {
         return undefined;
       }
