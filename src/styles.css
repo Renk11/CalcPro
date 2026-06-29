@@ -1690,9 +1690,9 @@ body,
 .community-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   width: 100%;
+  min-height: 82px;
   padding: 16px 18px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
@@ -1737,8 +1737,10 @@ body,
 }
 
 .community-row__body {
+  flex: 1 1 auto;
   min-width: 0;
   display: grid;
+  align-content: center;
   gap: 6px;
 }
 
@@ -1760,6 +1762,7 @@ body,
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  margin-left: auto;
   flex-shrink: 0;
 }
 
@@ -2230,6 +2233,7 @@ body,
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.06);
 }
+
 
 .crm-requests__summary {
   display: flex;
@@ -8477,3 +8481,4 @@ body::-webkit-scrollbar-thumb:hover,
     gap: 6px;
   }
 }
+
