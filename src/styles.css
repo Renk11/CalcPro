@@ -2234,6 +2234,10 @@ body,
   background: rgba(255, 255, 255, 0.06);
 }
 
+.crm-requests__filter option {
+  color: #1d2329;
+  background: #f7f0e5;
+}
 
 .crm-requests__summary {
   display: flex;
