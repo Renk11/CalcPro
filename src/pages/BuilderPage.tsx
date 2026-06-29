@@ -785,7 +785,7 @@ export const BuilderPage = ({
 }: BuilderPageProps) => {
   const topbarRef = useRef<HTMLElement | null>(null);
   const restrictedFeatureHint = isMonetizationRestricted
-    ? 'Эта настройка недоступна на текущей платформе. Для управления доступом используйте веб-версию VK.'
+    ? 'Эта настройка недоступна на текущей платформе.'
     : '';
   const proFeatureHint = (message: string) =>
     isMonetizationRestricted ? restrictedFeatureHint : message;

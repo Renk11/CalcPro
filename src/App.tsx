@@ -1481,7 +1481,7 @@ const App = () => {
       setHomeSection('payments');
       setPaymentStatus({
         tone: 'neutral',
-        message: 'Управление подпиской доступно только в веб-версии VK.',
+        message: 'Оплата на платформе недоступна.',
       });
       return;
     }

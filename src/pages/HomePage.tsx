@@ -150,6 +150,26 @@ type FaqTopic = {
   sections: FaqTopicSection[];
 };
 
+const restrictedMonetizationFaqPattern =
+  /\b(?:free|start|pro)\b|тариф|тарифах|оплат|подписк|апгрейд/iu;
+
+const sanitizeFaqTopicsForRestrictedPlatform = (topics: FaqTopic[]) =>
+  topics
+    .filter((topic) => topic.id !== 'payments')
+    .map((topic) => ({
+      ...topic,
+      sections: topic.sections
+        .map((section) => ({
+          ...section,
+          items: section.items.filter((item) => !restrictedMonetizationFaqPattern.test(item)),
+        }))
+        .filter(
+          (section) =>
+            !restrictedMonetizationFaqPattern.test(section.title) && section.items.length > 0,
+        ),
+    }))
+    .filter((topic) => topic.sections.length > 0);
+
 
 const supportTypeLabels: Record<CalculatorSupportTicketType, string> = {
   message: 'Сообщение',
@@ -973,10 +993,12 @@ const TemplatePresetCard = ({
   preset,
   onUse,
   disabled = false,
+  showMonetizationLabels = true,
 }: {
   preset: TemplateCatalogPreset;
   onUse: (presetId: string) => void;
   disabled?: boolean;
+  showMonetizationLabels?: boolean;
 }) => (
   <article className={`template-preset template-preset_${preset.visual}`}>
     <div className="template-preset__visual">
@@ -1002,7 +1024,7 @@ const TemplatePresetCard = ({
       disabled={disabled}
       onClick={() => onUse(preset.id)}
     >
-      {disabled ? 'Доступно в Start' : 'Использовать'}
+      {disabled ? (showMonetizationLabels ? 'Доступно в Start' : 'Недоступно') : 'Использовать'}
     </button>
   </article>
 );
@@ -1072,8 +1094,14 @@ export const HomePage = ({
     (section === 'integrations' && !canUseNotifications) ||
     (section === 'templates' && !canUseTemplates);
   const showCreateCalculatorLimitHint = !canCreateMoreTemplates;
-  const restrictedMonetizationMessage =
-    'Управление подпиской и расширенными возможностями доступно только в веб-версии VK.';
+  const restrictedMonetizationMessage = 'Оплата на платформе недоступна.';
+  const visibleFaqTopics = useMemo(
+    () =>
+      canManageMonetization
+        ? faqTopics
+        : sanitizeFaqTopicsForRestrictedPlatform(faqTopics),
+    [canManageMonetization],
+  );
 
   const handleSectionSelect = (section: AdminSection) => {
     onSectionChange(isSectionLocked(section) && canManageMonetization ? 'payments' : section);
@@ -1225,10 +1253,13 @@ export const HomePage = ({
   }, [activeFolderId, folders]);
 
   useEffect(() => {
-    if (currentSection === 'faq' && !faqTopics.some((topic) => topic.id === selectedFaqTopicId)) {
-      setSelectedFaqTopicId(faqTopics[0]?.id ?? 'start');
+    if (
+      currentSection === 'faq' &&
+      !visibleFaqTopics.some((topic) => topic.id === selectedFaqTopicId)
+    ) {
+      setSelectedFaqTopicId(visibleFaqTopics[0]?.id ?? 'start');
     }
-  }, [currentSection, selectedFaqTopicId]);
+  }, [currentSection, selectedFaqTopicId, visibleFaqTopics]);
 
   useEffect(() => {
     if (editingFolderId && inputRef.current) {
@@ -1242,8 +1273,8 @@ export const HomePage = ({
       ? 'Все'
       : folders.find((folder) => folder.id === activeFolderId)?.name ?? 'Все';
   const selectedFaqTopic = useMemo(
-    () => faqTopics.find((topic) => topic.id === selectedFaqTopicId) ?? faqTopics[0],
-    [selectedFaqTopicId],
+    () => visibleFaqTopics.find((topic) => topic.id === selectedFaqTopicId) ?? visibleFaqTopics[0],
+    [selectedFaqTopicId, visibleFaqTopics],
   );
   const requestAssignees = useMemo(
     () =>
@@ -1522,7 +1553,9 @@ export const HomePage = ({
           <h2 className="communities-hero__title">Один кабинет для разных сообществ</h2>
           <p className="communities-hero__text">
             Переключайте активную группу и работайте с её калькуляторами, заявками и настройками
-            в одном интерфейсе. Тариф, лимиты и данные подгружаются для выбранного сообщества.
+            в одном интерфейсе. {canManageMonetization
+              ? 'Тариф, лимиты и данные подгружаются для выбранного сообщества.'
+              : 'Данные подгружаются для выбранного сообщества.'}
           </p>
         </article>
 
@@ -1533,7 +1566,9 @@ export const HomePage = ({
               <h3 className="communities-card__title">Список сообществ</h3>
             </div>
             <div className="communities-card__head-actions">
-              <div className="communities-card__meta">{communityLimitLabel}</div>
+              {canManageMonetization ? (
+                <div className="communities-card__meta">{communityLimitLabel}</div>
+              ) : null}
               <button
                 className="communities-card__add-button"
                 type="button"
@@ -1547,8 +1582,9 @@ export const HomePage = ({
 
           {isCommunityLimitReached ? (
             <div className="communities-card__limit-banner">
-              Лимит сообществ для тарифа {currentPlan.name} достигнут. Чтобы подключить ещё одну
-              группу, перейдите на более высокий тариф.
+              {canManageMonetization
+                ? `Лимит сообществ для тарифа ${currentPlan.name} достигнут. Чтобы подключить ещё одну группу, перейдите на более высокий тариф.`
+                : 'Лимит подключённых сообществ достигнут.'}
             </div>
           ) : null}
 
@@ -1613,7 +1649,7 @@ export const HomePage = ({
             ) : (
               <div className="communities-card__empty">
                 Пока нет подключённых сообществ. Откройте приложение внутри нужной группы VK или
-                используйте установку через экран оплаты.
+                используйте установку сервиса в сообщество.
               </div>
             )}
           </div>
@@ -1647,10 +1683,12 @@ export const HomePage = ({
                   <span>Контекст запуска</span>
                   <strong>{launchGroupId > 0 ? `ID ${launchGroupId}` : 'Вне сообщества'}</strong>
                 </div>
-                <div className="communities-summary__row">
-                  <span>Тариф</span>
-                  <strong>{currentPlan.name}</strong>
-                </div>
+                {canManageMonetization ? (
+                  <div className="communities-summary__row">
+                    <span>Тариф</span>
+                    <strong>{currentPlan.name}</strong>
+                  </div>
+                ) : null}
               </>
             )}
           </div>
@@ -1869,7 +1907,9 @@ export const HomePage = ({
           </div>
           {!canUseFolders ? (
             <div className="create-calculator-tile__tooltip">
-              Папки доступны на тарифах Start и Pro.
+              {canManageMonetization
+                ? 'Папки доступны на тарифах Start и Pro.'
+                : 'Функция сейчас недоступна.'}
             </div>
           ) : null}
 
@@ -2092,6 +2132,7 @@ export const HomePage = ({
               preset={preset}
               onUse={onUsePreset}
               disabled={!canUseTemplates}
+              showMonetizationLabels={canManageMonetization}
             />
           ))}
 
@@ -2372,12 +2413,6 @@ export const HomePage = ({
           <div className="admin-placeholder__eyebrow">Раздел недоступен</div>
           <h2 className="admin-placeholder__title">На этой платформе раздел оплаты скрыт</h2>
           <p className="admin-placeholder__text">{restrictedMonetizationMessage}</p>
-          <p className="admin-placeholder__text">
-            Правила VK Mini Apps:{' '}
-            <a href="https://dev.vk.com/ru/mini-apps-rules" target="_blank" rel="noreferrer">
-              dev.vk.com/ru/mini-apps-rules
-            </a>
-          </p>
         </section>
       ) : (
       <section className="payments-section">
@@ -2770,20 +2805,24 @@ export const HomePage = ({
             внутренние заметки, ищите по базе и смотрите историю изменений по каждой карточке.
           </p>
           <div className="settings-form__hint settings-form__hint_warning">
-            Удаление заявки очищает её из списка, но не уменьшает счётчик использованных заявок в
-            лимите текущего тарифа.
+            {canManageMonetization
+              ? 'Удаление заявки очищает её из списка, но не уменьшает счётчик использованных заявок в лимите текущего тарифа.'
+              : 'Удаление заявки очищает её из списка, но не меняет уже сохранённую статистику.'}
           </div>
 
           {!canUseRequestStatuses ? (
             <div className="settings-form__hint">
-              CRM-обработка заявок доступна на тарифах Start и Pro.
+              {canManageMonetization
+                ? 'CRM-обработка заявок доступна на тарифах Start и Pro.'
+                : 'Функция сейчас недоступна.'}
             </div>
           ) : (
             <>
               {!canEditRequests ? (
                 <div className="settings-form__hint">
-                  Полное редактирование карточки, ответственный и внутренние комментарии доступны
-                  на тарифе Pro.
+                  {canManageMonetization
+                    ? 'Полное редактирование карточки, ответственный и внутренние комментарии доступны на тарифе Pro.'
+                    : 'Часть возможностей карточки сейчас недоступна.'}
                 </div>
               ) : null}
 
@@ -2964,7 +3003,13 @@ export const HomePage = ({
                             <input
                               key={`${request.id}-${request.assignedTo ?? ''}`}
                               className="settings-support__input"
-                              placeholder={canEditRequests ? 'Имя менеджера' : 'Доступно на Pro'}
+                              placeholder={
+                                canEditRequests
+                                  ? 'Имя менеджера'
+                                  : canManageMonetization
+                                    ? 'Доступно на Pro'
+                                    : 'Недоступно'
+                              }
                               disabled={!canEditRequests}
                               defaultValue={request.assignedTo ?? ''}
                               onBlur={(event) =>
@@ -3064,7 +3109,13 @@ export const HomePage = ({
                               <div className="crm-request-card__comment-form">
                                 <textarea
                                   className="settings-support__textarea settings-support__textarea_compact"
-                                  placeholder={canEditRequests ? 'Добавить внутренний комментарий' : 'Доступно на Pro'}
+                                  placeholder={
+                                    canEditRequests
+                                      ? 'Добавить внутренний комментарий'
+                                      : canManageMonetization
+                                        ? 'Доступно на Pro'
+                                        : 'Недоступно'
+                                  }
                                   disabled={!canEditRequests}
                                   value={requestCommentDraft[request.id] ?? ''}
                                   onChange={(event) =>
@@ -3163,7 +3214,9 @@ export const HomePage = ({
           <div className="settings-form__hint">
             {canUseNotifications
               ? 'Укажите VK ID сотрудника, которому будут приходить заявки из калькуляторов.'
-              : 'Отправка заявок менеджерам доступна на тарифе Про.'}
+              : canManageMonetization
+                ? 'Отправка заявок менеджерам доступна на тарифе Про.'
+                : 'Отправка заявок менеджерам сейчас недоступна.'}
           </div>
 
           <button
@@ -3462,7 +3515,7 @@ export const HomePage = ({
         <aside className="faq-nav">
           <div className="faq-nav__title">Темы</div>
           <div className="faq-nav__list">
-            {faqTopics.map((topic) => (
+            {visibleFaqTopics.map((topic) => (
               <button
                 key={topic.id}
                 className={`faq-nav__item ${selectedFaqTopic?.id === topic.id ? 'faq-nav__item_active' : ''}`}
@@ -3530,7 +3583,7 @@ export const HomePage = ({
         <div className="admin-home__title-wrap">
           <h1 className="admin-home__title">{title}</h1>
         </div>
-        <div className="admin-home__role-badge">PRO</div>
+        <div className="admin-home__role-badge">{canManageMonetization ? 'PRO' : 'СКРЫТО'}</div>
       </div>
 
       <section className="admin-placeholder">
@@ -3625,7 +3678,7 @@ export const HomePage = ({
                   <Icon />
                 </span>
                 <span className="admin-nav__item-label">
-                  {item.label}
+                  {canManageMonetization ? item.label : item.label.replace(/ Pro$/u, '')}
                 </span>
               </button>
             );
@@ -3634,36 +3687,53 @@ export const HomePage = ({
 
         <div className="admin-nav__profile">
           <div className="admin-nav__plan-card">
-            <div className="admin-nav__plan-head">
-              <div>
-                <div className="admin-nav__plan-label">Тариф</div>
-                <div className="admin-nav__plan-name">
-                  {currentPlan.name}
+            {canManageMonetization ? (
+              <>
+                <div className="admin-nav__plan-head">
+                  <div>
+                    <div className="admin-nav__plan-label">Тариф</div>
+                    <div className="admin-nav__plan-name">
+                      {currentPlan.name}
+                    </div>
+                  </div>
+                  <span className="admin-nav__plan-icon">
+                    {currentPlan.id !== 'free' ? <Icon20CrownVerified /> : <Icon20WalletOutline />}
+                  </span>
                 </div>
-              </div>
-              <span className="admin-nav__plan-icon">
-                {currentPlan.id !== 'free' ? <Icon20CrownVerified /> : <Icon20WalletOutline />}
-              </span>
-            </div>
-            <div className="admin-nav__plan-usage">{requestQuotaLabel}</div>
-            {canManageMonetization && isDesktopClient && !isCompactViewport ? (
-              hasActiveSubscription && currentPlan.id !== 'free' ? (
-                <div className="admin-nav__plan-meta">{subscriptionDaysLeftLabel}</div>
-              ) : (
-                <button
-                  className="admin-nav__plan-button"
-                  type="button"
-                  onClick={() => handleSectionSelect('payments')}
-                >
-                  Перейти к оплате
-                </button>
-              )
+                <div className="admin-nav__plan-usage">{requestQuotaLabel}</div>
+                {isDesktopClient && !isCompactViewport ? (
+                  hasActiveSubscription && currentPlan.id !== 'free' ? (
+                    <div className="admin-nav__plan-meta">{subscriptionDaysLeftLabel}</div>
+                  ) : (
+                    <button
+                      className="admin-nav__plan-button"
+                      type="button"
+                      onClick={() => handleSectionSelect('payments')}
+                    >
+                      Перейти к оплате
+                    </button>
+                  )
+                ) : (
+                  <div className="admin-nav__plan-meta">
+                    {hasActiveSubscription && currentPlan.id !== 'free'
+                      ? subscriptionDaysLeftLabel
+                      : currentPlan.name}
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="admin-nav__plan-meta">
-                {hasActiveSubscription && currentPlan.id !== 'free'
-                  ? subscriptionDaysLeftLabel
-                  : currentPlan.name}
-              </div>
+              <>
+                <div className="admin-nav__plan-head">
+                  <div>
+                    <div className="admin-nav__plan-label">Доступ</div>
+                    <div className="admin-nav__plan-name">CalcPro</div>
+                  </div>
+                  <span className="admin-nav__plan-icon">
+                    <Icon20WalletOutline />
+                  </span>
+                </div>
+                <div className="admin-nav__plan-meta">{restrictedMonetizationMessage}</div>
+              </>
             )}
           </div>
 
