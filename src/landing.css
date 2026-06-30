@@ -123,6 +123,26 @@ a {
   text-transform: uppercase;
 }
 
+.landing-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.landing-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  color: #d7cab8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .landing-title {
   margin: 0;
   color: #f7f0e5;
@@ -653,13 +673,68 @@ a {
 
 .landing-footer {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 18px;
   margin-top: 20px;
-  padding: 0 4px;
+  padding: 18px 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   color: #8f7d6d;
   font-size: 12px;
   font-weight: 700;
+}
+
+.landing-footer__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.landing-footer__mark {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffb36b 0%, #ff9747 100%);
+  color: #1f252c;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.landing-footer__name {
+  color: #f7f0e5;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.landing-footer__meta {
+  margin-top: 4px;
+  color: #a59688;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.landing-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+
+.landing-footer__links a {
+  color: #d7cab8;
+  text-decoration: none;
+}
+
+.landing-footer__links a:hover {
+  color: #ffb36b;
+}
+
+.landing-footer__year {
+  color: #8f7d6d;
 }
 
 @media (max-width: 1120px) {
@@ -683,6 +758,15 @@ a {
   .landing-cta__panel {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .landing-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .landing-footer__links {
+    justify-content: flex-start;
   }
 }
 
@@ -757,7 +841,7 @@ a {
     width: 100%;
   }
 
-  .landing-footer {
-    flex-direction: column;
+  .landing-badge-row {
+    margin-bottom: 14px;
   }
 }
