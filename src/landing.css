@@ -114,6 +114,10 @@ a {
   min-width: 0;
 }
 
+.landing-hero__copy {
+  max-width: 760px;
+}
+
 .landing-eyebrow {
   margin-bottom: 10px;
   color: #ffb36b;
@@ -146,9 +150,9 @@ a {
 .landing-title {
   margin: 0;
   color: #f7f0e5;
-  font-size: clamp(44px, 6vw, 78px);
+  font-size: clamp(38px, 5.2vw, 66px);
   font-weight: 800;
-  line-height: 0.96;
+  line-height: 1;
   letter-spacing: -0.045em;
 }
 
@@ -226,6 +230,7 @@ a {
   margin-top: 8px;
   color: #c6b8a8;
   line-height: 1.45;
+  font-size: 14px;
 }
 
 .landing-showcase {
@@ -595,6 +600,10 @@ a {
 
 .landing-price-card__text {
   min-height: 74px;
+}
+
+.landing-case-card p {
+  min-height: 96px;
 }
 
 .landing-price-card__list {
