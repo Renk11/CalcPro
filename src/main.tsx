@@ -12,5 +12,5 @@ const initializeVkBridge = async () => {
   }
 };
 
-void initializeVkBridge();
 void import('./bootstrapApp');
+void initializeVkBridge();

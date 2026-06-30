@@ -66,7 +66,7 @@ async function requireWorkspaceCommunityAdmin(request, response, groupId) {
 
 export default async function handler(request, response) {
   try {
-    const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
+    const requestedGroupId = parseGroupId(request.query?.groupId || request.body?.groupId);
 
     if (request.method === 'GET') {
       const auth = getTrustedViewerContext(request);
@@ -77,37 +77,41 @@ export default async function handler(request, response) {
         });
       }
 
-      if (auth.isCommunityAdmin && groupId > 0) {
+      if (auth.isCommunityAdmin && requestedGroupId > 0) {
         const availableGroupIds = await resolveAvailableGroupIds(auth);
-        if (!availableGroupIds.has(groupId)) {
+        if (!availableGroupIds.has(requestedGroupId)) {
           return sendJson(response, 403, {
             ok: false,
             error: 'The requested group is not connected to the current workspace',
           });
         }
-      } else if (groupId > 0 && auth.groupId !== groupId) {
+      } else if (
+        !auth.isCommunityAdmin &&
+        requestedGroupId > 0 &&
+        auth.groupId > 0 &&
+        auth.groupId !== requestedGroupId
+      ) {
         return sendJson(response, 403, {
           ok: false,
           error: 'The requested group does not match the current VK context',
         });
       }
 
-      const templates = await getServerTemplates(groupId);
+      const targetGroupId = auth.isCommunityAdmin
+        ? requestedGroupId
+        : requestedGroupId > 0
+          ? requestedGroupId
+          : auth.groupId;
+
+      const templates = await getServerTemplates(targetGroupId);
       const visibleTemplates = auth.isCommunityAdmin
         ? templates
         : templates.filter((template) => template?.publicationStatus === 'published');
 
-      if (!auth.isCommunityAdmin && groupId <= 0) {
+      if (!auth.isCommunityAdmin && targetGroupId <= 0) {
         return sendJson(response, 403, {
           ok: false,
           error: 'Public templates are available only in the current VK community context',
-        });
-      }
-
-      if (!auth.isCommunityAdmin && auth.groupId <= 0) {
-        return sendJson(response, 403, {
-          ok: false,
-          error: 'Public templates are available only inside a VK community',
         });
       }
 
@@ -115,6 +119,7 @@ export default async function handler(request, response) {
     }
 
     if (request.method === 'POST') {
+      const groupId = requestedGroupId;
       const action = String(request.query?.action || request.body?.action || '').toLowerCase();
 
       if (action === 'transfer') {
