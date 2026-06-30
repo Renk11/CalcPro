@@ -8,6 +8,7 @@ import {
 import { calculateTemplate } from '../entities/calculator/model';
 import { submitRequest } from '../entities/calculator/submission';
 import { legalDocs, type LegalDocKey } from '../shared/legal';
+import { createRandomId } from '../shared/randomId';
 import { getRequests } from '../shared/storage/localStorage';
 import { sanitizeUserUrl } from '../shared/url';
 import type {
@@ -518,7 +519,7 @@ export const CalculatorPage = ({
     setIsSubmitting(true);
 
     const request: CalculatorRequest = {
-      id: crypto.randomUUID(),
+      id: createRandomId(),
       templateId: template.id,
       templateTitle: template.title,
       status: 'new',
@@ -532,7 +533,7 @@ export const CalculatorPage = ({
       internalComments: [],
       history: [
         {
-          id: crypto.randomUUID(),
+          id: createRandomId(),
           type: 'created',
           message: 'Заявка создана',
           author: 'Клиент',

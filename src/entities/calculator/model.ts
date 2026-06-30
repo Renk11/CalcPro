@@ -8,6 +8,7 @@
   CalculatorTemplate,
   CalculatorValues,
 } from '../../shared/types/calculator';
+import { createRandomId } from '../../shared/randomId';
 import { isBookingValue } from './booking';
 
 type FormulaTemplateSource = Pick<CalculatorTemplate, 'basePrice' | 'globalCoefficient' | 'fields'>;
@@ -26,12 +27,12 @@ export const clampTemplateDescription = (value: string) =>
 export const clampFolderName = (value: string) => value.slice(0, MAX_FOLDER_NAME_LENGTH);
 
 export const createTemplatePublicId = (seed?: string) => {
-  const normalizedSeed = (seed ?? crypto.randomUUID().slice(0, 8))
+  const normalizedSeed = (seed ?? createRandomId().slice(0, 8))
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-  return `calc-${normalizedSeed || crypto.randomUUID().slice(0, 8)}`;
+  return `calc-${normalizedSeed || createRandomId().slice(0, 8)}`;
 };
 
 export const createDefaultRequestFormSettings = (): CalculatorRequestFormSettings => ({
@@ -355,7 +356,7 @@ export const calculateTemplate = (
 
 export const createEmptyTemplate = (folderId?: string): CalculatorTemplate => {
   const now = new Date().toISOString();
-  const id = crypto.randomUUID();
+  const id = createRandomId();
 
   return {
     schemaVersion: CURRENT_TEMPLATE_SCHEMA_VERSION,

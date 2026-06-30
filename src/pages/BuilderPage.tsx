@@ -35,6 +35,7 @@ import type {
 import { MAX_BUTTON_TEXT_LENGTH } from '../shared/types/calculator';
 import { legalDocs, type LegalDocKey } from '../shared/legal';
 import { sanitizeHtml } from '../shared/html/sanitizeHtml';
+import { createRandomId } from '../shared/randomId';
 import { normalizeTemplateRecord } from '../shared/storage/localStorage';
 
 interface BuilderPageProps {
@@ -172,7 +173,7 @@ const createField = (
   key: string,
   partial?: Partial<CalculatorField>,
 ): CalculatorField => ({
-  id: crypto.randomUUID(),
+  id: createRandomId(),
   key: `${key}_${Math.random().toString(36).slice(2, 7)}`,
   label,
   type,
@@ -228,12 +229,12 @@ const createInputField = (
 
 const duplicateFieldConfig = (field: CalculatorField): CalculatorField => ({
   ...field,
-  id: crypto.randomUUID(),
+  id: createRandomId(),
   key: `${field.key}_${Math.random().toString(36).slice(2, 6)}`,
   label: field.label ? `${field.label} копия` : 'Копия',
   options: field.options?.map((option) => ({
     ...option,
-    id: crypto.randomUUID(),
+    id: createRandomId(),
   })),
 });
 
@@ -318,13 +319,13 @@ const getButtonActionLabel = (action?: ButtonActionType) => {
 
 const createSelectOptions = (): CalculatorFieldOption[] => [
   {
-    id: crypto.randomUUID(),
+    id: createRandomId(),
     label: '1',
     value: 1500,
     description: '\u0411\u0430\u0437\u043e\u0432\u044b\u0439 \u0432\u0430\u0440\u0438\u0430\u043d\u0442',
   },
   {
-    id: crypto.randomUUID(),
+    id: createRandomId(),
     label: '2',
     value: 3000,
     description: '\u0420\u0430\u0441\u0448\u0438\u0440\u0435\u043d\u043d\u044b\u0439 \u0432\u0430\u0440\u0438\u0430\u043d\u0442',
@@ -333,13 +334,13 @@ const createSelectOptions = (): CalculatorFieldOption[] => [
 
 const createRadioOptions = (): CalculatorFieldOption[] => [
   {
-    id: crypto.randomUUID(),
+    id: createRandomId(),
     label: '\u0412\u0430\u0440\u0438\u0430\u043d\u0442 1',
     value: 1500,
     description: '\u041a\u043e\u0440\u043e\u0442\u043a\u0430\u044f \u043f\u043e\u0434\u0441\u043a\u0430\u0437\u043a\u0430',
   },
   {
-    id: crypto.randomUUID(),
+    id: createRandomId(),
     label: '\u0412\u0430\u0440\u0438\u0430\u043d\u0442 2',
     value: 3000,
     description: '\u0415\u0449\u0435 \u043e\u0434\u0438\u043d \u0432\u0430\u0440\u0438\u0430\u043d\u0442',
@@ -1421,7 +1422,7 @@ export const BuilderPage = ({
       options: [
         ...(field?.options ?? []),
         {
-          id: crypto.randomUUID(),
+          id: createRandomId(),
           label: '\u0412\u0430\u0440\u0438\u0430\u043d\u0442 ' + nextIndex,
           value: nextIndex * 100,
           description: '',

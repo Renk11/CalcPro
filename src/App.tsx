@@ -43,6 +43,7 @@ import {
   writePendingPayment,
 } from './shared/storage/pendingPaymentStorage';
 import { isVkLaunchParamsError } from './shared/apiErrors';
+import { createRandomId } from './shared/randomId';
 import { createVkAuthHeaders } from './shared/vkAuth';
 import type {
   CalculatorPublicationStatus,
@@ -386,7 +387,7 @@ const appendRequestHistoryEntry = (
 ) => [
   ...(request.history ?? []),
   {
-    id: crypto.randomUUID(),
+    id: createRandomId(),
     createdAt: entry.createdAt ?? new Date().toISOString(),
     ...entry,
   },
@@ -1268,7 +1269,7 @@ const App = () => {
 
       if ('assignedTo' in patch && (patch.assignedTo ?? '') !== (request.assignedTo ?? '')) {
         history.push({
-          id: crypto.randomUUID(),
+          id: createRandomId(),
           type: 'assigned',
           message: patch.assignedTo
             ? `Ответственный назначен: ${patch.assignedTo}`
@@ -1285,7 +1286,7 @@ const App = () => {
         ('amount' in patch && patch.amount !== request.amount)
       ) {
         history.push({
-          id: crypto.randomUUID(),
+          id: createRandomId(),
           type: 'updated',
           message: 'Карточка заявки обновлена',
           author: currentAdminLabel,
@@ -1295,7 +1296,7 @@ const App = () => {
 
       if ('status' in patch && patch.status && patch.status !== request.status) {
         history.push({
-          id: crypto.randomUUID(),
+          id: createRandomId(),
           type: 'status_changed',
           message: `Статус изменён: ${request.status} -> ${patch.status}`,
           author: currentAdminLabel,
@@ -1726,7 +1727,7 @@ const App = () => {
     );
     const duplicate: CalculatorTemplate = {
       ...template,
-      id: crypto.randomUUID(),
+      id: createRandomId(),
       publicationStatus: 'draft',
       publicId: createTemplatePublicId(),
       publishedAt: undefined,
@@ -1737,10 +1738,10 @@ const App = () => {
       updatedAt: now,
       fields: template.fields.map((field) => ({
         ...field,
-        id: crypto.randomUUID(),
+        id: createRandomId(),
         options: field.options?.map((option) => ({
           ...option,
-          id: crypto.randomUUID(),
+          id: createRandomId(),
         })),
       })),
     };
@@ -1920,7 +1921,7 @@ const App = () => {
 
     const now = new Date().toISOString();
     const folder: CalculatorFolder = {
-      id: crypto.randomUUID(),
+      id: createRandomId(),
       name: DEFAULT_FOLDER_NAME,
       createdAt: now,
       updatedAt: now,

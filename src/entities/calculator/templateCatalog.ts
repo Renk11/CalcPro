@@ -4,6 +4,7 @@ import type {
   CalculatorType,
   FormulaMode,
 } from '../../shared/types/calculator';
+import { createRandomId } from '../../shared/randomId';
 import { createDefaultRequestFormSettings, createTemplatePublicId } from './model';
 
 export type TemplateCatalogCategory =
@@ -47,7 +48,7 @@ const numberField = (
   required = true,
   placeholder = 'Введите число',
 ): CalculatorField => ({
-  id: crypto.randomUUID(),
+  id: createRandomId(),
   key,
   label,
   type: 'number',
@@ -63,7 +64,7 @@ const selectField = (
   options: Array<{ label: string; value: number; description?: string }>,
   placeholder = 'Выберите значение',
 ): CalculatorField => ({
-  id: crypto.randomUUID(),
+  id: createRandomId(),
   key,
   label,
   type: 'select',
@@ -74,7 +75,7 @@ const selectField = (
   showOptionPrices: true,
   useValueInFormula: true,
   options: options.map((option) => ({
-    id: crypto.randomUUID(),
+    id: createRandomId(),
     ...option,
   })),
 });
@@ -85,7 +86,7 @@ const checkboxField = (
   unitPrice: number,
   placeholder = 'Включить опцию',
 ): CalculatorField => ({
-  id: crypto.randomUUID(),
+  id: createRandomId(),
   key,
   label,
   type: 'checkbox',
@@ -406,7 +407,7 @@ export const createTemplateFromPreset = (
   }
 
   const now = new Date().toISOString();
-  const id = crypto.randomUUID();
+  const id = createRandomId();
 
   return {
     id,
@@ -429,10 +430,10 @@ export const createTemplateFromPreset = (
     updatedAt: now,
     fields: preset.fields.map((field) => ({
       ...field,
-      id: crypto.randomUUID(),
+      id: createRandomId(),
       options: field.options?.map((option) => ({
         ...option,
-        id: crypto.randomUUID(),
+        id: createRandomId(),
       })),
     })),
   };

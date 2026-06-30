@@ -27,6 +27,7 @@ import {
 } from '../entities/calculator/templateCatalog';
 import { clampFolderName, MAX_FOLDER_NAME_LENGTH } from '../entities/calculator/model';
 import { isVkLaunchParamsError } from '../shared/apiErrors';
+import { createRandomId } from '../shared/randomId';
 import {
   addSupportTicket,
   getSupportTickets,
@@ -1380,7 +1381,7 @@ export const HomePage = ({
     const nextComments = [
       ...(request.internalComments ?? []),
       {
-        id: crypto.randomUUID(),
+        id: createRandomId(),
         text,
         author: currentAdminLabel,
         createdAt,
@@ -1393,7 +1394,7 @@ export const HomePage = ({
       history: [
         ...(request.history ?? []),
         {
-          id: crypto.randomUUID(),
+          id: createRandomId(),
           type: 'comment_added',
           message: 'Добавлен внутренний комментарий',
           author: currentAdminLabel,

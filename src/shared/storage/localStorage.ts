@@ -13,6 +13,7 @@ import {
   createTemplatePublicId,
   CURRENT_TEMPLATE_SCHEMA_VERSION,
 } from '../../entities/calculator/model';
+import { createRandomId } from '../randomId';
 import { createDefaultSubscriptionSettings, getSubscriptionPlanConfig } from '../subscription';
 import { clearStorageByPrefix, getStorageItem, setStorageItem } from './safeStorage';
 
@@ -324,7 +325,7 @@ const sanitizeRequests = (requests: CalculatorRequest[]) =>
     internalComments: Array.isArray(request.internalComments)
       ? request.internalComments
           .map((comment) => ({
-            id: String(comment?.id || crypto.randomUUID()),
+            id: String(comment?.id || createRandomId()),
             text: String(comment?.text || '').trim(),
             author: String(comment?.author || 'Менеджер'),
             createdAt: String(comment?.createdAt || request.createdAt || new Date().toISOString()),
@@ -334,7 +335,7 @@ const sanitizeRequests = (requests: CalculatorRequest[]) =>
     history: Array.isArray(request.history)
       ? request.history
           .map((entry) => ({
-            id: String(entry?.id || crypto.randomUUID()),
+            id: String(entry?.id || createRandomId()),
             type:
               entry?.type === 'created' ||
               entry?.type === 'status_changed' ||

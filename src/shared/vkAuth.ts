@@ -7,6 +7,19 @@ type VkLaunchParamsPayload = {
 
 const VK_LAUNCH_PARAM_KEYS = new Set(['sign']);
 
+const getWindowLaunchParams = () => {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+
+  const params: Record<string, string> = {};
+  new URLSearchParams(window.location.search).forEach((value, key) => {
+    params[key] = value;
+  });
+
+  return params;
+};
+
 const normalizeLaunchParamValue = (value: unknown) => {
   if (value == null) {
     return '';
@@ -21,9 +34,7 @@ export const buildVkLaunchParamsPayload = (
   const params =
     launchParams && typeof launchParams === 'object'
       ? launchParams
-      : typeof window !== 'undefined'
-        ? Object.fromEntries(new URLSearchParams(window.location.search).entries())
-        : {};
+      : getWindowLaunchParams();
 
   const payload = Object.entries(params).reduce<VkLaunchParamsPayload>((acc, [key, value]) => {
     if (!key.startsWith('vk_') && !VK_LAUNCH_PARAM_KEYS.has(key)) {
