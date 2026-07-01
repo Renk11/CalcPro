@@ -20,6 +20,10 @@ function normalizeBase64Url(value) {
   return value.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
+function buildLaunchParamsSecret(secret) {
+  return crypto.createHmac('sha256', 'WebAppData').update(secret).digest();
+}
+
 function parseLaunchParamsHeader(request) {
   const rawHeader = request.headers['x-vk-launch-params'];
   if (!rawHeader) {
@@ -55,15 +59,20 @@ function isValidLaunchSignature(params) {
     return false;
   }
 
-  const expectedSign = normalizeBase64Url(
-    crypto.createHmac('sha256', secret).update(payload).digest('base64'),
-  );
+  const expectedSigns = [
+    normalizeBase64Url(
+      crypto.createHmac('sha256', buildLaunchParamsSecret(secret)).update(payload).digest('base64'),
+    ),
+    normalizeBase64Url(crypto.createHmac('sha256', secret).update(payload).digest('base64')),
+  ];
 
-  if (sign.length !== expectedSign.length) {
-    return false;
-  }
+  return expectedSigns.some((expectedSign) => {
+    if (sign.length !== expectedSign.length) {
+      return false;
+    }
 
-  return crypto.timingSafeEqual(Buffer.from(sign), Buffer.from(expectedSign));
+    return crypto.timingSafeEqual(Buffer.from(sign), Buffer.from(expectedSign));
+  });
 }
 
 export function getTrustedViewerContext(request) {
