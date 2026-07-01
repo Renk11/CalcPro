@@ -1037,7 +1037,8 @@ const App = () => {
       if (isProtectedApiUnavailable(payload, response.status)) {
         return {
           ok: false,
-          message: '',
+          message:
+            'Сервер не подтвердил VK-контекст. Откройте кабинет из сообщества VK или проверьте launch params.',
         };
       }
 
