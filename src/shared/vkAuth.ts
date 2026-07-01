@@ -1,9 +1,4 @@
-type VkLaunchParamsPayload = {
-  vk_user_id?: string;
-  vk_group_id?: string;
-  vk_viewer_group_role?: string;
-  sign?: string;
-};
+type VkLaunchParamsPayload = Record<string, string>;
 
 const VK_LAUNCH_PARAM_KEYS = new Set(['sign']);
 

@@ -16,7 +16,7 @@ declare global {
 }
 
 const VK_WIDGET_APP_ID = 54626522;
-const VK_WIDGET_GROUP_ID = 239808218;
+const VK_WIDGET_GROUP_ID = 180574723;
 const VK_WIDGET_CONTAINER_ID = 'vk-community-messages';
 const VK_WIDGET_SCRIPT_ID = 'vk-openapi-script';
 const VK_WIDGET_SCRIPT_SRC = 'https://vk.com/js/api/openapi.js?169';
