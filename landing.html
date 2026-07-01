@@ -6,6 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <meta
       name="description"
       content="CalcPro Studio помогает запускать калькуляторы, формы заявок и мини-приложения VK, которые выглядят аккуратно, считают правильно и приводят клиентов в CRM."
@@ -25,10 +26,27 @@
           <a href="#pricing">Тарифы</a>
           <a href="#contact">Контакты</a>
         </nav>
-        <a class="landing-topbar__cta" href="/">Открыть приложение</a>
+        <a
+          class="landing-topbar__cta"
+          href="https://vk.com/app54626522"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Открыть приложение
+        </a>
       </header>
 
       <main>
+        <section class="landing-hero-media">
+          <div class="landing-hero-media__frame">
+            <img
+              class="landing-hero-media__image"
+              src="/calcpro-hero.jpg"
+              alt="Интерфейс CalcPro Studio с дашбордом и мобильным калькулятором"
+            />
+          </div>
+        </section>
+
         <section class="landing-hero">
           <div class="landing-hero__copy">
             <div class="landing-eyebrow">CalcPro для VK и web</div>
@@ -48,7 +66,14 @@
             </p>
 
             <div class="landing-actions">
-              <a class="landing-button landing-button_primary" href="/">Запустить CalcPro</a>
+              <a
+                class="landing-button landing-button_primary"
+                href="https://vk.com/app54626522"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Запустить CalcPro
+              </a>
               <a class="landing-button landing-button_secondary" href="#faq">
                 Посмотреть сценарий запуска
               </a>
@@ -67,79 +92,6 @@
                   экран, расчет, публикация и заявки связаны в одном понятном процессе
                 </span>
               </article>
-            </div>
-          </div>
-
-          <div class="landing-hero__panel">
-            <div class="landing-showcase">
-              <div class="landing-showcase__orb landing-showcase__orb_orange"></div>
-              <div class="landing-showcase__orb landing-showcase__orb_teal"></div>
-
-              <div class="landing-showcase__window">
-                <div class="landing-showcase__window-bar">
-                  <span></span><span></span><span></span>
-                </div>
-                <div class="landing-showcase__workspace">
-                  <aside class="landing-showcase__workspace-sidebar">
-                    <div class="landing-showcase__workspace-menu">☰</div>
-                    <div class="landing-showcase__workspace-caption">Кабинет</div>
-                    <div class="landing-showcase__workspace-title">АДМИН</div>
-
-                    <div class="landing-showcase__group-card">
-                      <div class="landing-showcase__group-label">Активная группа</div>
-                      <div class="landing-showcase__group-value">
-                        <span>тест Calc • ID 239808218</span>
-                        <span>⌄</span>
-                      </div>
-                      <div class="landing-showcase__group-button">Управлять сообществами</div>
-                    </div>
-
-                    <nav class="landing-showcase__menu">
-                      <div class="landing-showcase__menu-item">Мои сообщества</div>
-                      <div class="landing-showcase__menu-item landing-showcase__menu-item_active">
-                        Мои калькуляторы
-                      </div>
-                      <div class="landing-showcase__menu-item">Шаблоны</div>
-                      <div class="landing-showcase__menu-item">Заявки</div>
-                    </nav>
-                  </aside>
-
-                  <div class="landing-showcase__workspace-main">
-                    <div class="landing-showcase__canvas-head">
-                      <div>
-                        <div class="landing-showcase__canvas-kicker">Все</div>
-                        <div class="landing-showcase__canvas-badge">АДМИН</div>
-                      </div>
-                    </div>
-
-                    <div class="landing-showcase__tiles">
-                      <article class="landing-showcase__tile landing-showcase__tile_create">
-                        <div class="landing-showcase__tile-plus">+</div>
-                        <div class="landing-showcase__tile-create-text">Создать калькулятор</div>
-                      </article>
-
-                      <article class="landing-showcase__tile landing-showcase__tile_card">
-                        <div class="landing-showcase__tile-status">ЧЕРНОВИК</div>
-                        <div class="landing-showcase__tile-title">Новый калькулятор</div>
-                        <div class="landing-showcase__tile-text">
-                          Соберите сценарий, проверьте его в предпросмотре и
-                          опубликуйте готовую версию без лишней ручной рутины.
-                        </div>
-                        <div class="landing-showcase__tile-meta">ID: calc-a3b8bcdd</div>
-                        <div class="landing-showcase__tile-meta">Публикация: Не опубликован</div>
-                        <div class="landing-showcase__tile-actions">
-                          <a class="landing-showcase__tile-button landing-showcase__tile-button_primary" href="/">
-                            Быстрый просмотр
-                          </a>
-                          <a class="landing-showcase__tile-button landing-showcase__tile-button_secondary" href="/">
-                            Редактировать
-                          </a>
-                        </div>
-                      </article>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </section>
@@ -323,19 +275,35 @@
               </p>
               <div class="landing-contact-card">
                 <div class="landing-contact-card__label">E-mail</div>
-                <a class="landing-contact-card__mail" href="mailto:support@calcpro.su">
+                <button
+                  class="landing-contact-card__mail"
+                  type="button"
+                  data-copy-email="support@calcpro.su"
+                >
                   support@calcpro.su
-                </a>
+                </button>
                 <div class="landing-contact-card__hint">
-                  Напишите, если нужна помощь с подключением, настройкой или запуском.
+                  Нажмите, чтобы скопировать почту. Если нужна помощь с подключением,
+                  настройкой или запуском, просто напишите нам.
                 </div>
               </div>
             </div>
             <div class="landing-actions landing-actions_compact">
-              <a class="landing-button landing-button_primary" href="/">Открыть приложение</a>
-              <a class="landing-button landing-button_secondary" href="mailto:support@calcpro.su">
-                Написать на почту
+              <a
+                class="landing-button landing-button_primary"
+                href="https://vk.com/app54626522"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Открыть приложение
               </a>
+              <button
+                class="landing-button landing-button_secondary"
+                type="button"
+                data-copy-email="support@calcpro.su"
+              >
+                Скопировать почту
+              </button>
             </div>
           </div>
         </section>
@@ -350,9 +318,13 @@
           </div>
         </div>
         <div class="landing-footer__links">
-          <a href="mailto:support@calcpro.su">support@calcpro.su</a>
+          <button class="landing-footer__link-button" type="button" data-copy-email="support@calcpro.su">
+            support@calcpro.su
+          </button>
           <a href="https://calcpro.su">calcpro.su</a>
-          <a href="/">Открыть приложение</a>
+          <a href="https://vk.com/app54626522" target="_blank" rel="noreferrer">
+            Открыть приложение
+          </a>
         </div>
         <div class="landing-footer__year" data-current-year></div>
       </footer>
