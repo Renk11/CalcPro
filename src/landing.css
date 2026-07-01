@@ -453,12 +453,22 @@ a {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
+.landing-contact-card_widget {
+  width: min(100%, 520px);
+}
+
 .landing-contact-card__label {
   color: #9ea497;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.landing-contact-card__widget-copy {
+  color: #f0e1cf;
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 .landing-contact-card__mail {
@@ -482,6 +492,37 @@ a {
   color: #c6b8a8;
   font-size: 14px;
   line-height: 1.5;
+}
+
+.landing-contact-card__hint a {
+  color: #ffb36b;
+  text-decoration: none;
+}
+
+.landing-contact-card__widget-shell {
+  min-height: 96px;
+}
+
+.landing-contact-card__widget {
+  position: relative;
+  min-height: 96px;
+}
+
+.landing-contact-card__widget[data-widget-state='loading']::before,
+.landing-contact-card__widget[data-widget-state='failed']::before {
+  display: block;
+  padding: 18px 20px;
+  border-radius: 18px;
+  background: rgba(18, 24, 30, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  color: #d7cab8;
+  font-size: 14px;
+  line-height: 1.5;
+  content: 'Загружаем виджет сообщений VK...';
+}
+
+.landing-contact-card__widget[data-widget-state='failed']::before {
+  content: 'Виджет временно недоступен. Напишите нам через группу VK или откройте приложение.';
 }
 
 .landing-footer {

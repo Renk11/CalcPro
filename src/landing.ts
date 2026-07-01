@@ -1,5 +1,26 @@
 import './landing.css';
 
+declare global {
+  interface Window {
+    VK?: {
+      init?: (options: { apiId: number; onlyWidgets?: boolean }) => void;
+      Widgets?: {
+        CommunityMessages?: (
+          elementId: string,
+          groupId: number,
+          options?: Record<string, string | number | boolean>,
+        ) => void;
+      };
+    };
+  }
+}
+
+const VK_WIDGET_APP_ID = 54626522;
+const VK_WIDGET_GROUP_ID = 239808218;
+const VK_WIDGET_CONTAINER_ID = 'vk-community-messages';
+const VK_WIDGET_SCRIPT_ID = 'vk-openapi-script';
+const VK_WIDGET_SCRIPT_SRC = 'https://vk.com/js/api/openapi.js?169';
+
 const yearTarget = document.querySelector<HTMLElement>('[data-current-year]');
 if (yearTarget) {
   yearTarget.textContent = String(new Date().getFullYear());
@@ -42,3 +63,56 @@ document.querySelectorAll<HTMLElement>('[data-copy-email]').forEach((control) =>
     }
   });
 });
+
+const loadVkWidgetScript = () =>
+  new Promise<void>((resolve, reject) => {
+    const existingScript = document.getElementById(VK_WIDGET_SCRIPT_ID) as HTMLScriptElement | null;
+    if (existingScript) {
+      if (window.VK?.Widgets?.CommunityMessages) {
+        resolve();
+        return;
+      }
+
+      existingScript.addEventListener('load', () => resolve(), { once: true });
+      existingScript.addEventListener('error', () => reject(new Error('VK Open API failed to load')), {
+        once: true,
+      });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = VK_WIDGET_SCRIPT_ID;
+    script.src = VK_WIDGET_SCRIPT_SRC;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('VK Open API failed to load'));
+    document.head.appendChild(script);
+  });
+
+const initVkCommunityMessagesWidget = async () => {
+  const widgetHost = document.getElementById(VK_WIDGET_CONTAINER_ID);
+  if (!widgetHost) {
+    return;
+  }
+
+  try {
+    await loadVkWidgetScript();
+
+    if (!window.VK?.init || !window.VK?.Widgets?.CommunityMessages) {
+      throw new Error('VK widget API is unavailable');
+    }
+
+    window.VK.init({ apiId: VK_WIDGET_APP_ID, onlyWidgets: true });
+    widgetHost.innerHTML = '';
+    window.VK.Widgets.CommunityMessages(VK_WIDGET_CONTAINER_ID, VK_WIDGET_GROUP_ID, {
+      tooltipButtonText: 'Напишите нам в VK',
+      expandTimeout: 10000,
+      disableExpandChatSound: true,
+    });
+    widgetHost.dataset.widgetState = 'ready';
+  } catch (_) {
+    widgetHost.dataset.widgetState = 'failed';
+  }
+};
+
+void initVkCommunityMessagesWidget();
