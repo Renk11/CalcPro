@@ -44,7 +44,7 @@ import {
 } from './shared/storage/pendingPaymentStorage';
 import { isVkLaunchParamsError } from './shared/apiErrors';
 import { createRandomId } from './shared/randomId';
-import { createVkAuthHeaders } from './shared/vkAuth';
+import { createVkAuthHeaders, getWindowLaunchParams } from './shared/vkAuth';
 import type {
   CalculatorPublicationStatus,
   CalculatorAdminSettings,
@@ -422,9 +422,12 @@ const App = () => {
     }
 
     try {
-      return parseURLSearchParamsForGetLaunchParams(window.location.search);
+      return {
+        ...getWindowLaunchParams(),
+        ...parseURLSearchParamsForGetLaunchParams(window.location.search),
+      };
     } catch {
-      return null;
+      return getWindowLaunchParams();
     }
   });
   const hasActiveSubscription = useMemo(
@@ -530,12 +533,19 @@ const App = () => {
     bridge
       .send('VKWebAppGetLaunchParams')
       .then((params) => {
-        setLaunchParams(params);
+        setLaunchParams((currentParams) => ({
+          ...(currentParams ?? {}),
+          ...getWindowLaunchParams(),
+          ...params,
+        }));
       })
       .catch(() => {
         // Keep launch params parsed from the current URL when bridge params
         // are unavailable, for example during desktop VK embedding quirks.
-        setLaunchParams((currentParams) => currentParams);
+        setLaunchParams((currentParams) => ({
+          ...(currentParams ?? {}),
+          ...getWindowLaunchParams(),
+        }));
       });
   }, []);
 

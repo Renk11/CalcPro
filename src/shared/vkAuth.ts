@@ -2,15 +2,32 @@ type VkLaunchParamsPayload = Record<string, string>;
 
 const VK_LAUNCH_PARAM_KEYS = new Set(['sign']);
 
-const getWindowLaunchParams = () => {
+const collectLaunchParamsFromQuery = (
+  rawQuery: string,
+  target: Record<string, string>,
+) => {
+  const normalizedQuery = rawQuery.startsWith('?') ? rawQuery.slice(1) : rawQuery;
+  if (!normalizedQuery) {
+    return;
+  }
+
+  new URLSearchParams(normalizedQuery).forEach((value, key) => {
+    target[key] = value;
+  });
+};
+
+export const getWindowLaunchParams = () => {
   if (typeof window === 'undefined') {
     return {};
   }
 
   const params: Record<string, string> = {};
-  new URLSearchParams(window.location.search).forEach((value, key) => {
-    params[key] = value;
-  });
+  collectLaunchParamsFromQuery(window.location.search, params);
+
+  const hash = window.location.hash || '';
+  if (hash.includes('?')) {
+    collectLaunchParamsFromQuery(hash.slice(hash.indexOf('?') + 1), params);
+  }
 
   return params;
 };
@@ -26,10 +43,10 @@ const normalizeLaunchParamValue = (value: unknown) => {
 export const buildVkLaunchParamsPayload = (
   launchParams?: Record<string, unknown> | null,
 ): VkLaunchParamsPayload => {
-  const params =
-    launchParams && typeof launchParams === 'object'
-      ? launchParams
-      : getWindowLaunchParams();
+  const params = {
+    ...getWindowLaunchParams(),
+    ...(launchParams && typeof launchParams === 'object' ? launchParams : {}),
+  };
 
   const payload = Object.entries(params).reduce<VkLaunchParamsPayload>((acc, [key, value]) => {
     if (!key.startsWith('vk_') && !VK_LAUNCH_PARAM_KEYS.has(key)) {
