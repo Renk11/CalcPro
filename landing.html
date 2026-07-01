@@ -78,43 +78,63 @@
                 Посмотреть ответы на вопросы
               </a>
             </div>
+          </div>
 
-            <div class="landing-proof" id="trust">
-              <div class="landing-proof__head">
-                <div class="landing-eyebrow">Нам доверяют</div>
-                <h2 class="landing-proof__title">
-                  Сервис уже помогает сообществам принимать заявки и автоматизировать расчёты.
-                </h2>
-              </div>
-              <div class="landing-proof__grid">
-                <article class="landing-proof__item">
-                  <span class="landing-proof__value">1200+</span>
-                  <span class="landing-proof__label">сообществ используют CalcPro для заявок и расчётов</span>
-                </article>
-                <article class="landing-proof__item">
-                  <span class="landing-proof__value">34000+</span>
-                  <span class="landing-proof__label">расчётов уже создано внутри калькуляторов</span>
-                </article>
-                <article class="landing-proof__item">
-                  <span class="landing-proof__value">18500+</span>
-                  <span class="landing-proof__label">заявок обработано через формы и сценарии</span>
-                </article>
-                <article class="landing-proof__item">
-                  <span class="landing-proof__value">99.9%</span>
-                  <span class="landing-proof__label">доступность сервиса для ежедневной работы</span>
-                </article>
-              </div>
+          <div class="landing-proof" id="trust">
+            <div class="landing-proof__head">
+              <div class="landing-eyebrow">Нам доверяют</div>
+              <h2 class="landing-proof__title">
+                Сервис уже помогает сообществам принимать заявки и автоматизировать расчёты.
+              </h2>
+            </div>
+            <div class="landing-proof__grid">
+              <article class="landing-proof__item">
+                <span class="landing-proof__value">1200+</span>
+                <span class="landing-proof__label">сообществ используют CalcPro для заявок и расчётов</span>
+              </article>
+              <article class="landing-proof__item">
+                <span class="landing-proof__value">34000+</span>
+                <span class="landing-proof__label">расчётов уже создано внутри калькуляторов</span>
+              </article>
+              <article class="landing-proof__item">
+                <span class="landing-proof__value">18500+</span>
+                <span class="landing-proof__label">заявок обработано через формы и сценарии</span>
+              </article>
+              <article class="landing-proof__item">
+                <span class="landing-proof__value">99.9%</span>
+                <span class="landing-proof__label">доступность сервиса для ежедневной работы</span>
+              </article>
             </div>
           </div>
         </section>
 
         <section class="landing-section landing-section_showcase" id="showcase">
-          <div class="landing-section__head">
-            <div class="landing-eyebrow">Живые экраны</div>
-            <h2>Интерфейс, который хочется показать клиенту и команде.</h2>
+          <div class="landing-section__head landing-section__head_showcase">
+            <div>
+              <div class="landing-eyebrow">Живые экраны</div>
+              <h2>Интерфейс, который хочется показать клиенту и команде.</h2>
+            </div>
+            <div class="landing-showcase-controls" aria-label="Управление каруселью">
+              <button
+                class="landing-showcase-controls__button"
+                type="button"
+                data-showcase-prev
+                aria-label="Предыдущий экран"
+              >
+                ←
+              </button>
+              <button
+                class="landing-showcase-controls__button"
+                type="button"
+                data-showcase-next
+                aria-label="Следующий экран"
+              >
+                →
+              </button>
+            </div>
           </div>
-          <div class="landing-showcase-grid">
-            <article class="landing-showcase-card">
+          <div class="landing-showcase-carousel" data-showcase-carousel>
+            <article class="landing-showcase-card" data-showcase-slide>
               <div class="landing-showcase-card__media landing-showcase-card__media_editor">
                 <img src="/landing-showcase-editor.png" alt="Редактор калькулятора CalcPro" />
               </div>
@@ -123,7 +143,7 @@
                 <p>Собирайте экраны, формы и кнопки без отдельной разработки.</p>
               </div>
             </article>
-            <article class="landing-showcase-card">
+            <article class="landing-showcase-card" data-showcase-slide>
               <div class="landing-showcase-card__media landing-showcase-card__media_calculator">
                 <img src="/landing-showcase-calculator.png" alt="Готовый калькулятор CalcPro" />
               </div>
@@ -132,7 +152,7 @@
                 <p>Покажите клиенту аккуратный сценарий прямо внутри сообщества VK.</p>
               </div>
             </article>
-            <article class="landing-showcase-card">
+            <article class="landing-showcase-card" data-showcase-slide>
               <div class="landing-showcase-card__media landing-showcase-card__media_requests">
                 <img src="/landing-showcase-requests.png" alt="Заявки в CalcPro" />
               </div>
@@ -141,7 +161,7 @@
                 <p>Все обращения собираются в одном месте и не теряются по чатам.</p>
               </div>
             </article>
-            <article class="landing-showcase-card">
+            <article class="landing-showcase-card" data-showcase-slide>
               <div class="landing-showcase-card__media landing-showcase-card__media_analytics">
                 <img src="/landing-showcase-analytics.png" alt="Аналитика в CalcPro" />
               </div>
@@ -151,6 +171,7 @@
               </div>
             </article>
           </div>
+          <div class="landing-showcase-dots" data-showcase-dots aria-label="Навигация по экранам"></div>
         </section>
 
         <section class="landing-section" id="features">
@@ -380,7 +401,7 @@
           target="_blank"
           rel="noreferrer"
         >
-          Написать в VK
+          Чат в VK
         </a>
       </div>
     </div>

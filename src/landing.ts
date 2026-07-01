@@ -66,6 +66,89 @@ document.querySelectorAll<HTMLElement>('[data-copy-email]').forEach((control) =>
   });
 });
 
+const showcaseCarousel = document.querySelector<HTMLElement>('[data-showcase-carousel]');
+const showcasePrevButton = document.querySelector<HTMLButtonElement>('[data-showcase-prev]');
+const showcaseNextButton = document.querySelector<HTMLButtonElement>('[data-showcase-next]');
+const showcaseDots = document.querySelector<HTMLElement>('[data-showcase-dots]');
+
+if (showcaseCarousel && showcasePrevButton && showcaseNextButton && showcaseDots) {
+  const slides = Array.from(
+    showcaseCarousel.querySelectorAll<HTMLElement>('[data-showcase-slide]'),
+  );
+
+  if (slides.length > 0) {
+    const dotButtons = slides.map((_, index) => {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'landing-showcase-dots__button';
+      dot.setAttribute('aria-label', `Перейти к экрану ${index + 1}`);
+      dot.addEventListener('click', () => {
+        const targetSlide = slides[index];
+        showcaseCarousel.scrollTo({
+          left: targetSlide.offsetLeft,
+          behavior: 'smooth',
+        });
+      });
+      showcaseDots.appendChild(dot);
+      return dot;
+    });
+
+    const getActiveSlideIndex = () => {
+      const currentScroll = showcaseCarousel.scrollLeft + showcaseCarousel.clientWidth / 2;
+      let activeIndex = 0;
+      let minDistance = Number.POSITIVE_INFINITY;
+
+      slides.forEach((slide, index) => {
+        const slideCenter = slide.offsetLeft + slide.clientWidth / 2;
+        const distance = Math.abs(slideCenter - currentScroll);
+        if (distance < minDistance) {
+          minDistance = distance;
+          activeIndex = index;
+        }
+      });
+
+      return activeIndex;
+    };
+
+    const updateShowcaseControls = () => {
+      const activeIndex = getActiveSlideIndex();
+
+      dotButtons.forEach((button, index) => {
+        button.classList.toggle('landing-showcase-dots__button_active', index === activeIndex);
+      });
+
+      showcasePrevButton.disabled = activeIndex === 0;
+      showcaseNextButton.disabled = activeIndex === slides.length - 1;
+    };
+
+    const scrollToRelativeSlide = (direction: -1 | 1) => {
+      const nextIndex = Math.min(
+        slides.length - 1,
+        Math.max(0, getActiveSlideIndex() + direction),
+      );
+      showcaseCarousel.scrollTo({
+        left: slides[nextIndex].offsetLeft,
+        behavior: 'smooth',
+      });
+    };
+
+    showcasePrevButton.addEventListener('click', () => {
+      scrollToRelativeSlide(-1);
+    });
+
+    showcaseNextButton.addEventListener('click', () => {
+      scrollToRelativeSlide(1);
+    });
+
+    showcaseCarousel.addEventListener('scroll', () => {
+      window.requestAnimationFrame(updateShowcaseControls);
+    });
+
+    window.addEventListener('resize', updateShowcaseControls);
+    updateShowcaseControls();
+  }
+}
+
 const loadVkWidgetScript = () =>
   new Promise<void>((resolve, reject) => {
     const timeoutId = window.setTimeout(() => {
@@ -129,7 +212,6 @@ const initVkCommunityMessagesWidget = async () => {
     });
 
     widgetHost.dataset.widgetState = 'ready';
-    fallbackLink?.setAttribute('hidden', 'hidden');
   } catch (_) {
     widgetHost.dataset.widgetState = 'failed';
     fallbackLink?.removeAttribute('hidden');
