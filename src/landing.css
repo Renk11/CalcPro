@@ -131,6 +131,11 @@ a {
   min-width: 0;
 }
 
+.landing-hero__copy {
+  width: min(100%, 1040px);
+  margin: 0 auto;
+}
+
 .landing-eyebrow {
   margin-bottom: 10px;
   color: #ffb36b;
