@@ -212,6 +212,7 @@ const initVkCommunityMessagesWidget = async () => {
     });
 
     widgetHost.dataset.widgetState = 'ready';
+    fallbackLink?.setAttribute('hidden', 'hidden');
   } catch (_) {
     widgetHost.dataset.widgetState = 'failed';
     fallbackLink?.removeAttribute('hidden');

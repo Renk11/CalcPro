@@ -819,6 +819,10 @@ a {
   text-decoration: none;
 }
 
+.landing-vk-widget__fallback[hidden] {
+  display: none;
+}
+
 @media (max-width: 1120px) {
   .landing-topbar {
     flex-wrap: wrap;
