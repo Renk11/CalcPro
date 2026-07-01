@@ -93,14 +93,13 @@ if (showcaseCarousel && showcasePrevButton && showcaseNextButton && showcaseDots
       return dot;
     });
 
-    const getActiveSlideIndex = () => {
-      const currentScroll = showcaseCarousel.scrollLeft + showcaseCarousel.clientWidth / 2;
+    const getNearestSlideIndex = () => {
+      const currentScroll = showcaseCarousel.scrollLeft;
       let activeIndex = 0;
       let minDistance = Number.POSITIVE_INFINITY;
 
       slides.forEach((slide, index) => {
-        const slideCenter = slide.offsetLeft + slide.clientWidth / 2;
-        const distance = Math.abs(slideCenter - currentScroll);
+        const distance = Math.abs(slide.offsetLeft - currentScroll);
         if (distance < minDistance) {
           minDistance = distance;
           activeIndex = index;
@@ -111,20 +110,21 @@ if (showcaseCarousel && showcasePrevButton && showcaseNextButton && showcaseDots
     };
 
     const updateShowcaseControls = () => {
-      const activeIndex = getActiveSlideIndex();
+      const activeIndex = getNearestSlideIndex();
+      const maxScrollLeft = Math.max(0, showcaseCarousel.scrollWidth - showcaseCarousel.clientWidth);
 
       dotButtons.forEach((button, index) => {
         button.classList.toggle('landing-showcase-dots__button_active', index === activeIndex);
       });
 
-      showcasePrevButton.disabled = activeIndex === 0;
-      showcaseNextButton.disabled = activeIndex === slides.length - 1;
+      showcasePrevButton.disabled = showcaseCarousel.scrollLeft <= 4;
+      showcaseNextButton.disabled = showcaseCarousel.scrollLeft >= maxScrollLeft - 4;
     };
 
     const scrollToRelativeSlide = (direction: -1 | 1) => {
       const nextIndex = Math.min(
         slides.length - 1,
-        Math.max(0, getActiveSlideIndex() + direction),
+        Math.max(0, getNearestSlideIndex() + direction),
       );
       showcaseCarousel.scrollTo({
         left: slides[nextIndex].offsetLeft,
