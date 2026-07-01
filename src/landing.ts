@@ -20,6 +20,8 @@ const VK_WIDGET_GROUP_ID = 239808218;
 const VK_WIDGET_CONTAINER_ID = 'vk-community-messages';
 const VK_WIDGET_SCRIPT_ID = 'vk-openapi-script';
 const VK_WIDGET_SCRIPT_SRC = 'https://vk.com/js/api/openapi.js?169';
+const VK_WIDGET_FALLBACK_LINK_ID = 'vk-community-messages-fallback';
+const VK_WIDGET_LOAD_TIMEOUT_MS = 8000;
 
 const yearTarget = document.querySelector<HTMLElement>('[data-current-year]');
 if (yearTarget) {
@@ -66,15 +68,29 @@ document.querySelectorAll<HTMLElement>('[data-copy-email]').forEach((control) =>
 
 const loadVkWidgetScript = () =>
   new Promise<void>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error('VK Open API load timeout'));
+    }, VK_WIDGET_LOAD_TIMEOUT_MS);
+
+    const resolveWithCleanup = () => {
+      window.clearTimeout(timeoutId);
+      resolve();
+    };
+
+    const rejectWithCleanup = (error: Error) => {
+      window.clearTimeout(timeoutId);
+      reject(error);
+    };
+
     const existingScript = document.getElementById(VK_WIDGET_SCRIPT_ID) as HTMLScriptElement | null;
     if (existingScript) {
       if (window.VK?.Widgets?.CommunityMessages) {
-        resolve();
+        resolveWithCleanup();
         return;
       }
 
-      existingScript.addEventListener('load', () => resolve(), { once: true });
-      existingScript.addEventListener('error', () => reject(new Error('VK Open API failed to load')), {
+      existingScript.addEventListener('load', () => resolveWithCleanup(), { once: true });
+      existingScript.addEventListener('error', () => rejectWithCleanup(new Error('VK Open API failed to load')), {
         once: true,
       });
       return;
@@ -84,13 +100,14 @@ const loadVkWidgetScript = () =>
     script.id = VK_WIDGET_SCRIPT_ID;
     script.src = VK_WIDGET_SCRIPT_SRC;
     script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('VK Open API failed to load'));
+    script.onload = () => resolveWithCleanup();
+    script.onerror = () => rejectWithCleanup(new Error('VK Open API failed to load'));
     document.head.appendChild(script);
   });
 
 const initVkCommunityMessagesWidget = async () => {
   const widgetHost = document.getElementById(VK_WIDGET_CONTAINER_ID);
+  const fallbackLink = document.getElementById(VK_WIDGET_FALLBACK_LINK_ID);
   if (!widgetHost) {
     return;
   }
@@ -110,8 +127,10 @@ const initVkCommunityMessagesWidget = async () => {
     });
 
     widgetHost.dataset.widgetState = 'ready';
+    fallbackLink?.setAttribute('hidden', 'hidden');
   } catch (_) {
     widgetHost.dataset.widgetState = 'failed';
+    fallbackLink?.removeAttribute('hidden');
   }
 };
 

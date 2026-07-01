@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <meta
       name="description"
-      content="CalcPro Studio помогает запускать калькуляторы, формы заявок и мини-приложения VK, которые выглядят аккуратно, считают правильно и приводят клиентов в CRM."
+      content="CalcPro Studio помогает запускать калькуляторы, формы заявок и мини-приложения VK, которые считают правильно и приводят больше клиентов в CRM."
     />
     <title>CalcPro Studio</title>
   </head>
@@ -21,8 +21,13 @@
           <span class="landing-brand__text">CalcPro Studio</span>
         </a>
         <nav class="landing-nav">
+          <a href="#workflow">Документация</a>
+          <a href="#showcase">Примеры</a>
+          <a href="#updates">Блог</a>
+          <a href="#trust">Обновления</a>
+          <a href="#roadmap">Roadmap</a>
           <a href="#features">Возможности</a>
-          <a href="#faq">Как это работает</a>
+          <a href="#faq">FAQ</a>
           <a href="#pricing">Тарифы</a>
           <a href="#contact">Контакты</a>
         </nav>
@@ -55,13 +60,13 @@
               <span class="landing-badge">Self-hosted</span>
               <span class="landing-badge">CRM + калькуляторы</span>
             </div>
-            <h1 class="landing-title">
-              Собирайте калькуляторы и формы заявок, которые помогают продавать с первого экрана.
-            </h1>
-            <p class="landing-lead">
-              CalcPro Studio объединяет дизайн, формулы, публикацию и обработку заявок в одном рабочем контуре.
-              Вы запускаете аккуратный сценарий для клиента и сразу получаете обращения в понятной админке.
-            </p>
+            <h1 class="landing-title">Конструктор калькуляторов для сообществ ВКонтакте</h1>
+            <p class="landing-lead">Получайте больше заявок автоматически без программиста.</p>
+            <ul class="landing-hero-benefits">
+              <li>✅ Без программирования</li>
+              <li>⚡ Запуск за 5 минут</li>
+              <li>📈 Больше заявок</li>
+            </ul>
 
             <div class="landing-actions">
               <a
@@ -73,24 +78,81 @@
                 Запустить CalcPro
               </a>
               <a class="landing-button landing-button_secondary" href="#faq">
-                Посмотреть сценарий запуска
+                Посмотреть ответы на вопросы
               </a>
             </div>
 
-            <div class="landing-proof">
-              <article class="landing-proof__item">
-                <span class="landing-proof__value">Быстрый запуск</span>
-                <span class="landing-proof__label">
-                  От идеи до первого рабочего сценария без длинного цикла разработки
-                </span>
-              </article>
-              <article class="landing-proof__item">
-                <span class="landing-proof__value">Одна система</span>
-                <span class="landing-proof__label">
-                  Экран, расчет, публикация и заявки связаны в одном понятном процессе
-                </span>
-              </article>
+            <div class="landing-proof" id="trust">
+              <div class="landing-proof__head">
+                <div class="landing-eyebrow">Нам доверяют</div>
+                <h2 class="landing-proof__title">
+                  Сервис уже помогает сообществам принимать заявки и автоматизировать расчёты.
+                </h2>
+              </div>
+              <div class="landing-proof__grid">
+                <article class="landing-proof__item">
+                  <span class="landing-proof__value">1200+</span>
+                  <span class="landing-proof__label">сообществ используют CalcPro для заявок и расчётов</span>
+                </article>
+                <article class="landing-proof__item">
+                  <span class="landing-proof__value">34000+</span>
+                  <span class="landing-proof__label">расчётов уже создано внутри калькуляторов</span>
+                </article>
+                <article class="landing-proof__item">
+                  <span class="landing-proof__value">18500+</span>
+                  <span class="landing-proof__label">заявок обработано через формы и сценарии</span>
+                </article>
+                <article class="landing-proof__item">
+                  <span class="landing-proof__value">99.9%</span>
+                  <span class="landing-proof__label">доступность сервиса для ежедневной работы</span>
+                </article>
+              </div>
             </div>
+          </div>
+        </section>
+
+        <section class="landing-section landing-section_showcase" id="showcase">
+          <div class="landing-section__head">
+            <div class="landing-eyebrow">Живые экраны</div>
+            <h2>Интерфейс, который хочется показать клиенту и команде.</h2>
+          </div>
+          <div class="landing-showcase-grid">
+            <article class="landing-showcase-card">
+              <div class="landing-showcase-card__media landing-showcase-card__media_editor">
+                <img src="/calcpro-hero.jpg" alt="Редактор калькулятора CalcPro" />
+              </div>
+              <div class="landing-showcase-card__body">
+                <div class="landing-showcase-card__title">Редактор</div>
+                <p>Собирайте экраны, формы и кнопки без отдельной разработки.</p>
+              </div>
+            </article>
+            <article class="landing-showcase-card">
+              <div class="landing-showcase-card__media landing-showcase-card__media_calculator">
+                <img src="/calcpro-hero.jpg" alt="Готовый калькулятор CalcPro" />
+              </div>
+              <div class="landing-showcase-card__body">
+                <div class="landing-showcase-card__title">Готовый калькулятор</div>
+                <p>Покажите клиенту аккуратный сценарий прямо внутри сообщества VK.</p>
+              </div>
+            </article>
+            <article class="landing-showcase-card">
+              <div class="landing-showcase-card__media landing-showcase-card__media_requests">
+                <img src="/calcpro-hero.jpg" alt="Заявки в CalcPro" />
+              </div>
+              <div class="landing-showcase-card__body">
+                <div class="landing-showcase-card__title">Заявки</div>
+                <p>Все обращения собираются в одном месте и не теряются по чатам.</p>
+              </div>
+            </article>
+            <article class="landing-showcase-card">
+              <div class="landing-showcase-card__media landing-showcase-card__media_analytics">
+                <img src="/calcpro-hero.jpg" alt="Аналитика в CalcPro" />
+              </div>
+              <div class="landing-showcase-card__body">
+                <div class="landing-showcase-card__title">Аналитика</div>
+                <p>Следите за результатом сценариев и понимайте, что приносит заявки.</p>
+              </div>
+            </article>
           </div>
         </section>
 
@@ -110,7 +172,7 @@
             </article>
             <article class="landing-feature-card">
               <div class="landing-feature-card__index">02</div>
-              <h3>Настраивайте расчеты под свой продукт</h3>
+              <h3>Настраивайте расчёты под свой продукт</h3>
               <p>
                 Формулы, переменные, цены и логика результата отделены от дизайна,
                 поэтому сценарий проще масштабировать и держать в порядке.
@@ -121,7 +183,7 @@
               <h3>Публикуйте только готовую версию</h3>
               <p>
                 Предпросмотр позволяет пройти сценарий глазами клиента и убедиться,
-                что расчет, форма и кнопки работают до выхода в прод.
+                что расчёт, форма и кнопки работают до выхода в прод.
               </p>
             </article>
             <article class="landing-feature-card">
@@ -137,40 +199,41 @@
 
         <section class="landing-section landing-section_alt" id="faq">
           <div class="landing-section__head">
-            <div class="landing-eyebrow">Как это работает</div>
-            <h2>Путь от идеи до рабочего сценария остается коротким, понятным и управляемым.</h2>
+            <div class="landing-eyebrow">FAQ</div>
+            <h2>Ответы на вопросы, которые чаще всего возникают перед запуском.</h2>
           </div>
           <div class="landing-cases">
             <article class="landing-case-card">
-              <div class="landing-case-card__tag">Старт</div>
-              <h3>Запуститесь без сложного входа</h3>
-              <p>
-                Создайте первый экран, добавьте нужные блоки и соберите рабочий сценарий
-                без долгой подготовки и лишних технических этапов.
-              </p>
+              <div class="landing-case-card__tag">Free</div>
+              <h3>Можно бесплатно попробовать?</h3>
+              <p>Да. Базовый сценарий можно собрать и протестировать без оплаты, чтобы понять, подходит ли вам формат.</p>
             </article>
             <article class="landing-case-card">
-              <div class="landing-case-card__tag">Контроль</div>
-              <h3>Сначала проверьте, потом публикуйте</h3>
-              <p>
-                Перед запуском вы видите сценарий так, как его увидит клиент,
-                и выпускаете уже собранную, аккуратную версию.
-              </p>
+              <div class="landing-case-card__tag">Подписка</div>
+              <h3>Как отменить подписку?</h3>
+              <p>Вы можете не продлевать тариф на следующий период и сохранить доступ к уже собранным материалам до конца оплаченного срока.</p>
+            </article>
+            <article class="landing-case-card">
+              <div class="landing-case-card__tag">Mobile</div>
+              <h3>Работает ли на телефоне?</h3>
+              <p>Да. Сценарии адаптированы под мобильный экран, поэтому их удобно открывать внутри VK с телефона.</p>
             </article>
             <article class="landing-case-card">
               <div class="landing-case-card__tag">Масштаб</div>
-              <h3>Работайте с несколькими сообществами</h3>
-              <p>
-                Храните сценарии, шаблоны и поток заявок по разным группам в одном кабинете
-                и переключайтесь между ними без хаоса.
-              </p>
+              <h3>Можно несколько калькуляторов?</h3>
+              <p>Да. На платных тарифах можно вести несколько сценариев для разных услуг, офферов и сообществ.</p>
+            </article>
+            <article class="landing-case-card">
+              <div class="landing-case-card__tag">Интеграции</div>
+              <h3>Есть интеграции?</h3>
+              <p>Да. CalcPro можно использовать как основу для дальнейших связок с CRM, аналитикой и внутренними процессами.</p>
             </article>
           </div>
         </section>
 
         <section class="landing-section" id="workflow">
           <div class="landing-section__head">
-            <div class="landing-eyebrow">Сценарий работы</div>
+            <div class="landing-eyebrow">Документация</div>
             <h2>Четыре шага, чтобы превратить идею в инструмент, который реально приносит заявки.</h2>
           </div>
           <div class="landing-steps">
@@ -186,7 +249,7 @@
             </article>
             <article class="landing-step">
               <span class="landing-step__number">3</span>
-              <h3>Настройте логику расчета</h3>
+              <h3>Настройте логику расчёта</h3>
               <p>Свяжите поля с формулой, задайте правила вычисления и проверьте, что итог работает предсказуемо.</p>
             </article>
             <article class="landing-step">
@@ -206,9 +269,7 @@
             <article class="landing-price-card">
               <div class="landing-price-card__label">Free</div>
               <div class="landing-price-card__value">бесплатно</div>
-              <p class="landing-price-card__text">
-                Для первого знакомства с платформой и запуска базового сценария.
-              </p>
+              <p class="landing-price-card__text">Для первого знакомства с платформой и запуска базового сценария.</p>
               <ul class="landing-price-card__list">
                 <li>1 калькулятор</li>
                 <li>до 20 заявок в месяц</li>
@@ -218,7 +279,7 @@
             </article>
 
             <article class="landing-price-card landing-price-card_featured">
-              <div class="landing-price-card__badge">Рекомендуем</div>
+              <div class="landing-price-card__badge">Самый популярный</div>
               <div class="landing-price-card__label">Start</div>
               <div class="landing-price-card__value">299 ₽/мес</div>
               <p class="landing-price-card__text">
@@ -248,13 +309,61 @@
           </div>
         </section>
 
+        <section class="landing-section landing-section_alt" id="updates">
+          <div class="landing-section__head">
+            <div class="landing-eyebrow">Обновления</div>
+            <h2>Платформа развивается вместе с задачами сообществ и команд продаж.</h2>
+          </div>
+          <div class="landing-cases">
+            <article class="landing-case-card">
+              <div class="landing-case-card__tag">Блог</div>
+              <h3>Разборы сценариев</h3>
+              <p>Показываем рабочие примеры экранов, форм и калькуляторов для разных ниш.</p>
+            </article>
+            <article class="landing-case-card">
+              <div class="landing-case-card__tag">Updates</div>
+              <h3>Регулярные улучшения</h3>
+              <p>Обновляем редактор, публикацию и приём заявок без необходимости всё переделывать вручную.</p>
+            </article>
+            <article class="landing-case-card" id="roadmap">
+              <div class="landing-case-card__tag">Roadmap</div>
+              <h3>Дорожная карта</h3>
+              <p>В фокусе: больше шаблонов, глубже аналитика, удобнее интеграции и новые сценарии для сообществ VK.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="landing-section" id="legal">
+          <div class="landing-section__head">
+            <div class="landing-eyebrow">Правовая информация</div>
+            <h2>Базовые документы и правила обработки данных доступны прямо на лендинге.</h2>
+          </div>
+          <div class="landing-cases">
+            <article class="landing-case-card" id="privacy">
+              <div class="landing-case-card__tag">Privacy</div>
+              <h3>Политика конфиденциальности</h3>
+              <p>Описывает, какие данные сервис получает, как использует их в работе и как обеспечивает безопасность доступа.</p>
+            </article>
+            <article class="landing-case-card" id="agreement">
+              <div class="landing-case-card__tag">Terms</div>
+              <h3>Пользовательское соглашение</h3>
+              <p>Фиксирует правила использования CalcPro, допустимые сценарии и общие условия работы с платформой.</p>
+            </article>
+            <article class="landing-case-card" id="personal-data">
+              <div class="landing-case-card__tag">Data</div>
+              <h3>Обработка персональных данных</h3>
+              <p>Напоминает о согласии пользователей на отправку заявок и о корректной работе с клиентскими данными.</p>
+            </article>
+          </div>
+        </section>
+
         <section class="landing-section landing-cta" id="contact">
           <div class="landing-cta__panel">
             <div>
               <div class="landing-eyebrow">Готово к запуску</div>
               <h2>Если вам нужен аккуратный цифровой вход в продукт и понятный путь до заявки, CalcPro уже готов к работе.</h2>
               <p>
-                Используйте лендинг как витрину, а приложение как рабочий центр для расчетов,
+                Используйте лендинг как витрину, а приложение как рабочий центр для расчётов,
                 публикации сценариев и обработки обращений.
               </p>
               <div class="landing-contact-card">
@@ -268,20 +377,6 @@
                 </button>
                 <div class="landing-contact-card__hint">
                   Нажмите, чтобы скопировать почту. Если нужна помощь с подключением, настройкой или запуском, просто напишите нам.
-                </div>
-              </div>
-              <div class="landing-contact-card">
-                <div class="landing-contact-card__label">VK</div>
-                <a
-                  class="landing-contact-card__mail"
-                  href="https://vk.com/app.calcpro"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  vk.com/app.calcpro
-                </a>
-                <div class="landing-contact-card__hint">
-                  Группа VK для связи, новостей и быстрого перехода к приложению.
                 </div>
               </div>
             </div>
@@ -315,6 +410,11 @@
           </div>
         </div>
         <div class="landing-footer__links">
+          <a href="#privacy">Политика конфиденциальности</a>
+          <a href="#agreement">Пользовательское соглашение</a>
+          <a href="#personal-data">Обработка персональных данных</a>
+          <a href="#contact">Контакты</a>
+          <a href="#contact">Поддержка</a>
           <button class="landing-footer__link-button" type="button" data-copy-email="support@calcpro.su">
             support@calcpro.su
           </button>
@@ -336,11 +436,7 @@
                 fill="currentColor"
               />
             </svg>
-            <span>vk.com/app.calcpro</span>
-          </a>
-          <a href="https://calcpro.su">calcpro.su</a>
-          <a href="https://vk.com/app54626522" target="_blank" rel="noreferrer">
-            Открыть приложение
+            <span>VK</span>
           </a>
         </div>
         <div class="landing-footer__year" data-current-year></div>
@@ -348,6 +444,15 @@
 
       <div class="landing-vk-widget">
         <div id="vk-community-messages" class="landing-vk-widget__host" data-widget-state="loading"></div>
+        <a
+          id="vk-community-messages-fallback"
+          class="landing-vk-widget__fallback"
+          href="https://vk.com/im?media=&sel=-239808218"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Написать в VK
+        </a>
       </div>
     </div>
 

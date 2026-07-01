@@ -180,6 +180,17 @@ a {
   line-height: 1.65;
 }
 
+.landing-hero-benefits {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  color: #f7f0e5;
+  font-size: 17px;
+  font-weight: 700;
+}
+
 .landing-actions {
   display: flex;
   flex-wrap: wrap;
@@ -222,16 +233,37 @@ a {
 
 .landing-proof {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 18px;
   margin-top: 28px;
+  padding: 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.landing-proof__head {
+  max-width: 720px;
+}
+
+.landing-proof__title {
+  margin: 0;
+  color: #f7f0e5;
+  font-size: clamp(24px, 3.6vw, 36px);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.landing-proof__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .landing-proof__item {
   padding: 16px 18px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.04);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  background: rgba(15, 19, 24, 0.46);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 .landing-proof__value {
@@ -269,6 +301,12 @@ a {
     linear-gradient(180deg, #242c34 0%, #1d2329 100%);
 }
 
+.landing-section_showcase {
+  background:
+    radial-gradient(circle at right top, rgba(110, 168, 255, 0.12), transparent 28%),
+    linear-gradient(180deg, #242c34 0%, #1d2329 100%);
+}
+
 .landing-section__head {
   max-width: 760px;
   margin-bottom: 22px;
@@ -287,7 +325,8 @@ a {
 
 .landing-feature-grid,
 .landing-cases,
-.landing-pricing {
+.landing-pricing,
+.landing-showcase-grid {
   display: grid;
   gap: 18px;
 }
@@ -304,10 +343,15 @@ a {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.landing-showcase-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .landing-feature-card,
 .landing-step,
 .landing-case-card,
-.landing-price-card {
+.landing-price-card,
+.landing-showcase-card {
   padding: 22px;
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.04);
@@ -330,7 +374,8 @@ a {
 .landing-feature-card h3,
 .landing-step h3,
 .landing-case-card h3,
-.landing-price-card__value {
+.landing-price-card__value,
+.landing-showcase-card__title {
   margin: 18px 0 10px;
   color: #f7f0e5;
   font-size: 22px;
@@ -344,10 +389,49 @@ a {
 .landing-step p,
 .landing-case-card p,
 .landing-price-card__text,
-.landing-cta__panel p {
+.landing-cta__panel p,
+.landing-showcase-card p {
   margin: 0;
   color: #c6b8a8;
   line-height: 1.6;
+}
+
+.landing-showcase-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.landing-showcase-card__media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: #111419;
+}
+
+.landing-showcase-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.landing-showcase-card__media_editor img {
+  object-position: left top;
+}
+
+.landing-showcase-card__media_calculator img {
+  object-position: center top;
+}
+
+.landing-showcase-card__media_requests img {
+  object-position: left center;
+}
+
+.landing-showcase-card__media_analytics img {
+  object-position: right center;
+}
+
+.landing-showcase-card__body {
+  padding: 20px 22px 22px;
 }
 
 .landing-case-card__tag,
@@ -564,7 +648,7 @@ a {
 .landing-footer__links {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 16px;
 }
 
@@ -636,6 +720,34 @@ a {
   font-weight: 800;
 }
 
+.landing-vk-widget__host {
+  position: relative;
+}
+
+.landing-vk-widget__fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 156px;
+  height: 52px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #4a8dff 0%, #2d6fff 100%);
+  box-shadow: 0 18px 38px rgba(24, 48, 96, 0.34);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.landing-vk-widget__fallback[hidden] {
+  display: none;
+}
+
+.landing-vk-widget__host[data-widget-state='ready'] + .landing-vk-widget__fallback {
+  display: none;
+}
+
 @media (max-width: 1120px) {
   .landing-topbar {
     flex-wrap: wrap;
@@ -645,7 +757,9 @@ a {
   .landing-feature-grid,
   .landing-cases,
   .landing-steps,
-  .landing-pricing {
+  .landing-pricing,
+  .landing-proof__grid,
+  .landing-showcase-grid {
     grid-template-columns: 1fr;
   }
 
