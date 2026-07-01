@@ -168,7 +168,7 @@ async function handleApiRequest(request, response, url) {
 }
 
 function resolveStaticFile(pathname) {
-  const normalizedPath = pathname === '/' ? '/index.html' : pathname;
+  const normalizedPath = pathname === '/' ? '/landing.html' : pathname;
   const safePath = path.normalize(normalizedPath).replace(/^(\.\.[/\\])+/, '');
   return path.join(distDir, safePath);
 }
@@ -184,14 +184,14 @@ function sendFile(response, filePath) {
 
 function handleStaticRequest(response, url) {
   const candidatePath = resolveStaticFile(url.pathname);
-  const indexPath = path.join(distDir, 'index.html');
+  const landingPath = path.join(distDir, 'landing.html');
 
   if (fs.existsSync(candidatePath) && fs.statSync(candidatePath).isFile()) {
     return sendFile(response, candidatePath);
   }
 
-  if (fs.existsSync(indexPath)) {
-    return sendFile(response, indexPath);
+  if (fs.existsSync(landingPath)) {
+    return sendFile(response, landingPath);
   }
 
   response.statusCode = 503;
