@@ -527,17 +527,15 @@ const App = () => {
   }, [isPublicViewer]);
 
   useEffect(() => {
-    if (!bridge.isWebView()) {
-      return;
-    }
-
     bridge
       .send('VKWebAppGetLaunchParams')
       .then((params) => {
         setLaunchParams(params);
       })
       .catch(() => {
-        setLaunchParams(null);
+        // Keep launch params parsed from the current URL when bridge params
+        // are unavailable, for example during desktop VK embedding quirks.
+        setLaunchParams((currentParams) => currentParams);
       });
   }, []);
 
