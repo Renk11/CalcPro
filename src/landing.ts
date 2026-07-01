@@ -90,9 +90,11 @@ const loadVkWidgetScript = () =>
       }
 
       existingScript.addEventListener('load', () => resolveWithCleanup(), { once: true });
-      existingScript.addEventListener('error', () => rejectWithCleanup(new Error('VK Open API failed to load')), {
-        once: true,
-      });
+      existingScript.addEventListener(
+        'error',
+        () => rejectWithCleanup(new Error('VK Open API failed to load')),
+        { once: true },
+      );
       return;
     }
 
