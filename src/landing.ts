@@ -103,12 +103,12 @@ const initVkCommunityMessagesWidget = async () => {
     }
 
     window.VK.init({ apiId: VK_WIDGET_APP_ID, onlyWidgets: true });
-    widgetHost.innerHTML = '';
     window.VK.Widgets.CommunityMessages(VK_WIDGET_CONTAINER_ID, VK_WIDGET_GROUP_ID, {
       tooltipButtonText: 'Напишите нам в VK',
       expandTimeout: 10000,
       disableExpandChatSound: true,
     });
+
     widgetHost.dataset.widgetState = 'ready';
   } catch (_) {
     widgetHost.dataset.widgetState = 'failed';

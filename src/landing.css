@@ -453,22 +453,12 @@ a {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
-.landing-contact-card_widget {
-  width: min(100%, 520px);
-}
-
 .landing-contact-card__label {
   color: #9ea497;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-}
-
-.landing-contact-card__widget-copy {
-  color: #f0e1cf;
-  font-size: 16px;
-  line-height: 1.5;
 }
 
 .landing-contact-card__mail {
@@ -583,6 +573,19 @@ a {
   text-decoration: none;
 }
 
+.landing-footer__vk-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.landing-footer__vk-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: #6ea8ff;
+}
+
 .landing-footer__link-button {
   padding: 0;
   border: 0;
@@ -603,6 +606,34 @@ a {
 
 .landing-footer__year {
   color: #8f7d6d;
+}
+
+.landing-vk-widget {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 60;
+}
+
+.landing-vk-widget__host {
+  min-width: 72px;
+  min-height: 72px;
+}
+
+.landing-vk-widget__host[data-widget-state='failed']::before {
+  content: 'Написать в VK';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 156px;
+  height: 52px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #4a8dff 0%, #2d6fff 100%);
+  box-shadow: 0 18px 38px rgba(24, 48, 96, 0.34);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 @media (max-width: 1120px) {
@@ -630,6 +661,11 @@ a {
 
   .landing-footer__links {
     justify-content: flex-start;
+  }
+
+  .landing-vk-widget {
+    right: 16px;
+    bottom: 16px;
   }
 }
 
@@ -685,5 +721,10 @@ a {
 
   .landing-badge-row {
     margin-bottom: 14px;
+  }
+
+  .landing-vk-widget {
+    right: 14px;
+    bottom: 14px;
   }
 }
