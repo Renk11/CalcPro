@@ -167,8 +167,20 @@ async function handleApiRequest(request, response, url) {
   }
 }
 
-function resolveStaticFile(pathname) {
-  const normalizedPath = pathname === '/' ? '/landing.html' : pathname;
+function normalizeHost(hostHeader) {
+  return String(hostHeader || '')
+    .split(':')[0]
+    .trim()
+    .toLowerCase();
+}
+
+function isAppHost(hostHeader) {
+  return normalizeHost(hostHeader) === 'app.calcpro.su';
+}
+
+function resolveStaticFile(pathname, hostHeader) {
+  const defaultEntryFile = isAppHost(hostHeader) ? '/index.html' : '/landing.html';
+  const normalizedPath = pathname === '/' ? defaultEntryFile : pathname;
   const safePath = path.normalize(normalizedPath).replace(/^(\.\.[/\\])+/, '');
   return path.join(distDir, safePath);
 }
@@ -182,16 +194,19 @@ function sendFile(response, filePath) {
   fs.createReadStream(filePath).pipe(response);
 }
 
-function handleStaticRequest(response, url) {
-  const candidatePath = resolveStaticFile(url.pathname);
-  const landingPath = path.join(distDir, 'landing.html');
+function handleStaticRequest(request, response, url) {
+  const candidatePath = resolveStaticFile(url.pathname, request.headers.host);
+  const fallbackPath = path.join(
+    distDir,
+    isAppHost(request.headers.host) ? 'index.html' : 'landing.html',
+  );
 
   if (fs.existsSync(candidatePath) && fs.statSync(candidatePath).isFile()) {
     return sendFile(response, candidatePath);
   }
 
-  if (fs.existsSync(landingPath)) {
-    return sendFile(response, landingPath);
+  if (fs.existsSync(fallbackPath)) {
+    return sendFile(response, fallbackPath);
   }
 
   response.statusCode = 503;
@@ -210,7 +225,7 @@ const server = http.createServer(async (request, response) => {
     return handleApiRequest(request, response, url);
   }
 
-  return handleStaticRequest(response, url);
+  return handleStaticRequest(request, response, url);
 });
 
 server.listen(port, () => {
