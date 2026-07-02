@@ -16,6 +16,7 @@ const projectRoot = path.resolve(__dirname, '..');
 const distDir = path.join(projectRoot, 'dist');
 const port = Number(process.env.PORT || 3000);
 const VK_LAUNCH_SECRET_ENV_KEYS = ['VK_APP_SECRET', 'VK_MINI_APP_SECRET', 'VK_CLIENT_SECRET'];
+const DEFAULT_APP_HOSTS = ['app.calcpro.su'];
 
 const API_ROUTES = new Map([
   ['/api/admin-settings', adminSettingsHandler],
@@ -195,8 +196,31 @@ function normalizeHost(hostHeader) {
     .toLowerCase();
 }
 
+function getConfiguredAppHosts() {
+  const configuredHosts = String(process.env.CALCPRO_APP_HOSTS || '')
+    .split(',')
+    .map((host) => normalizeHost(host))
+    .filter(Boolean);
+
+  const publicAppUrl = String(process.env.PUBLIC_APP_URL || '').trim();
+  if (publicAppUrl) {
+    try {
+      configuredHosts.push(normalizeHost(new URL(publicAppUrl).host));
+    } catch {
+      configuredHosts.push(normalizeHost(publicAppUrl));
+    }
+  }
+
+  return new Set([...DEFAULT_APP_HOSTS, ...configuredHosts].filter(Boolean));
+}
+
 function isAppHost(hostHeader) {
-  return normalizeHost(hostHeader) === 'app.calcpro.su';
+  const host = normalizeHost(hostHeader);
+  if (!host) {
+    return false;
+  }
+
+  return getConfiguredAppHosts().has(host);
 }
 
 function resolveStaticFile(pathname, hostHeader) {
