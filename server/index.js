@@ -74,9 +74,9 @@ function loadEnvFile() {
       value = value.slice(1, -1);
     }
 
-    if (!(key in process.env)) {
-      process.env[key] = value;
-    }
+    // On self-hosted VPS we want the project .env to be the source of truth,
+    // even if PM2 or the shell still carries stale values from an older deploy.
+    process.env[key] = value;
   }
 }
 

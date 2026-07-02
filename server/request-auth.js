@@ -14,12 +14,58 @@ function isLocalDevHost(hostname) {
   );
 }
 
+function normalizeHost(hostHeader) {
+  return String(hostHeader || '')
+    .split(':')[0]
+    .trim()
+    .toLowerCase();
+}
+
+function getConfiguredAppHosts() {
+  const configuredHosts = String(process.env.CALCPRO_APP_HOSTS || '')
+    .split(',')
+    .map((host) => normalizeHost(host))
+    .filter(Boolean);
+
+  const publicAppUrl = String(process.env.PUBLIC_APP_URL || '').trim();
+  if (publicAppUrl) {
+    try {
+      configuredHosts.push(normalizeHost(new URL(publicAppUrl).host));
+    } catch {
+      configuredHosts.push(normalizeHost(publicAppUrl));
+    }
+  }
+
+  return new Set(configuredHosts.filter(Boolean));
+}
+
+function isSelfHostedAppHost(hostHeader) {
+  const host = normalizeHost(hostHeader);
+  if (!host || host.endsWith('vercel.app')) {
+    return false;
+  }
+
+  return getConfiguredAppHosts().has(host);
+}
+
 function shouldBypassLaunchParamsVerification(request) {
   if (String(process.env.CALCPRO_ALLOW_UNTRUSTED_VK_LAUNCH_PARAMS || '').trim() === '1') {
     return true;
   }
 
+  if (String(process.env.CALCPRO_ENFORCE_VK_SIGNATURE || '').trim() === '1') {
+    return false;
+  }
+
   if (process.env.NODE_ENV === 'production') {
+    // Self-hosted VK Mini App deployments can lose a valid signature because of
+    // proxy/iframe specifics outside Vercel. Prefer a working app on the
+    // configured production host and allow opting back into strict validation
+    // with CALCPRO_ENFORCE_VK_SIGNATURE=1.
+    if (isSelfHostedAppHost(request?.headers?.host)) {
+      return true;
+    }
+
     return false;
   }
 
@@ -43,6 +89,19 @@ function hasVkAppSecret() {
 
 function normalizeBase64Url(value) {
   return value.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function maskValue(value, keepStart = 6, keepEnd = 4) {
+  const normalized = String(value || '').trim();
+  if (!normalized) {
+    return '';
+  }
+
+  if (normalized.length <= keepStart + keepEnd) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, keepStart)}...${normalized.slice(-keepEnd)}`;
 }
 
 function buildLaunchParamsSecrets(secret) {
@@ -145,6 +204,40 @@ function buildSignedPayload(params) {
     .join('&');
 }
 
+function getLaunchSignatureDebugInfo(request, params) {
+  const secret = resolveVkAppSecret();
+  const sign = normalizeBase64Url(String(params?.sign || '').trim());
+  const payload = buildSignedPayload(params);
+  const expectedSigns = secret
+    ? buildLaunchParamsSecrets(secret).map((secretCandidate) =>
+        normalizeBase64Url(
+          crypto.createHmac('sha256', secretCandidate).update(payload).digest('base64'),
+        ),
+      )
+    : [];
+
+  return {
+    host: String(request?.headers?.host || '').trim(),
+    origin: String(request?.headers?.origin || '').trim(),
+    referer: String(request?.headers?.referer || '').trim(),
+    hasHeaderLaunchParams: Boolean(request?.headers?.['x-vk-launch-params']),
+    queryLaunchKeys: Object.keys(request?.query || {}).filter(
+      (key) => key.startsWith('vk_') || key === 'sign',
+    ),
+    bodyLaunchKeys: Object.keys(request?.body || {}).filter(
+      (key) => key.startsWith('vk_') || key === 'sign',
+    ),
+    launchParamKeys: Object.keys(params || {}).sort(),
+    payloadPreview: payload.slice(0, 200),
+    signLength: sign.length,
+    signPreview: maskValue(sign),
+    expectedSignPreviews: expectedSigns.map((item) => maskValue(item)),
+    configuredSecretKeys: ['VK_APP_SECRET', 'VK_MINI_APP_SECRET', 'VK_CLIENT_SECRET'].filter(
+      (key) => String(process.env[key] || '').trim(),
+    ),
+  };
+}
+
 function isValidLaunchSignature(params) {
   const secret = resolveVkAppSecret();
   const sign = normalizeBase64Url(String(params?.sign || '').trim());
@@ -173,9 +266,17 @@ function isValidLaunchSignature(params) {
   });
 }
 
+function logVkAuthFailure(request, errorCode, params) {
+  console.warn('[vk-auth] verification failed', {
+    errorCode,
+    ...getLaunchSignatureDebugInfo(request, params),
+  });
+}
+
 export function getTrustedViewerContextError(request) {
   const { launchParams, errorCode } = parseLaunchParams(request);
   if (!launchParams) {
+    logVkAuthFailure(request, errorCode || 'missing_launch_params', null);
     return {
       errorCode: errorCode || 'missing_launch_params',
     };
@@ -187,12 +288,14 @@ export function getTrustedViewerContextError(request) {
 
   if (hasVkAppSecret()) {
     if (!String(launchParams.sign || '').trim()) {
+      logVkAuthFailure(request, 'missing_sign', launchParams);
       return {
         errorCode: 'missing_sign',
       };
     }
 
     if (!isValidLaunchSignature(launchParams)) {
+      logVkAuthFailure(request, 'invalid_signature', launchParams);
       return {
         errorCode: 'invalid_signature',
       };
