@@ -91,19 +91,6 @@ function normalizeBase64Url(value) {
   return value.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-function maskValue(value, keepStart = 6, keepEnd = 4) {
-  const normalized = String(value || '').trim();
-  if (!normalized) {
-    return '';
-  }
-
-  if (normalized.length <= keepStart + keepEnd) {
-    return normalized;
-  }
-
-  return `${normalized.slice(0, keepStart)}...${normalized.slice(-keepEnd)}`;
-}
-
 function buildLaunchParamsSecrets(secret) {
   const normalizedSecret = String(secret || '').trim();
   if (!normalizedSecret) {
@@ -204,40 +191,6 @@ function buildSignedPayload(params) {
     .join('&');
 }
 
-function getLaunchSignatureDebugInfo(request, params) {
-  const secret = resolveVkAppSecret();
-  const sign = normalizeBase64Url(String(params?.sign || '').trim());
-  const payload = buildSignedPayload(params);
-  const expectedSigns = secret
-    ? buildLaunchParamsSecrets(secret).map((secretCandidate) =>
-        normalizeBase64Url(
-          crypto.createHmac('sha256', secretCandidate).update(payload).digest('base64'),
-        ),
-      )
-    : [];
-
-  return {
-    host: String(request?.headers?.host || '').trim(),
-    origin: String(request?.headers?.origin || '').trim(),
-    referer: String(request?.headers?.referer || '').trim(),
-    hasHeaderLaunchParams: Boolean(request?.headers?.['x-vk-launch-params']),
-    queryLaunchKeys: Object.keys(request?.query || {}).filter(
-      (key) => key.startsWith('vk_') || key === 'sign',
-    ),
-    bodyLaunchKeys: Object.keys(request?.body || {}).filter(
-      (key) => key.startsWith('vk_') || key === 'sign',
-    ),
-    launchParamKeys: Object.keys(params || {}).sort(),
-    payloadPreview: payload.slice(0, 200),
-    signLength: sign.length,
-    signPreview: maskValue(sign),
-    expectedSignPreviews: expectedSigns.map((item) => maskValue(item)),
-    configuredSecretKeys: ['VK_APP_SECRET', 'VK_MINI_APP_SECRET', 'VK_CLIENT_SECRET'].filter(
-      (key) => String(process.env[key] || '').trim(),
-    ),
-  };
-}
-
 function isValidLaunchSignature(params) {
   const secret = resolveVkAppSecret();
   const sign = normalizeBase64Url(String(params?.sign || '').trim());
@@ -266,17 +219,9 @@ function isValidLaunchSignature(params) {
   });
 }
 
-function logVkAuthFailure(request, errorCode, params) {
-  console.warn('[vk-auth] verification failed', {
-    errorCode,
-    ...getLaunchSignatureDebugInfo(request, params),
-  });
-}
-
 export function getTrustedViewerContextError(request) {
   const { launchParams, errorCode } = parseLaunchParams(request);
   if (!launchParams) {
-    logVkAuthFailure(request, errorCode || 'missing_launch_params', null);
     return {
       errorCode: errorCode || 'missing_launch_params',
     };
@@ -288,14 +233,12 @@ export function getTrustedViewerContextError(request) {
 
   if (hasVkAppSecret()) {
     if (!String(launchParams.sign || '').trim()) {
-      logVkAuthFailure(request, 'missing_sign', launchParams);
       return {
         errorCode: 'missing_sign',
       };
     }
 
     if (!isValidLaunchSignature(launchParams)) {
-      logVkAuthFailure(request, 'invalid_signature', launchParams);
       return {
         errorCode: 'invalid_signature',
       };

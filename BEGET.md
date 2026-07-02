@@ -23,6 +23,7 @@ Set these variables in the Beget Node.js app settings or in the server `.env` fi
 ```env
 PUBLIC_APP_URL=https://app.example.com
 CALCPRO_APP_HOSTS=app.example.com,www.app.example.com
+CALCPRO_ENFORCE_VK_SIGNATURE=0
 VK_APP_SECRET=replace_with_vk_app_secret
 VK_GROUP_TOKEN=replace_with_vk_group_token
 SUPABASE_URL=https://your-project.supabase.co
@@ -36,6 +37,7 @@ Notes:
 
 - `PUBLIC_APP_URL` is used for YooKassa `return_url`.
 - `CALCPRO_APP_HOSTS` is used by the Node server to understand which hosts should open the app entry (`index.html`) instead of the marketing landing (`landing.html`).
+- `CALCPRO_ENFORCE_VK_SIGNATURE=0` keeps the self-hosted Beget deployment in compatibility mode for VK Mini App auth. Set `1` only if your reverse proxy reliably preserves VK signature validation end-to-end.
 - `PORT` should usually be left to Beget if the platform injects it automatically.
 - Use only one VK app secret source with the same value: `VK_APP_SECRET` or `VK_MINI_APP_SECRET` or `VK_CLIENT_SECRET`.
 - A ready-to-fill template is available in [beget.env.example](./beget.env.example).
@@ -66,6 +68,7 @@ Example:
 ```env
 PUBLIC_APP_URL=https://app.your-domain.ru
 CALCPRO_APP_HOSTS=app.your-domain.ru,www.app.your-domain.ru
+CALCPRO_ENFORCE_VK_SIGNATURE=0
 ```
 
 ## Important Difference Fixed In Code
@@ -84,6 +87,12 @@ Now [server/index.js](./server/index.js) supports:
 - host auto-detection from `PUBLIC_APP_URL`
 
 So Beget can serve the correct app page without hardcoding a single production hostname.
+
+The VK auth layer also supports a self-hosted compatibility mode:
+
+- on configured self-hosted app hosts it can bypass strict VK signature enforcement
+- this keeps admin actions such as template publication and tariff assignment working behind Beget/VPS proxy layers
+- if you later confirm that your proxy preserves VK signature validation correctly, you can switch back to strict mode with `CALCPRO_ENFORCE_VK_SIGNATURE=1`
 
 ## Beget Checklist
 
