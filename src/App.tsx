@@ -1680,10 +1680,15 @@ const App = () => {
       return;
     }
 
+    const storedTemplate = templates.find((item) => item.id === template.id);
     const normalizedTemplate = normalizeTemplateRecord({
+      ...storedTemplate,
       ...template,
       title: clampTemplateTitle(template.title),
       description: clampTemplateDescription(template.description),
+      publicationStatus: storedTemplate?.publicationStatus ?? template.publicationStatus,
+      publishedAt: storedTemplate?.publishedAt ?? template.publishedAt,
+      publicId: storedTemplate?.publicId ?? template.publicId,
       lastModifiedBy: currentAdminLabel,
     });
     const next = upsertTemplate(normalizedTemplate);
