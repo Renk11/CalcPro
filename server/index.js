@@ -15,6 +15,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 const distDir = path.join(projectRoot, 'dist');
 const port = Number(process.env.PORT || 3000);
+const VK_LAUNCH_SECRET_ENV_KEYS = ['VK_APP_SECRET', 'VK_MINI_APP_SECRET', 'VK_CLIENT_SECRET'];
 
 const API_ROUTES = new Map([
   ['/api/admin-settings', adminSettingsHandler],
@@ -75,6 +76,26 @@ function loadEnvFile() {
     if (!(key in process.env)) {
       process.env[key] = value;
     }
+  }
+}
+
+function getConfiguredVkLaunchSecrets() {
+  return VK_LAUNCH_SECRET_ENV_KEYS.filter((key) => String(process.env[key] || '').trim());
+}
+
+function logVkLaunchSecretStatus() {
+  const configuredKeys = getConfiguredVkLaunchSecrets();
+  if (configuredKeys.length === 0) {
+    console.warn(
+      '[vk-auth] VK launch params signature verification is disabled: set VK_APP_SECRET, VK_MINI_APP_SECRET, or VK_CLIENT_SECRET.',
+    );
+    return;
+  }
+
+  if (configuredKeys.length > 1) {
+    console.warn(
+      `[vk-auth] Multiple VK app secrets are configured (${configuredKeys.join(', ')}). CalcPro will use ${configuredKeys[0]}.`,
+    );
   }
 }
 
@@ -215,6 +236,7 @@ function handleStaticRequest(request, response, url) {
 }
 
 loadEnvFile();
+logVkLaunchSecretStatus();
 
 const server = http.createServer(async (request, response) => {
   setSecurityHeaders(response);

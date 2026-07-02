@@ -21,8 +21,17 @@ function normalizeBase64Url(value) {
   return value.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-function buildLaunchParamsSecret(secret) {
-  return crypto.createHmac('sha256', 'WebAppData').update(secret).digest();
+function buildLaunchParamsSecrets(secret) {
+  const normalizedSecret = String(secret || '').trim();
+  if (!normalizedSecret) {
+    return [];
+  }
+
+  return [
+    normalizedSecret,
+    crypto.createHmac('sha256', normalizedSecret).update('WebAppData').digest(),
+    crypto.createHmac('sha256', 'WebAppData').update(normalizedSecret).digest(),
+  ];
 }
 
 function parseLaunchParamsHeader(request) {
@@ -58,7 +67,7 @@ function buildSignedPayload(params) {
 
 function isValidLaunchSignature(params) {
   const secret = resolveVkAppSecret();
-  const sign = String(params?.sign || '').trim();
+  const sign = normalizeBase64Url(String(params?.sign || '').trim());
 
   if (!secret || !sign) {
     return false;
@@ -69,12 +78,11 @@ function isValidLaunchSignature(params) {
     return false;
   }
 
-  const expectedSigns = [
+  const expectedSigns = buildLaunchParamsSecrets(secret).map((secretCandidate) =>
     normalizeBase64Url(
-      crypto.createHmac('sha256', buildLaunchParamsSecret(secret)).update(payload).digest('base64'),
+      crypto.createHmac('sha256', secretCandidate).update(payload).digest('base64'),
     ),
-    normalizeBase64Url(crypto.createHmac('sha256', secret).update(payload).digest('base64')),
-  ];
+  );
 
   return expectedSigns.some((expectedSign) => {
     if (sign.length !== expectedSign.length) {

@@ -26,7 +26,7 @@ export const getVkLaunchParamsErrorMessage = (
     case 'missing_sign':
       return 'В VK launch params отсутствует подпись sign. Обычно это значит, что приложение открыто вне корректного VK-контекста.';
     case 'invalid_signature':
-      return 'Подпись VK launch params не прошла проверку. Проверьте VK_APP_SECRET или VK_MINI_APP_SECRET на сервере.';
+      return 'Подпись VK launch params не прошла проверку. Проверьте секрет мини-приложения в переменной VK_APP_SECRET, VK_MINI_APP_SECRET или VK_CLIENT_SECRET на сервере.';
     default:
       return 'Сервер не подтвердил VK-контекст. Откройте кабинет из сообщества VK или проверьте launch params.';
   }
