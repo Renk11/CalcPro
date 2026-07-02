@@ -42,7 +42,7 @@ import {
   readPendingPayment,
   writePendingPayment,
 } from './shared/storage/pendingPaymentStorage';
-import { isVkLaunchParamsError } from './shared/apiErrors';
+import { getVkLaunchParamsErrorMessage, isVkLaunchParamsError } from './shared/apiErrors';
 import { createRandomId } from './shared/randomId';
 import { createVkAuthHeaders, getWindowLaunchParams } from './shared/vkAuth';
 import type {
@@ -1045,8 +1045,7 @@ const App = () => {
       if (isProtectedApiUnavailable(payload, response.status)) {
         return {
           ok: false,
-          message:
-            'Сервер не подтвердил VK-контекст. Откройте кабинет из сообщества VK или проверьте launch params.',
+          message: getVkLaunchParamsErrorMessage(payload, response.status),
         };
       }
 

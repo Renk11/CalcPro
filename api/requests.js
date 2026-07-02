@@ -1,5 +1,5 @@
 import { sendJson } from '../server/http.js';
-import { getTrustedViewerContext } from '../server/request-auth.js';
+import { getTrustedViewerContext, sendTrustedViewerContextError } from '../server/request-auth.js';
 import { getViewerCommunities } from '../server/community-store.js';
 import {
   addServerRequest,
@@ -136,10 +136,7 @@ async function resolveAvailableGroupIds(auth) {
 async function requireWorkspaceCommunityAdmin(request, response, groupId) {
   const auth = getTrustedViewerContext(request);
   if (!auth) {
-    sendJson(response, 401, {
-      ok: false,
-      error: 'VK launch params verification failed',
-    });
+    sendTrustedViewerContextError(request, response);
     return null;
   }
 

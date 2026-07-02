@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { sendJson } from './http.js';
 
 const COMMUNITY_ADMIN_ROLES = new Set(['admin', 'editor', 'moder']);
+export const VK_LAUNCH_PARAMS_ERROR = 'VK launch params verification failed';
 
 function resolveVkAppSecret() {
   return String(
@@ -27,14 +28,23 @@ function buildLaunchParamsSecret(secret) {
 function parseLaunchParamsHeader(request) {
   const rawHeader = request.headers['x-vk-launch-params'];
   if (!rawHeader) {
-    return null;
+    return {
+      launchParams: null,
+      errorCode: 'missing_launch_params',
+    };
   }
 
   try {
     const parsed = JSON.parse(String(rawHeader));
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    return {
+      launchParams: parsed && typeof parsed === 'object' ? parsed : null,
+      errorCode: parsed && typeof parsed === 'object' ? null : 'invalid_launch_params',
+    };
   } catch {
-    return null;
+    return {
+      launchParams: null,
+      errorCode: 'invalid_launch_params',
+    };
   }
 }
 
@@ -75,15 +85,47 @@ function isValidLaunchSignature(params) {
   });
 }
 
-export function getTrustedViewerContext(request) {
-  const launchParams = parseLaunchParamsHeader(request);
+export function getTrustedViewerContextError(request) {
+  const { launchParams, errorCode } = parseLaunchParamsHeader(request);
   if (!launchParams) {
+    return {
+      errorCode: errorCode || 'missing_launch_params',
+    };
+  }
+
+  if (hasVkAppSecret()) {
+    if (!String(launchParams.sign || '').trim()) {
+      return {
+        errorCode: 'missing_sign',
+      };
+    }
+
+    if (!isValidLaunchSignature(launchParams)) {
+      return {
+        errorCode: 'invalid_signature',
+      };
+    }
+  }
+
+  return null;
+}
+
+export function sendTrustedViewerContextError(request, response) {
+  const error = getTrustedViewerContextError(request);
+  sendJson(response, 401, {
+    ok: false,
+    error: VK_LAUNCH_PARAMS_ERROR,
+    errorCode: error?.errorCode || 'unknown_vk_context_error',
+  });
+}
+
+export function getTrustedViewerContext(request) {
+  const authError = getTrustedViewerContextError(request);
+  if (authError) {
     return null;
   }
 
-  if (hasVkAppSecret() && !isValidLaunchSignature(launchParams)) {
-    return null;
-  }
+  const { launchParams } = parseLaunchParamsHeader(request);
 
   const viewerId = Number(launchParams.vk_user_id || 0);
   const groupId = Number(launchParams.vk_group_id || 0);
@@ -103,10 +145,7 @@ export function requireTrustedViewerContext(request, response) {
     return context;
   }
 
-  sendJson(response, 401, {
-    ok: false,
-    error: 'VK launch params verification failed',
-  });
+  sendTrustedViewerContextError(request, response);
   return null;
 }
 
