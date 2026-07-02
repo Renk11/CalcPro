@@ -414,6 +414,7 @@ const App = () => {
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
   const [isStartupSplashVisible, setIsStartupSplashVisible] = useState(true);
   const [hasStartupDelayElapsed, setHasStartupDelayElapsed] = useState(false);
+  const [isLaunchParamsResolved, setIsLaunchParamsResolved] = useState(false);
   const [isDesktopClient, setIsDesktopClient] = useState(true);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [launchParams, setLaunchParams] = useState<Partial<GetLaunchParamsResponse> | null>(() => {
@@ -541,23 +542,39 @@ const App = () => {
   }, [isPublicViewer]);
 
   useEffect(() => {
+    let isCancelled = false;
+
     bridge
       .send('VKWebAppGetLaunchParams')
       .then((params) => {
+        if (isCancelled) {
+          return;
+        }
+
         setLaunchParams((currentParams) => ({
           ...(currentParams ?? {}),
           ...getWindowLaunchParams(),
           ...params,
         }));
+        setIsLaunchParamsResolved(true);
       })
       .catch(() => {
+        if (isCancelled) {
+          return;
+        }
+
         // Keep launch params parsed from the current URL when bridge params
         // are unavailable, for example during desktop VK embedding quirks.
         setLaunchParams((currentParams) => ({
           ...(currentParams ?? {}),
           ...getWindowLaunchParams(),
         }));
+        setIsLaunchParamsResolved(true);
       });
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -596,12 +613,16 @@ const App = () => {
       return;
     }
 
-    if (hasStartupDelayElapsed && !isTemplatesLoading) {
+    if (hasStartupDelayElapsed && !isTemplatesLoading && isLaunchParamsResolved) {
       setIsStartupSplashVisible(false);
     }
-  }, [hasStartupDelayElapsed, isStartupSplashVisible, isTemplatesLoading]);
+  }, [hasStartupDelayElapsed, isLaunchParamsResolved, isStartupSplashVisible, isTemplatesLoading]);
 
   useEffect(() => {
+    if (!isLaunchParamsResolved) {
+      return;
+    }
+
     if (isPublicViewer) {
       setConnectedCommunities([]);
       setIsCommunitiesLoading(false);
@@ -682,9 +703,20 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [currentGroupId, currentPlan.id, viewerGroupRole, fallbackCommunity, isPublicViewer]);
+  }, [
+    currentGroupId,
+    currentPlan.id,
+    viewerGroupRole,
+    fallbackCommunity,
+    isLaunchParamsResolved,
+    isPublicViewer,
+  ]);
 
   useEffect(() => {
+    if (!isLaunchParamsResolved) {
+      return;
+    }
+
     if (isPublicViewer && isTemplatesLoading) {
       return;
     }
@@ -721,9 +753,13 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [effectiveAdminGroupId, isPublicViewer, isTemplatesLoading]);
+  }, [effectiveAdminGroupId, isLaunchParamsResolved, isPublicViewer, isTemplatesLoading]);
 
   useEffect(() => {
+    if (!isLaunchParamsResolved) {
+      return;
+    }
+
     let isCancelled = false;
     const syncVersion = templatesSyncVersionRef.current;
     setIsTemplatesLoading(true);
@@ -787,9 +823,13 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [effectiveAdminGroupId, vkAuthHeaders]);
+  }, [effectiveAdminGroupId, isLaunchParamsResolved, vkAuthHeaders]);
 
   useEffect(() => {
+    if (!isLaunchParamsResolved) {
+      return;
+    }
+
     if (!isViewerGroupAdmin) {
       return;
     }
@@ -857,7 +897,7 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [effectiveAdminGroupId, isViewerGroupAdmin, vkAuthHeaders]);
+  }, [effectiveAdminGroupId, isLaunchParamsResolved, isViewerGroupAdmin, vkAuthHeaders]);
 
   const sortedTemplates = useMemo(
     () =>
