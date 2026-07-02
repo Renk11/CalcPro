@@ -478,6 +478,16 @@ const App = () => {
   const isProtectedApiUnavailable = (payload?: { error?: string } | null, status?: number) =>
     isVkLaunchParamsError(payload, status);
   const templatesSyncVersionRef = useRef(0);
+  const templatesRef = useRef(templates);
+  const selectedTemplateRef = useRef(selectedTemplate);
+
+  useEffect(() => {
+    templatesRef.current = templates;
+  }, [templates]);
+
+  useEffect(() => {
+    selectedTemplateRef.current = selectedTemplate;
+  }, [selectedTemplate]);
 
   useEffect(() => {
     setStorageGroupScope(effectiveAdminGroupId);
@@ -1165,6 +1175,7 @@ const App = () => {
 
   const persistTemplates = (nextTemplates: CalculatorTemplate[]) => {
     templatesSyncVersionRef.current += 1;
+    templatesRef.current = nextTemplates;
     saveTemplates(nextTemplates);
     setTemplates(nextTemplates);
 
@@ -1680,7 +1691,7 @@ const App = () => {
       return;
     }
 
-    const storedTemplate = templates.find((item) => item.id === template.id);
+    const storedTemplate = templatesRef.current.find((item) => item.id === template.id);
     const normalizedTemplate = normalizeTemplateRecord({
       ...storedTemplate,
       ...template,
@@ -1813,7 +1824,7 @@ const App = () => {
     }
 
     templatesSyncVersionRef.current += 1;
-    const currentTemplate = templates.find((item) => item.id === template.id) ?? template;
+    const currentTemplate = templatesRef.current.find((item) => item.id === template.id) ?? template;
     const now = new Date().toISOString();
     const nextTemplate = normalizeTemplateRecord({
       ...currentTemplate,
@@ -1826,7 +1837,7 @@ const App = () => {
       lastModifiedBy: currentAdminLabel,
     });
 
-    const rollbackTemplates = templates;
+    const rollbackTemplates = templatesRef.current;
     const next = rollbackTemplates.some((item) => item.id === nextTemplate.id)
       ? rollbackTemplates.map((item) => {
           if (item.id === nextTemplate.id) {
@@ -1859,15 +1870,18 @@ const App = () => {
               : item,
           ),
         ];
+    templatesRef.current = next;
     saveTemplates(next);
     setTemplates(next);
 
-    if (selectedTemplate?.id === nextTemplate.id) {
+    if (selectedTemplateRef.current?.id === nextTemplate.id) {
+      selectedTemplateRef.current = nextTemplate;
       setSelectedTemplate(nextTemplate);
     }
 
     try {
       const syncedTemplates = await syncTemplatesToServer(next);
+      templatesRef.current = syncedTemplates;
       saveTemplates(syncedTemplates);
       setTemplates(syncedTemplates);
       setSelectedTemplate((current) =>
@@ -1881,9 +1895,11 @@ const App = () => {
             : 'Публикация снята. Сохранены изменения на сервере.',
       });
     } catch (error) {
+      templatesRef.current = rollbackTemplates;
       saveTemplates(rollbackTemplates);
       setTemplates(rollbackTemplates);
-      if (selectedTemplate?.id === nextTemplate.id) {
+      if (selectedTemplateRef.current?.id === nextTemplate.id) {
+        selectedTemplateRef.current = currentTemplate;
         setSelectedTemplate(currentTemplate);
       }
       setPaymentStatus({

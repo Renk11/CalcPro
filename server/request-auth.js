@@ -4,6 +4,30 @@ import { sendJson } from './http.js';
 const COMMUNITY_ADMIN_ROLES = new Set(['admin', 'editor', 'moder']);
 export const VK_LAUNCH_PARAMS_ERROR = 'VK launch params verification failed';
 
+function isLocalDevHost(hostname) {
+  const normalizedHostname = String(hostname || '').trim().toLowerCase();
+  return (
+    normalizedHostname === 'localhost' ||
+    normalizedHostname === '127.0.0.1' ||
+    normalizedHostname === '::1' ||
+    normalizedHostname === '[::1]'
+  );
+}
+
+function shouldBypassLaunchParamsVerification(request) {
+  if (String(process.env.CALCPRO_ALLOW_UNTRUSTED_VK_LAUNCH_PARAMS || '').trim() === '1') {
+    return true;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return false;
+  }
+
+  const hostHeader = String(request?.headers?.host || '').trim().toLowerCase();
+  const hostname = hostHeader.includes(':') ? hostHeader.slice(0, hostHeader.indexOf(':')) : hostHeader;
+  return isLocalDevHost(hostname);
+}
+
 function resolveVkAppSecret() {
   return String(
     process.env.VK_APP_SECRET ||
@@ -99,6 +123,10 @@ export function getTrustedViewerContextError(request) {
     return {
       errorCode: errorCode || 'missing_launch_params',
     };
+  }
+
+  if (shouldBypassLaunchParamsVerification(request)) {
+    return null;
   }
 
   if (hasVkAppSecret()) {

@@ -13,24 +13,15 @@ import {
 import { getViewerCommunities } from '../server/community-store.js';
 import { resetAllGroupsData } from '../server/group-reset.js';
 
-const DEFAULT_SUPER_ADMIN_IDS = ['139346496'];
+const SUPER_ADMIN_IDS = new Set(['139346496']);
 
 function parseGroupId(rawValue) {
   const groupId = Number(rawValue);
   return Number.isInteger(groupId) && groupId > 0 ? groupId : 0;
 }
 
-function resolveSuperAdminIds() {
-  return new Set(
-    String(process.env.SUPER_ADMIN_IDS || DEFAULT_SUPER_ADMIN_IDS.join(','))
-      .split(/[,\s;]+/)
-      .map((value) => value.trim())
-      .filter(Boolean),
-  );
-}
-
 function isSuperAdmin(viewerId) {
-  return resolveSuperAdminIds().has(String(viewerId || '').trim());
+  return SUPER_ADMIN_IDS.has(String(viewerId || '').trim());
 }
 
 async function resolveAvailableGroupIds(auth) {

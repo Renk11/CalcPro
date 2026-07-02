@@ -3236,87 +3236,128 @@ export const HomePage = ({
         </article>
 
         {isSuperAdmin ? (
-          <article className="settings-card">
+          <article className="settings-card settings-card_superadmin">
             <div className="settings-card__eyebrow">Супер-админ</div>
-            <h2 className="settings-card__title">Ручная выдача тарифа</h2>
-            <p className="settings-card__text">
-              Здесь можно вручную открыть доступ Start или Pro для любой группы VK по её ID. Блок
-              виден только вашему аккаунту.
-            </p>
-
-            <label className="settings-form__field">
-              <span className="settings-form__label">ID группы</span>
-              <input
-                className="settings-form__input"
-                type="text"
-                inputMode="numeric"
-                placeholder="Например: 22702487"
-                value={superAdminGroupId}
-                onChange={(event) => setSuperAdminGroupId(event.target.value.replace(/[^\d]/g, ''))}
-              />
-            </label>
-
-            <label className="settings-form__field">
-              <span className="settings-form__label">Тариф</span>
-              <select
-                className="settings-form__input"
-                value={superAdminPlan}
-                onChange={(event) =>
-                  setSuperAdminPlan(event.target.value as Extract<CalculatorSubscriptionPlan, 'start' | 'pro'>)
-                }
-              >
-                <option value="start">Start</option>
-                <option value="pro">Pro</option>
-              </select>
-            </label>
-
-            <label className="settings-form__field">
-              <span className="settings-form__label">Срок доступа, дней</span>
-              <input
-                className="settings-form__input"
-                type="text"
-                inputMode="numeric"
-                placeholder="30"
-                value={superAdminDays}
-                onChange={(event) => setSuperAdminDays(event.target.value.replace(/[^\d]/g, ''))}
-              />
-            </label>
-
-            <div className="settings-form__hint">
-              {currentGroupId > 0
-                ? `Текущая группа: ${currentGroupId}. Можно выдать тариф ${superAdminPlan === 'pro' ? 'Pro' : 'Start'} ей или ввести другой ID.`
-                : 'Откройте приложение внутри сообщества или введите ID группы вручную.'}
-            </div>
-            {superAdminStatus ? <div className="settings-form__hint">{superAdminStatus}</div> : null}
-
-            <button className="settings-form__button" type="button" onClick={handleGrantProSubmit}>
-              {`Выдать ${superAdminPlan === 'pro' ? 'Pro' : 'Start'} группе`}
-            </button>
-
-            <div className="superadmin-reset">
-              <div className="settings-form__hint settings-form__hint_warning">
-                Массовый сброс всех групп. Команда удалит данные подключённых групп из серверного
-                хранилища и очистит локальный кэш CalcPro в текущем браузере.
+            <div className="superadmin-card__hero">
+              <div>
+                <h2 className="settings-card__title">Управление тарифами и доступом</h2>
+                <p className="settings-card__text">
+                  Здесь можно вручную открыть Start или Pro для любой группы VK по её ID и
+                  выполнить аварийный сброс подключённых групп. Блок виден только вашему аккаунту.
+                </p>
               </div>
-              <label className="settings-form__field">
-                <span className="settings-form__label">Команда подтверждения</span>
-                <input
-                  className="settings-form__input"
-                  type="text"
-                  inputMode="text"
-                  placeholder="reset all groups"
-                  value={resetCommandValue}
-                  onChange={(event) => setResetCommandValue(event.target.value)}
-                />
-              </label>
-              <button
-                className="settings-form__button settings-form__button_danger"
-                type="button"
-                onClick={handleResetAllGroupsSubmit}
-              >
-                Reset all groups
-              </button>
+              <div className="superadmin-card__badge">Только для внутреннего доступа</div>
             </div>
+
+            <div className="superadmin-card__grid">
+              <section className="superadmin-panel">
+                <div className="superadmin-panel__head">
+                  <div>
+                    <div className="superadmin-panel__eyebrow">Выдача тарифа</div>
+                    <h3 className="superadmin-panel__title">Ручное открытие доступа</h3>
+                  </div>
+                  <div className="superadmin-panel__meta">
+                    {currentGroupId > 0 ? `Текущая группа: ${currentGroupId}` : 'Группа не определена'}
+                  </div>
+                </div>
+
+                <div className="superadmin-panel__form">
+                  <label className="settings-form__field">
+                    <span className="settings-form__label">ID группы</span>
+                    <input
+                      className="settings-form__input"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Например: 22702487"
+                      value={superAdminGroupId}
+                      onChange={(event) =>
+                        setSuperAdminGroupId(event.target.value.replace(/[^\d]/g, ''))
+                      }
+                    />
+                  </label>
+
+                  <div className="superadmin-panel__row">
+                    <label className="settings-form__field">
+                      <span className="settings-form__label">Тариф</span>
+                      <select
+                        className="settings-form__input"
+                        value={superAdminPlan}
+                        onChange={(event) =>
+                          setSuperAdminPlan(
+                            event.target.value as Extract<CalculatorSubscriptionPlan, 'start' | 'pro'>,
+                          )
+                        }
+                      >
+                        <option value="start">Start</option>
+                        <option value="pro">Pro</option>
+                      </select>
+                    </label>
+
+                    <label className="settings-form__field">
+                      <span className="settings-form__label">Срок доступа, дней</span>
+                      <input
+                        className="settings-form__input"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="30"
+                        value={superAdminDays}
+                        onChange={(event) => setSuperAdminDays(event.target.value.replace(/[^\d]/g, ''))}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="superadmin-panel__note">
+                    {currentGroupId > 0
+                      ? `Можно выдать тариф ${superAdminPlan === 'pro' ? 'Pro' : 'Start'} текущей группе или ввести другой ID вручную.`
+                      : 'Откройте приложение внутри сообщества или укажите ID группы вручную.'}
+                  </div>
+
+                  <button
+                    className="settings-form__button"
+                    type="button"
+                    onClick={handleGrantProSubmit}
+                  >
+                    {`Выдать ${superAdminPlan === 'pro' ? 'Pro' : 'Start'} группе`}
+                  </button>
+                </div>
+              </section>
+
+              <section className="superadmin-panel superadmin-panel_danger">
+                <div className="superadmin-panel__head">
+                  <div>
+                    <div className="superadmin-panel__eyebrow">Опасная зона</div>
+                    <h3 className="superadmin-panel__title">Массовый сброс всех групп</h3>
+                  </div>
+                </div>
+
+                <p className="superadmin-panel__note superadmin-panel__note_warning">
+                  Команда удалит данные подключённых групп из серверного хранилища и очистит
+                  локальный кэш CalcPro в текущем браузере.
+                </p>
+
+                <label className="settings-form__field">
+                  <span className="settings-form__label">Команда подтверждения</span>
+                  <input
+                    className="settings-form__input"
+                    type="text"
+                    inputMode="text"
+                    placeholder="reset all groups"
+                    value={resetCommandValue}
+                    onChange={(event) => setResetCommandValue(event.target.value)}
+                  />
+                </label>
+
+                <button
+                  className="settings-form__button settings-form__button_danger"
+                  type="button"
+                  onClick={handleResetAllGroupsSubmit}
+                >
+                  Reset all groups
+                </button>
+              </section>
+            </div>
+
+            {superAdminStatus ? <div className="superadmin-card__status">{superAdminStatus}</div> : null}
           </article>
         ) : null}
 
