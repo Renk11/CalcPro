@@ -148,12 +148,6 @@ body {
   display: grid;
   place-items: center;
   border-radius: 32px;
-  background:
-    radial-gradient(circle at 28% 28%, rgba(255, 255, 255, 0.18), transparent 34%),
-    linear-gradient(145deg, rgba(255, 158, 89, 0.94) 0%, rgba(255, 188, 108, 0.98) 100%);
-  box-shadow:
-    0 0 0 10px rgba(255, 179, 107, 0.06),
-    0 22px 44px rgba(255, 155, 84, 0.24);
   animation: startup-core-shell-float 2.8s ease-in-out infinite;
 }
 
@@ -163,14 +157,22 @@ body {
   height: 74px;
   display: grid;
   place-items: center;
-  border-radius: 26px;
-  background: linear-gradient(145deg, rgba(255, 244, 225, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%);
-  color: #172027;
-  font-size: 38px;
-  font-weight: 900;
-  letter-spacing: 0.02em;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 173, 92, 0.18) 0%, rgba(255, 173, 92, 0) 34%),
+    radial-gradient(circle at 50% 38%, #34302d 0%, #1b1a1d 58%, #101114 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 180, 108, 0.12),
+    inset 0 1px 0 rgba(255, 245, 232, 0.08),
+    0 18px 30px rgba(0, 0, 0, 0.28);
   animation: startup-core-pulse 1.6s ease-in-out infinite;
+}
+
+.startup-splash__logo-image {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.24));
 }
 
 .startup-splash__title {
@@ -3059,35 +3061,116 @@ body,
 .template-preset__art {
   position: absolute;
   inset: 0;
+  overflow: hidden;
 }
 
-.template-preset__shape {
+.template-preset__glass {
   position: absolute;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.12) 100%);
+  backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 20px 40px rgba(20, 24, 32, 0.18);
 }
 
-.template-preset__shape_primary {
-  right: 22px;
-  bottom: 24px;
-  width: 92px;
-  height: 92px;
-}
-
-.template-preset__shape_secondary {
-  left: 28px;
-  bottom: 34px;
-  width: 70px;
-  height: 70px;
-}
-
-.template-preset__symbol {
-  position: absolute;
-  left: 50%;
+.template-preset__glass_main {
+  left: 18px;
+  right: 78px;
   bottom: 22px;
-  font-size: 64px;
-  transform: translateX(-50%);
+  min-height: 96px;
+  padding: 16px;
+}
+
+.template-preset__glass_side {
+  top: 52px;
+  right: 16px;
+  width: 102px;
+  min-height: 114px;
+  padding: 14px 12px;
+  justify-content: space-between;
+}
+
+.template-preset__kicker {
+  color: rgba(41, 47, 57, 0.7);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.template-preset__headline {
+  max-width: 150px;
+  color: #fff8f0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.template-preset__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.template-preset__chip {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(34, 38, 45, 0.14);
+  color: rgba(34, 38, 45, 0.72);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.template-preset__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #fff8f0;
+}
+
+.template-preset__metric strong {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.template-preset__metric-label {
+  color: rgba(41, 47, 57, 0.66);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.template-preset__orb {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(1px);
+}
+
+.template-preset__orb_primary {
+  top: 30px;
+  right: 110px;
+  width: 78px;
+  height: 78px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 70%);
+}
+
+.template-preset__orb_secondary {
+  left: 20px;
+  bottom: 18px;
+  width: 58px;
+  height: 58px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0) 72%);
 }
 
 .template-preset__body {
@@ -3133,6 +3216,15 @@ body,
   font-weight: 800;
   cursor: pointer;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.template-preset__action:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.template-preset__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .template-preset_blank {

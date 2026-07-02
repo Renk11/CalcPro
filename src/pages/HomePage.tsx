@@ -886,17 +886,75 @@ const categoryLabels: Record<'all' | TemplateCatalogCategory, string> = {
   other: 'Другое',
 };
 
-const visualSymbols: Record<TemplateCatalogPreset['visual'], string> = {
-  ceiling: 'Line',
-  stretch: 'Glow',
-  repair: 'Build',
-  delivery: 'Route',
-  cleaning: 'Clean',
-  mortgage: 'Home',
-  credit: 'Card',
-  windows: 'View',
-  kitchen: 'Cook',
-  furniture: 'Form',
+const presetVisualContent: Record<
+  TemplateCatalogPreset['visual'],
+  {
+    kicker: string;
+    headline: string;
+    chips: string[];
+    metrics: [string, string];
+  }
+> = {
+  ceiling: {
+    kicker: 'Потолки',
+    headline: 'Площадь и свет',
+    chips: ['Матовый', 'Сатин', 'Подсветка'],
+    metrics: ['24 м²', '12 900 ₽'],
+  },
+  stretch: {
+    kicker: 'Натяжные',
+    headline: 'Полотно и монтаж',
+    chips: ['ПВХ', 'Ткань', 'Парящий'],
+    metrics: ['18 м²', '16 400 ₽'],
+  },
+  repair: {
+    kicker: 'Ремонт',
+    headline: 'Смета по этапам',
+    chips: ['Эконом', 'Капитальный', 'Дизайн'],
+    metrics: ['62 м²', '284 000 ₽'],
+  },
+  delivery: {
+    kicker: 'Доставка',
+    headline: 'Маршрут и срок',
+    chips: ['Город', 'Срочно', 'Подъем'],
+    metrics: ['14 км', '1 850 ₽'],
+  },
+  cleaning: {
+    kicker: 'Клининг',
+    headline: 'Уборка по зонам',
+    chips: ['Генеральная', 'Окна', 'Кухня'],
+    metrics: ['86 м²', '7 400 ₽'],
+  },
+  mortgage: {
+    kicker: 'Ипотека',
+    headline: 'Платеж в месяц',
+    chips: ['Ставка', 'Срок', 'Взнос'],
+    metrics: ['30 лет', '73 200 ₽'],
+  },
+  credit: {
+    kicker: 'Кредит',
+    headline: 'Переплата и график',
+    chips: ['Сумма', 'Месяцы', 'Процент'],
+    metrics: ['24 мес', '18 900 ₽'],
+  },
+  windows: {
+    kicker: 'Окна',
+    headline: 'Размер и профиль',
+    chips: ['Теплый', 'Монтаж', 'Фурнитура'],
+    metrics: ['3 створки', '46 500 ₽'],
+  },
+  kitchen: {
+    kicker: 'Кухни',
+    headline: 'Фасады и техника',
+    chips: ['МДФ', 'Кварц', 'Встройка'],
+    metrics: ['4.2 м', '198 000 ₽'],
+  },
+  furniture: {
+    kicker: 'Мебель',
+    headline: 'Модули и материал',
+    chips: ['Шкаф', 'МДФ', 'Фурнитура'],
+    metrics: ['6 модулей', '92 000 ₽'],
+  },
 };
 
 const analyticsRangeLabels: Record<AnalyticsRange, string> = {
@@ -1005,9 +1063,31 @@ const TemplatePresetCard = ({
     <div className="template-preset__visual">
       <div className="template-preset__badge">Готовый шаблон</div>
       <div className="template-preset__art">
-        <span className="template-preset__shape template-preset__shape_primary" />
-        <span className="template-preset__shape template-preset__shape_secondary" />
-        <span className="template-preset__symbol">{visualSymbols[preset.visual]}</span>
+        <div className="template-preset__glass template-preset__glass_main">
+          <div className="template-preset__kicker">{presetVisualContent[preset.visual].kicker}</div>
+          <div className="template-preset__headline">
+            {presetVisualContent[preset.visual].headline}
+          </div>
+          <div className="template-preset__chips">
+            {presetVisualContent[preset.visual].chips.map((chip) => (
+              <span key={chip} className="template-preset__chip">
+                {chip}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="template-preset__glass template-preset__glass_side">
+          <div className="template-preset__metric">
+            <span className="template-preset__metric-label">Сценарий</span>
+            <strong>{presetVisualContent[preset.visual].metrics[0]}</strong>
+          </div>
+          <div className="template-preset__metric">
+            <span className="template-preset__metric-label">Расчет</span>
+            <strong>{presetVisualContent[preset.visual].metrics[1]}</strong>
+          </div>
+        </div>
+        <span className="template-preset__orb template-preset__orb_primary" />
+        <span className="template-preset__orb template-preset__orb_secondary" />
       </div>
     </div>
 

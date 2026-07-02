@@ -5,6 +5,7 @@ import bridge, {
   type GetLaunchParamsResponse,
 } from '@vkontakte/vk-bridge';
 import { Panel, SplitCol, SplitLayout, View } from '@vkontakte/vkui';
+import calcProLogo from './calcpro-logo.png';
 import {
   clampFolderName,
   clampTemplateDescription,
@@ -223,7 +224,9 @@ const StartupSplash = () => (
           <span className="startup-splash__satellite startup-splash__satellite_light" />
         </span>
         <span className="startup-splash__core-shell">
-          <span className="startup-splash__core">C</span>
+          <span className="startup-splash__core">
+            <img className="startup-splash__logo-image" src={calcProLogo} alt="" aria-hidden="true" />
+          </span>
         </span>
       </div>
       <h1 className="startup-splash__title">Подготавливаем калькулятор</h1>
@@ -415,6 +418,7 @@ const App = () => {
   const [isStartupSplashVisible, setIsStartupSplashVisible] = useState(true);
   const [hasStartupDelayElapsed, setHasStartupDelayElapsed] = useState(false);
   const [isLaunchParamsResolved, setIsLaunchParamsResolved] = useState(false);
+  const [isInitialViewResolved, setIsInitialViewResolved] = useState(false);
   const [isDesktopClient, setIsDesktopClient] = useState(true);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [launchParams, setLaunchParams] = useState<Partial<GetLaunchParamsResponse> | null>(() => {
@@ -613,10 +617,21 @@ const App = () => {
       return;
     }
 
-    if (hasStartupDelayElapsed && !isTemplatesLoading && isLaunchParamsResolved) {
+    if (
+      hasStartupDelayElapsed &&
+      !isTemplatesLoading &&
+      isLaunchParamsResolved &&
+      isInitialViewResolved
+    ) {
       setIsStartupSplashVisible(false);
     }
-  }, [hasStartupDelayElapsed, isLaunchParamsResolved, isStartupSplashVisible, isTemplatesLoading]);
+  }, [
+    hasStartupDelayElapsed,
+    isInitialViewResolved,
+    isLaunchParamsResolved,
+    isStartupSplashVisible,
+    isTemplatesLoading,
+  ]);
 
   useEffect(() => {
     if (!isLaunchParamsResolved) {
@@ -924,6 +939,11 @@ const App = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined') {
+      setIsInitialViewResolved(true);
+      return;
+    }
+
+    if (!isLaunchParamsResolved || isTemplatesLoading) {
       return;
     }
 
@@ -933,6 +953,7 @@ const App = () => {
         selectedTemplate != null &&
         selectedTemplate.publicationStatus !== 'published')
     ) {
+      setIsInitialViewResolved(true);
       return;
     }
 
@@ -951,6 +972,7 @@ const App = () => {
         setActiveView('calculator');
       }
 
+      setIsInitialViewResolved(true);
       return;
     }
 
@@ -958,7 +980,17 @@ const App = () => {
       setSelectedTemplate(undefined);
       setActiveView('calculator');
     }
-  }, [activeView, isViewerGroupAdmin, latestPublishedTemplate, selectedTemplate, templates]);
+
+    setIsInitialViewResolved(true);
+  }, [
+    activeView,
+    isLaunchParamsResolved,
+    isTemplatesLoading,
+    isViewerGroupAdmin,
+    latestPublishedTemplate,
+    selectedTemplate,
+    templates,
+  ]);
 
   useEffect(() => {
     if (!isViewerGroupAdmin && activeView === 'home') {
