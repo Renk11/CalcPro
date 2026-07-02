@@ -44,7 +44,7 @@ import {
 } from './shared/storage/pendingPaymentStorage';
 import { getVkLaunchParamsErrorMessage, isVkLaunchParamsError } from './shared/apiErrors';
 import { createRandomId } from './shared/randomId';
-import { createVkAuthHeaders, getWindowLaunchParams } from './shared/vkAuth';
+import { appendVkLaunchParamsToPath, createVkAuthHeaders, getWindowLaunchParams } from './shared/vkAuth';
 import type {
   CalculatorPublicationStatus,
   CalculatorAdminSettings,
@@ -467,6 +467,7 @@ const App = () => {
     WEB_MONETIZATION_PLATFORMS.has(launchPlatform) ||
     (launchPlatform === '' && !bridge.isWebView());
   const vkAuthHeaders = useMemo(() => createVkAuthHeaders(launchParams), [launchParams]);
+  const createApiUrl = (path: string) => appendVkLaunchParamsToPath(path, launchParams);
   const fallbackCommunity = useMemo(
     () => (isViewerGroupAdmin ? createFallbackCommunity(currentGroupId, viewerGroupRole) : null),
     [currentGroupId, isViewerGroupAdmin, viewerGroupRole],
@@ -613,7 +614,7 @@ const App = () => {
     const syncCommunities = async () => {
       try {
         if (currentGroupId > 0) {
-          const connectedResponse = await fetch('/api/communities', {
+          const connectedResponse = await fetch(createApiUrl('/api/communities'), {
             method: 'POST',
             headers: createJsonHeaders(),
             body: JSON.stringify({
@@ -642,7 +643,7 @@ const App = () => {
           }
         }
 
-        const response = await fetch('/api/communities', {
+        const response = await fetch(createApiUrl('/api/communities'), {
           headers: vkAuthHeaders,
         });
         const payload = (await response.json().catch(() => null)) as
@@ -693,7 +694,7 @@ const App = () => {
     const syncAdminSettings = async () => {
       try {
         const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
-        const response = await fetch(`/api/admin-settings${query}`, {
+        const response = await fetch(createApiUrl(`/api/admin-settings${query}`), {
           headers: vkAuthHeaders,
         });
         const payload = (await response.json().catch(() => null)) as
@@ -730,7 +731,7 @@ const App = () => {
     const syncTemplatesFromServer = async () => {
       try {
         const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
-        const response = await fetch(`/api/templates${query}`, {
+        const response = await fetch(createApiUrl(`/api/templates${query}`), {
           headers: vkAuthHeaders,
         });
         const payload = (await response.json().catch(() => null)) as
@@ -761,7 +762,7 @@ const App = () => {
         );
 
         if (didMigrateServerTemplates) {
-          fetch(`/api/templates${query}`, {
+          fetch(createApiUrl(`/api/templates${query}`), {
             method: 'POST',
             headers: createJsonHeaders(),
             body: JSON.stringify({
@@ -799,7 +800,7 @@ const App = () => {
     const syncRequestsFromServer = async () => {
       try {
         const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
-        const response = await fetch(`/api/requests${query}`, {
+        const response = await fetch(createApiUrl(`/api/requests${query}`), {
           headers: vkAuthHeaders,
         });
         const payload = (await response.json().catch(() => null)) as
@@ -821,7 +822,7 @@ const App = () => {
         );
 
         if (missingLocalRequests.length > 0) {
-          const syncResponse = await fetch(`/api/requests${query}&action=sync`.replace('?&', '?'), {
+          const syncResponse = await fetch(createApiUrl(`/api/requests${query}&action=sync`.replace('?&', '?')), {
             method: 'POST',
             headers: createJsonHeaders(),
             body: JSON.stringify({
@@ -1017,7 +1018,7 @@ const App = () => {
 
     const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
 
-    fetch(`/api/admin-settings${query}`, {
+    fetch(createApiUrl(`/api/admin-settings${query}`), {
       method: 'POST',
       headers: createJsonHeaders(),
       body: JSON.stringify(settings),
@@ -1039,7 +1040,7 @@ const App = () => {
     }
 
     try {
-      const response = await fetch('/api/admin-settings?action=grant-pro', {
+      const response = await fetch(createApiUrl('/api/admin-settings?action=grant-pro'), {
         method: 'POST',
         headers: createJsonHeaders(),
         body: JSON.stringify({
@@ -1089,7 +1090,7 @@ const App = () => {
     }
 
     try {
-      const response = await fetch('/api/admin-settings?action=reset-all-groups', {
+      const response = await fetch(createApiUrl('/api/admin-settings?action=reset-all-groups'), {
         method: 'POST',
         headers: createJsonHeaders(),
         body: JSON.stringify({
@@ -1148,7 +1149,7 @@ const App = () => {
 
   const syncTemplatesToServer = async (nextTemplates: CalculatorTemplate[]) => {
     const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
-    const response = await fetch(`/api/templates${query}`, {
+    const response = await fetch(createApiUrl(`/api/templates${query}`), {
       method: 'POST',
       headers: createJsonHeaders(),
       body: JSON.stringify({
@@ -1190,7 +1191,7 @@ const App = () => {
         ? `?groupId=${effectiveAdminGroupId}&action=update`
         : '?action=update';
 
-    fetch(`/api/requests${query}`, {
+    fetch(createApiUrl(`/api/requests${query}`), {
       method: 'POST',
       headers: createJsonHeaders(),
       body: JSON.stringify({
@@ -1383,7 +1384,7 @@ const App = () => {
         addedGroupId = manuallyResolvedGroupId;
       } else if (manualGroupInput?.trim()) {
         try {
-          const resolveResponse = await fetch('/api/communities?action=resolve', {
+          const resolveResponse = await fetch(createApiUrl('/api/communities?action=resolve'), {
             method: 'POST',
             headers: createJsonHeaders(),
             body: JSON.stringify({
@@ -1433,7 +1434,7 @@ const App = () => {
 
     try {
       if (addedGroupId > 0) {
-        const response = await fetch('/api/communities', {
+        const response = await fetch(createApiUrl('/api/communities'), {
           method: 'POST',
           headers: createJsonHeaders(),
           body: JSON.stringify({
@@ -1515,7 +1516,7 @@ const App = () => {
     setIsProcessingPayment(true);
 
     try {
-      const response = await fetch('/api/yookassa?action=create', {
+      const response = await fetch(createApiUrl('/api/yookassa?action=create'), {
         method: 'POST',
         headers: createJsonHeaders(),
         body: JSON.stringify({
@@ -1598,7 +1599,7 @@ const App = () => {
       setPaymentStatus({ tone: 'neutral', message: 'Проверяем статус оплаты YooKassa...' });
 
       try {
-        const response = await fetch('/api/yookassa?action=check', {
+        const response = await fetch(createApiUrl('/api/yookassa?action=check'), {
           method: 'POST',
           headers: createJsonHeaders(),
           body: JSON.stringify({
@@ -1796,7 +1797,7 @@ const App = () => {
     setRequests(next);
 
     const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}&action=delete` : '?action=delete';
-    fetch(`/api/requests${query}`, {
+    fetch(createApiUrl(`/api/requests${query}`), {
       method: 'POST',
       headers: createJsonHeaders(),
       body: JSON.stringify({
@@ -2016,7 +2017,7 @@ const App = () => {
     setActiveAdminGroupId(groupId);
 
     if (adminProfile.id && groupId > 0) {
-      fetch('/api/communities?action=touch', {
+      fetch(createApiUrl('/api/communities?action=touch'), {
         method: 'POST',
         headers: createJsonHeaders(),
         body: JSON.stringify({
@@ -2033,7 +2034,7 @@ const App = () => {
       return;
     }
 
-    fetch('/api/communities?action=disconnect', {
+    fetch(createApiUrl('/api/communities?action=disconnect'), {
       method: 'POST',
       headers: createJsonHeaders(),
       body: JSON.stringify({

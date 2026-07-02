@@ -81,6 +81,62 @@ function parseLaunchParamsHeader(request) {
   }
 }
 
+function extractLaunchParamsFromSource(source) {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) {
+    return null;
+  }
+
+  const launchParams = Object.entries(source).reduce((acc, [key, value]) => {
+    if (!key.startsWith('vk_') && key !== 'sign') {
+      return acc;
+    }
+
+    const normalizedValue = String(value ?? '').trim();
+    if (!normalizedValue) {
+      return acc;
+    }
+
+    acc[key] = normalizedValue;
+    return acc;
+  }, {});
+
+  return Object.keys(launchParams).length > 0 ? launchParams : null;
+}
+
+function parseLaunchParamsFallback(request) {
+  const bodyPayload =
+    extractLaunchParamsFromSource(request.body?.launchParams) ||
+    extractLaunchParamsFromSource(request.body);
+  if (bodyPayload) {
+    return {
+      launchParams: bodyPayload,
+      errorCode: null,
+    };
+  }
+
+  const queryPayload = extractLaunchParamsFromSource(request.query);
+  if (queryPayload) {
+    return {
+      launchParams: queryPayload,
+      errorCode: null,
+    };
+  }
+
+  return {
+    launchParams: null,
+    errorCode: 'missing_launch_params',
+  };
+}
+
+function parseLaunchParams(request) {
+  const headerResult = parseLaunchParamsHeader(request);
+  if (headerResult.launchParams) {
+    return headerResult;
+  }
+
+  return parseLaunchParamsFallback(request);
+}
+
 function buildSignedPayload(params) {
   return Object.entries(params)
     .filter(([key, value]) => key !== 'sign' && key.startsWith('vk_') && String(value || '').trim())
@@ -118,7 +174,7 @@ function isValidLaunchSignature(params) {
 }
 
 export function getTrustedViewerContextError(request) {
-  const { launchParams, errorCode } = parseLaunchParamsHeader(request);
+  const { launchParams, errorCode } = parseLaunchParams(request);
   if (!launchParams) {
     return {
       errorCode: errorCode || 'missing_launch_params',
@@ -161,7 +217,7 @@ export function getTrustedViewerContext(request) {
     return null;
   }
 
-  const { launchParams } = parseLaunchParamsHeader(request);
+  const { launchParams } = parseLaunchParams(request);
 
   const viewerId = Number(launchParams.vk_user_id || 0);
   const groupId = Number(launchParams.vk_group_id || 0);

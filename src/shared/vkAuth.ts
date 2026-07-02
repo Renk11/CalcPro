@@ -82,3 +82,26 @@ export const createVkAuthHeaders = (launchParams?: Record<string, unknown> | nul
 
   return headers;
 };
+
+export const appendVkLaunchParamsToPath = (
+  path: string,
+  launchParams?: Record<string, unknown> | null,
+) => {
+  if (typeof window === 'undefined') {
+    return path;
+  }
+
+  const payload = buildVkLaunchParamsPayload(launchParams);
+  if (Object.keys(payload).length === 0) {
+    return path;
+  }
+
+  const url = new URL(path, window.location.origin);
+  Object.entries(payload).forEach(([key, value]) => {
+    if (!url.searchParams.has(key)) {
+      url.searchParams.set(key, value);
+    }
+  });
+
+  return `${url.pathname}${url.search}${url.hash}`;
+};
