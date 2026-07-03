@@ -143,8 +143,8 @@ body {
 .startup-splash__core-shell {
   position: relative;
   z-index: 1;
-  width: 92px;
-  height: 92px;
+  width: 112px;
+  height: 112px;
   display: grid;
   place-items: center;
   border-radius: 32px;
@@ -153,26 +153,28 @@ body {
 
 .startup-splash__core {
   position: relative;
-  width: 74px;
-  height: 74px;
+  width: 92px;
+  height: 92px;
   display: grid;
   place-items: center;
-  border-radius: 999px;
+  padding: 9px;
+  border-radius: 28px;
   background:
-    radial-gradient(circle at 30% 24%, rgba(255, 186, 120, 0.22) 0%, rgba(255, 186, 120, 0) 36%),
-    radial-gradient(circle at 50% 38%, #2f2a28 0%, #1f1c1d 62%, #161619 100%);
+    linear-gradient(180deg, rgba(255, 248, 238, 0.96) 0%, rgba(246, 235, 220, 0.92) 100%);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 190, 125, 0.14),
+    inset 0 0 0 1px rgba(255, 190, 125, 0.22),
     inset 0 1px 0 rgba(255, 245, 232, 0.1),
     0 18px 30px rgba(0, 0, 0, 0.24);
   animation: startup-core-pulse 1.6s ease-in-out infinite;
+  overflow: hidden;
 }
 
 .startup-splash__logo-image {
-  width: 42px;
-  height: 42px;
-  object-fit: contain;
-  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18));
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 18px;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.18));
 }
 
 .startup-splash__title {

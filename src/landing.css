@@ -64,8 +64,8 @@ a {
 }
 
 .landing-brand__mark {
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -80,10 +80,11 @@ a {
 }
 
 .landing-brand__logo-image {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.16));
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 10px;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.18));
 }
 
 .landing-brand__text {
