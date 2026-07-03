@@ -5,7 +5,7 @@ import bridge, {
   type GetLaunchParamsResponse,
 } from '@vkontakte/vk-bridge';
 import { Panel, SplitCol, SplitLayout, View } from '@vkontakte/vkui';
-import calcProLogo from './calcpro-logo.png';
+import calcProLogo from '../calcpro-logo-transparent.png';
 import {
   clampFolderName,
   clampTemplateDescription,
