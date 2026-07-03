@@ -11,7 +11,6 @@ import {
   Icon20MenuOutline,
   Icon20PaymentCardOutline,
   Icon20QuestionOutline,
-  Icon20ServicesOutline,
   Icon20TrashSimpleOutline,
   Icon20UserCircleOutline,
   Icon20Users3Outline,
@@ -747,7 +746,7 @@ const faqTopics: FaqTopic[] = [
   },
   {
     id: 'templates-and-pro',
-    title: 'Шаблоны, аналитика и интеграции',
+    title: 'Шаблоны и аналитика',
     caption: 'Готовые решения и расширенные разделы',
     intro:
       'Эти разделы помогают не только собрать калькулятор, но и ускорить запуск, измерять результат и подключать более сложные рабочие сценарии. Если вы уже вышли за рамки одного простого шаблона, сюда вы будете возвращаться регулярно.',
@@ -766,14 +765,6 @@ const faqTopics: FaqTopic[] = [
           'Аналитика помогает понять, сколько людей открывают калькулятор, где они заполняют форму и насколько сценарий доводит до заявки.',
           'Этот раздел полезен уже после публикации, когда нужно улучшать конверсию, тексты, порядок блоков или оффер.',
           'Если какой-то калькулятор смотрят, но редко отправляют заявку, начните с проверки результата, формы контактов и ясности CTA-кнопки.',
-        ],
-      },
-      {
-        title: 'Интеграции',
-        items: [
-          'Интеграции нужны, когда одного базового сценария внутри VK уже мало и требуется связать калькулятор с внешними процессами.',
-          'Обычно туда приходят, когда нужно автоматизировать передачу заявок, уведомления или расширить работу с данными.',
-          'Если вы только запускаете первый калькулятор, интеграции можно отложить и сначала отладить базовый сценарий заявок внутри самого сервиса.',
         ],
       },
     ],
@@ -848,7 +839,6 @@ const navItems: Array<{
   { key: 'calculators', label: 'Мои калькуляторы', icon: Icon20HomeOutline },
   { key: 'templates', label: 'Шаблоны', icon: Icon20ArticleOutline },
   { key: 'analytics', label: 'Аналитика Pro', icon: Icon20GraphOutline },
-  { key: 'integrations', label: 'Интеграции Pro', icon: Icon20ServicesOutline },
   { key: 'requests', label: 'Заявки', icon: Icon20WriteOutline },
   { key: 'payments', label: 'Платежи', icon: Icon20PaymentCardOutline },
   { key: 'faq', label: 'FAQ', icon: Icon20QuestionOutline },
@@ -876,6 +866,7 @@ const tariffOverview = [
   title: string;
   items: string[];
 }>;
+
 
 const categoryLabels: Record<'all' | TemplateCatalogCategory, string> = {
   all: 'Все',
@@ -1172,7 +1163,6 @@ export const HomePage = ({
 }: HomePageProps) => {
   const isSectionLocked = (section: AdminSection) =>
     (section === 'analytics' && !canUseAnalytics) ||
-    (section === 'integrations' && !canUseNotifications) ||
     (section === 'templates' && !canUseTemplates);
   const showCreateCalculatorLimitHint = !canCreateMoreTemplates;
   const restrictedMonetizationMessage = 'Оплата на платформе недоступна.';
@@ -3691,8 +3681,8 @@ export const HomePage = ({
           <div className="admin-placeholder__eyebrow">Раздел в разработке</div>
           <h2 className="admin-placeholder__title">Скоро здесь появится полноценный модуль</h2>
           <p className="admin-placeholder__text">
-            Сначала добираем конструктор и шаблоны, затем подключаем аналитику, интеграции,
-            платежи и настройки.
+            Сначала добираем конструктор и шаблоны, затем подключаем аналитику, платежи и
+            настройки.
           </p>
         </section>
       </main>
@@ -3891,10 +3881,6 @@ export const HomePage = ({
           ? canUseAnalytics
             ? renderAnalyticsSection()
             : renderPlanLockedSection('Аналитика', 'Аналитика')
-        : currentSection === 'integrations'
-          ? canUseNotifications
-            ? renderPlaceholderSection()
-            : renderPlanLockedSection('Интеграции', 'Интеграции')
         : currentSection === 'requests'
           ? renderRequestsSection()
         : currentSection === 'payments'

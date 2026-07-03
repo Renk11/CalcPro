@@ -83,7 +83,6 @@ export type AdminSection =
   | 'calculators'
   | 'templates'
   | 'analytics'
-  | 'integrations'
   | 'requests'
   | 'payments'
   | 'faq'
