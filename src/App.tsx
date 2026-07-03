@@ -2125,12 +2125,14 @@ const App = () => {
       });
   };
 
+  if (isStartupSplashVisible) {
+    return <StartupSplash />;
+  }
+
   return (
-    <>
-      {isStartupSplashVisible ? <StartupSplash /> : null}
-      <SplitLayout>
-        <SplitCol width="100%" maxWidth="100%">
-          <View activePanel={activeView}>
+    <SplitLayout>
+      <SplitCol width="100%" maxWidth="100%">
+        <View activePanel={activeView}>
             <Panel id="home">
               {isViewerGroupAdmin && activeView === 'home' ? (
                 <Suspense fallback={<AdminPageFallback title="Загружаем кабинет" />}>
@@ -2272,9 +2274,8 @@ const App = () => {
               ) : null}
             </Panel>
           </View>
-        </SplitCol>
-      </SplitLayout>
-    </>
+      </SplitCol>
+    </SplitLayout>
   );
 };
 
