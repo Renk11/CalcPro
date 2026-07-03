@@ -27,10 +27,12 @@ body {
   position: fixed;
   inset: 0;
   z-index: 2000;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
+  overflow: hidden;
   background:
     radial-gradient(circle at 72% 18%, rgba(255, 145, 77, 0.24), transparent 24%),
     radial-gradient(circle at 24% 62%, rgba(89, 179, 155, 0.2), transparent 26%),
