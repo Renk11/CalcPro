@@ -160,12 +160,13 @@ const formatSubscriptionCountdown = (diffMs: number) => {
     return 'Срок не активен';
   }
 
-  const totalMinutes = Math.floor(diffMs / (1000 * 60));
-  const days = Math.floor(totalMinutes / (60 * 24));
-  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
-  const minutes = totalMinutes % 60;
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const days = Math.floor(totalSeconds / (60 * 60 * 24));
+  const hours = Math.floor((totalSeconds % (60 * 60 * 24)) / (60 * 60));
+  const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+  const seconds = totalSeconds % 60;
 
-  return `${days} дн. ${hours} ч. ${minutes} мин.`;
+  return `${days} дн. ${hours} ч. ${minutes} мин. ${seconds} сек.`;
 };
 
 const sanitizeFaqTopicsForRestrictedPlatform = (topics: FaqTopic[]) =>
@@ -1323,7 +1324,7 @@ export const HomePage = ({
 
     const timerId = window.setInterval(() => {
       setSupportNow(Date.now());
-    }, 60000);
+    }, 1000);
 
     return () => {
       window.clearInterval(timerId);

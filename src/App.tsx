@@ -347,13 +347,26 @@ const scopeCommunitiesToContext = (
   return fallbackCommunity ? [fallbackCommunity] : [];
 };
 
-const getMonthRequestCount = (requests: CalculatorRequest[], date = new Date()) => {
+const getMonthRequestCount = (
+  requests: CalculatorRequest[],
+  quotaStartedAt?: string,
+  date = new Date(),
+) => {
   const month = date.getMonth();
   const year = date.getFullYear();
+  const quotaStartTimestamp = Date.parse(quotaStartedAt || '');
 
   return requests.filter((request) => {
     const createdAt = new Date(request.createdAt);
-    return createdAt.getMonth() === month && createdAt.getFullYear() === year;
+    if (createdAt.getMonth() !== month || createdAt.getFullYear() !== year) {
+      return false;
+    }
+
+    if (Number.isFinite(quotaStartTimestamp) && createdAt.getTime() < quotaStartTimestamp) {
+      return false;
+    }
+
+    return true;
   }).length;
 };
 
@@ -446,7 +459,10 @@ const App = () => {
     () => getSubscriptionPlanConfig(adminSettings.subscription.plan),
     [adminSettings.subscription.plan],
   );
-  const monthlyRequestsUsed = useMemo(() => getMonthRequestCount(requests), [requests]);
+  const monthlyRequestsUsed = useMemo(
+    () => getMonthRequestCount(requests, adminSettings.subscription.quotaStartedAt),
+    [adminSettings.subscription.quotaStartedAt, requests],
+  );
   const requestLimit = currentPlan.monthlyRequestLimit;
   const canCreateMoreRequests = requestLimit == null || monthlyRequestsUsed < requestLimit;
   const canCreateMoreTemplates =

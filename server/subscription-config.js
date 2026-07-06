@@ -46,6 +46,7 @@ export function createDefaultSubscriptionSettings() {
     priceRub: freePlan.monthlyPriceRub,
     status: 'inactive',
     paidUntil: '',
+    quotaStartedAt: '',
     provider: '',
     externalPaymentId: '',
   };

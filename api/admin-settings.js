@@ -166,6 +166,7 @@ export default async function handler(request, response) {
           priceRub: nextPlan.monthlyPriceRub,
         };
         const nextPaidUntil = days === 30 ? buildNextPaidUntil('') : buildIssuedPaidUntil(days);
+        const quotaStartedAt = new Date().toISOString();
 
         const settings = await saveServerAdminSettings(
           {
@@ -178,6 +179,7 @@ export default async function handler(request, response) {
               provider: 'super-admin',
               externalPaymentId: '',
               paidUntil: nextPaidUntil,
+              quotaStartedAt,
             },
           },
           targetGroupId,

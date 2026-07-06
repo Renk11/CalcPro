@@ -107,6 +107,7 @@ export const createDefaultSubscriptionSettings = (): CalculatorAdminSettings['su
     priceRub: freePlan.monthlyPriceRub,
     status: 'inactive',
     paidUntil: '',
+    quotaStartedAt: '',
     provider: '',
     externalPaymentId: '',
   };

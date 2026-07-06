@@ -213,6 +213,7 @@ export interface CalculatorAdminSettings {
     priceRub: number;
     status: CalculatorSubscriptionStatus;
     paidUntil?: string;
+    quotaStartedAt?: string;
     provider?: string;
     externalPaymentId?: string;
   };

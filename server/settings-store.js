@@ -31,6 +31,7 @@ function normalizeSubscription(subscription = {}) {
     priceRub: Number(subscription.priceRub) || planConfig.monthlyPriceRub,
     status: subscription.status === 'active' ? 'active' : 'inactive',
     paidUntil: String(subscription.paidUntil || defaults.paidUntil),
+    quotaStartedAt: String(subscription.quotaStartedAt || defaults.quotaStartedAt),
     provider: String(subscription.provider || defaults.provider),
     externalPaymentId: String(subscription.externalPaymentId || defaults.externalPaymentId),
   };
