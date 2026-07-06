@@ -1201,6 +1201,7 @@ export const HomePage = ({
   const [requestAssignedFilter, setRequestAssignedFilter] = useState('all');
   const [requestCommentDraft, setRequestCommentDraft] = useState<Record<string, string>>({});
   const [managerVkId, setManagerVkId] = useState(adminSettings.managerVkId);
+  const [managerVkIdStatus, setManagerVkIdStatus] = useState('');
   const [superAdminGroupId, setSuperAdminGroupId] = useState(
     currentGroupId > 0 ? String(currentGroupId) : '',
   );
@@ -1265,6 +1266,10 @@ export const HomePage = ({
   useEffect(() => {
     setManagerVkId(adminSettings.managerVkId);
   }, [adminSettings.managerVkId]);
+
+  useEffect(() => {
+    setManagerVkIdStatus('');
+  }, [managerVkId]);
 
   useEffect(() => {
     setBillingReminderActionStatus('');
@@ -1548,12 +1553,42 @@ export const HomePage = ({
     }
 
     try {
-      await navigator.clipboard.writeText(billingReminderCommand);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(billingReminderCommand);
+      } else {
+        throw new Error('Clipboard API is unavailable');
+      }
       setBillingReminderActionStatus(
         `Текст скопирован. Отправьте его в ЛС ${BILLING_REMINDER_CONTACT_LABEL}.`,
       );
     } catch {
-      setBillingReminderActionStatus(`Скопируйте вручную: ${billingReminderCommand}`);
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = billingReminderCommand;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.pointerEvents = 'none';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        textarea.setSelectionRange(0, textarea.value.length);
+        const isCopied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        if (!isCopied) {
+          throw new Error('execCommand copy failed');
+        }
+
+        setBillingReminderActionStatus(
+          `Текст скопирован. Отправьте его в ЛС ${BILLING_REMINDER_CONTACT_LABEL}.`,
+        );
+      } catch {
+        setBillingReminderActionStatus(
+          `Автокопирование недоступно. Скопируйте вручную: ${billingReminderCommand}`,
+        );
+      }
     }
   };
 
@@ -2559,11 +2594,13 @@ export const HomePage = ({
               )}
             </div>
 
-            <div className="payments-activation-banner">
-              {isCommunityContext
-                ? 'Приложение уже открыто в группе VK. Теперь оплатите доступ и завершите настройку админки.'
-                : 'После подключения откройте приложение в вашей группе VK.'}
-            </div>
+            {!hasActiveSubscription ? (
+              <div className="payments-activation-banner">
+                {isCommunityContext
+                  ? 'Приложение уже открыто в группе VK. Теперь оплатите доступ и завершите настройку админки.'
+                  : 'После подключения откройте приложение в вашей группе VK.'}
+              </div>
+            ) : null}
 
             {shouldShowBillingReminderCard ? (
               <div
@@ -3379,19 +3416,51 @@ export const HomePage = ({
                 : 'Отправка заявок менеджерам сейчас недоступна.'}
           </div>
 
-          <button
-            className="settings-form__button"
-            type="button"
-            disabled={!canUseNotifications}
-            onClick={() =>
-              onSaveAdminSettings({
-                ...adminSettings,
-                managerVkId: managerVkId.trim(),
-              })
-            }
-          >
-            Сохранить
-          </button>
+          {canUseNotifications ? (
+            <div className="settings-form__hint settings-form__hint settings-form__hint_accent">
+              Важно: сотрудник должен отправить в диалог с сообществом любое сообщение, иначе VK не
+              сможет доставлять ему уведомления.
+            </div>
+          ) : null}
+
+          <div className="settings-form__actions">
+            <button
+              className="settings-form__button"
+              type="button"
+              disabled={!canUseNotifications}
+              onClick={() => {
+                onSaveAdminSettings({
+                  ...adminSettings,
+                  managerVkId: managerVkId.trim(),
+                });
+                setManagerVkIdStatus('ID менеджера сохранён.');
+              }}
+            >
+              Сохранить
+            </button>
+
+            <a
+              className={`settings-form__button settings-form__button_secondary${
+                !canUseNotifications ? ' settings-form__button_disabled' : ''
+              }`}
+              href={canUseNotifications ? BILLING_REMINDER_CONTACT_LINK : undefined}
+              target="_blank"
+              rel="noreferrer"
+              aria-disabled={!canUseNotifications}
+              tabIndex={canUseNotifications ? 0 : -1}
+              onClick={(event) => {
+                if (!canUseNotifications) {
+                  event.preventDefault();
+                }
+              }}
+            >
+              Диалог с сообществом
+            </a>
+          </div>
+
+          {managerVkIdStatus ? (
+            <div className="settings-form__status settings-form__status_success">{managerVkIdStatus}</div>
+          ) : null}
         </article>
 
         {isSuperAdmin ? (

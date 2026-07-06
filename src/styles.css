@@ -2130,6 +2130,33 @@ body,
   color: #f0d2ab;
 }
 
+.settings-form__hint_accent {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 168, 77, 0.42);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 166, 77, 0.18) 0%, rgba(255, 122, 0, 0.14) 100%);
+  color: #ffd8a6;
+}
+
+.settings-form__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.settings-form__status {
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.settings-form__status_success {
+  color: #9fe3c2;
+}
+
 .settings-support__grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(240px, 0.8fr);
@@ -2577,7 +2604,6 @@ body,
 
 .settings-form__button {
   min-height: 48px;
-  margin-top: 20px;
   padding: 0 22px;
   border: 0;
   border-radius: 16px;
@@ -2588,6 +2614,11 @@ body,
   font-weight: 800;
   cursor: pointer;
   transition: transform 0.2s ease, filter 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
 }
 
 .settings-form__button:hover {
@@ -2602,6 +2633,17 @@ body,
 .settings-form__button_danger {
   background: linear-gradient(135deg, #ff8470 0%, #ff5f5f 100%);
   color: #fff4ef;
+}
+
+.settings-form__button_secondary {
+  border: 1px solid rgba(255, 179, 107, 0.22);
+  background: rgba(255, 249, 241, 0.06);
+  color: #f7f0e5;
+}
+
+.settings-form__button_disabled {
+  pointer-events: none;
+  opacity: 0.52;
 }
 
 .analytics-head {
