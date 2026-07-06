@@ -229,6 +229,10 @@ export default async function handler(request, response) {
         {
           ...currentSettings,
           managerVkId: incomingSettings.managerVkId ?? currentSettings.managerVkId,
+          billingReminderVkId:
+            incomingSettings.billingReminderVkId ?? currentSettings.billingReminderVkId,
+          billingReminderConfirmedAt:
+            incomingSettings.billingReminderConfirmedAt ?? currentSettings.billingReminderConfirmedAt,
           subscription: currentSettings.subscription,
         },
         groupId,

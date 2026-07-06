@@ -1443,6 +1443,102 @@ body,
   text-align: center;
 }
 
+.payments-reminder-card {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 20px 22px;
+  border: 1px solid rgba(114, 167, 255, 0.16);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(114, 167, 255, 0.08) 0%, rgba(114, 167, 255, 0.03) 100%),
+    rgba(44, 50, 57, 0.96);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.payments-reminder-card_active {
+  border-color: rgba(92, 201, 136, 0.24);
+  background:
+    linear-gradient(180deg, rgba(92, 201, 136, 0.12) 0%, rgba(92, 201, 136, 0.04) 100%),
+    rgba(44, 50, 57, 0.96);
+}
+
+.payments-reminder-card__eyebrow {
+  color: #9ec1ff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.payments-reminder-card__title {
+  color: #f5efe6;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.payments-reminder-card__text,
+.payments-reminder-card__note {
+  margin: 0;
+  color: #d2d7df;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.payments-reminder-card__command {
+  padding: 14px 16px;
+  border: 1px dashed rgba(255, 179, 107, 0.28);
+  border-radius: 18px;
+  background: rgba(20, 24, 30, 0.34);
+  color: #ffcf9c;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  word-break: break-word;
+}
+
+.payments-reminder-card__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.payments-reminder-card__link,
+.payments-reminder-card__copy {
+  min-height: 44px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.payments-reminder-card__link {
+  border: 0;
+  background: linear-gradient(135deg, #ffb36b 0%, #ff9747 100%);
+  color: #1e2329;
+  box-shadow: 0 12px 24px rgba(255, 151, 71, 0.18);
+}
+
+.payments-reminder-card__copy {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f5efe6;
+}
+
+.payments-reminder-card__link:hover,
+.payments-reminder-card__copy:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
 .payments-price-card__meta-row {
   display: flex;
   align-items: baseline;
@@ -8110,6 +8206,25 @@ body::-webkit-scrollbar-thumb:hover,
   .payments-guide {
     padding: 18px 16px;
     border-radius: 22px;
+  }
+
+  .payments-reminder-card {
+    padding: 18px 16px;
+    border-radius: 22px;
+  }
+
+  .payments-reminder-card__title {
+    font-size: 18px;
+  }
+
+  .payments-reminder-card__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .payments-reminder-card__link,
+  .payments-reminder-card__copy {
+    width: 100%;
   }
 
   .payments-scenario-card__head {

@@ -152,6 +152,8 @@ type FaqTopic = {
 
 const restrictedMonetizationFaqPattern =
   /\b(?:free|start|pro)\b|тариф|тарифах|оплат|подписк|апгрейд/iu;
+const BILLING_REMINDER_CONTACT_LABEL = 'сообществу CalcPro';
+const BILLING_REMINDER_CONTACT_LINK = 'https://vk.com/im?sel=-180574723';
 
 const sanitizeFaqTopicsForRestrictedPlatform = (topics: FaqTopic[]) =>
   topics
@@ -1215,6 +1217,7 @@ export const HomePage = ({
   const [supportSubject, setSupportSubject] = useState('');
   const [supportMessage, setSupportMessage] = useState('');
   const [supportStatus, setSupportStatus] = useState('');
+  const [billingReminderActionStatus, setBillingReminderActionStatus] = useState('');
   const [supportNow, setSupportNow] = useState(() => Date.now());
   const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRange>(30);
   const [templateSearch, setTemplateSearch] = useState('');
@@ -1262,6 +1265,10 @@ export const HomePage = ({
   useEffect(() => {
     setManagerVkId(adminSettings.managerVkId);
   }, [adminSettings.managerVkId]);
+
+  useEffect(() => {
+    setBillingReminderActionStatus('');
+  }, [adminSettings.billingReminderConfirmedAt, adminSettings.billingReminderVkId, currentGroupId]);
 
   useEffect(() => {
     void loadSupportTicketsFromServer(true);
@@ -1511,14 +1518,44 @@ export const HomePage = ({
     ? [
         'Оплатите доступ через YooKassa на этом экране.',
         'После оплаты укажите VK ID менеджера, который будет получать заявки.',
+        `Напишите в ЛС ${BILLING_REMINDER_CONTACT_LABEL}, чтобы заранее получать напоминания о продлении тарифа.`,
         'Откройте конструктор, опубликуйте калькулятор и проверьте форму внутри сообщества.',
       ]
     : [
         'Нажмите «Установить в сообщество» и выберите нужную группу VK.',
         'Откройте приложение уже внутри выбранного сообщества.',
         'Оплатите доступ через YooKassa на экране активации.',
-        'После открытия админки укажите VK ID менеджера и включите публикацию формы заявки.',
+        `После открытия админки укажите VK ID менеджера, напишите в ЛС ${BILLING_REMINDER_CONTACT_LABEL} и включите публикацию формы заявки.`,
       ];
+  const billingReminderCommand =
+    currentGroupId > 0 ? `Уведомления ${currentGroupId}` : '';
+  const isBillingReminderLinked = Boolean(
+    adminSettings.billingReminderVkId && adminSettings.billingReminderConfirmedAt,
+  );
+  const shouldShowBillingReminderCard =
+    canManageMonetization &&
+    isCommunityContext &&
+    currentGroupId > 0 &&
+    hasActiveSubscription &&
+    currentPlan.id !== 'free';
+  const billingReminderStatusLabel = isBillingReminderLinked
+    ? `Подключены для VK ID ${adminSettings.billingReminderVkId}`
+    : 'Не подключены';
+
+  const handleCopyBillingReminderCommand = async () => {
+    if (!billingReminderCommand) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(billingReminderCommand);
+      setBillingReminderActionStatus(
+        `Текст скопирован. Отправьте его в ЛС ${BILLING_REMINDER_CONTACT_LABEL}.`,
+      );
+    } catch {
+      setBillingReminderActionStatus(`Скопируйте вручную: ${billingReminderCommand}`);
+    }
+  };
 
   const filteredCatalog = useMemo(() => {
     const normalizedQuery = templateSearch.trim().toLowerCase();
@@ -2527,6 +2564,50 @@ export const HomePage = ({
                 ? 'Приложение уже открыто в группе VK. Теперь оплатите доступ и завершите настройку админки.'
                 : 'После подключения откройте приложение в вашей группе VK.'}
             </div>
+
+            {shouldShowBillingReminderCard ? (
+              <div
+                className={`payments-reminder-card ${isBillingReminderLinked ? 'payments-reminder-card_active' : ''}`}
+              >
+                <div className="payments-reminder-card__eyebrow">Напоминания о продлении</div>
+                <div className="payments-reminder-card__title">
+                  {isBillingReminderLinked
+                    ? 'Уведомления в ЛС VK уже подключены'
+                    : 'Подключите уведомления о скором окончании тарифа'}
+                </div>
+                <p className="payments-reminder-card__text">
+                  {isBillingReminderLinked
+                    ? 'Когда оплаченный период будет подходить к концу, мы заранее напишем в личные сообщения VK и напомним о продлении.'
+                    : `Чтобы мы могли написать вам перед окончанием тарифа, сначала отправьте в ЛС ${BILLING_REMINDER_CONTACT_LABEL} сообщение с кодом вашей группы.`}
+                </p>
+                <div className="payments-reminder-card__command">{billingReminderCommand}</div>
+                <div className="payments-reminder-card__actions">
+                  <a
+                    className="payments-reminder-card__link"
+                    href={BILLING_REMINDER_CONTACT_LINK}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Открыть ЛС VK
+                  </a>
+                  <button
+                    className="payments-reminder-card__copy"
+                    type="button"
+                    onClick={handleCopyBillingReminderCommand}
+                  >
+                    Скопировать текст
+                  </button>
+                </div>
+                <div className="payments-reminder-card__note">
+                  {isBillingReminderLinked
+                    ? `${billingReminderStatusLabel}. Подтверждено ${formatSubscriptionDate(
+                        adminSettings.billingReminderConfirmedAt,
+                      ) || 'недавно'}.`
+                    : billingReminderActionStatus ||
+                      'После отправки сообщения статус обновится автоматически при следующем открытии кабинета.'}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="payments-price-card">
@@ -2604,6 +2685,14 @@ export const HomePage = ({
               <div className="payments-price-card__meta-label">Уведомления</div>
               <div className="payments-price-card__meta-value">
                 {canUseNotifications ? 'Включены' : 'Доступны только на Pro'}
+              </div>
+            </div>
+            <div className="payments-price-card__meta-row">
+              <div className="payments-price-card__meta-label">Напоминания о тарифе</div>
+              <div className="payments-price-card__meta-value">
+                {hasActiveSubscription && currentPlan.id !== 'free'
+                  ? billingReminderStatusLabel
+                  : 'После оплаты платного тарифа'}
               </div>
             </div>
             {paymentStatus ? (

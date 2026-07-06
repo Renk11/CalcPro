@@ -99,7 +99,7 @@ export interface AdminProfile {
 const FALLBACK_PROFILE: AdminProfile = {
   firstName: 'Админ',
   lastName: 'сообщества',
-  nickname: '@vk_calc_admin',
+  nickname: 'vk.com/public180574723',
 };
 
 const getProfileLabel = (profile: AdminProfile) =>

@@ -1,5 +1,6 @@
+import { linkServerBillingReminderRecipient } from '../server/settings-store.js';
 import { updateServerSupportTicketStatus } from '../server/support-store.js';
-import { sendVkMessageEventAnswer } from '../server/vk.js';
+import { sendVkMessage, sendVkMessageEventAnswer } from '../server/vk.js';
 
 const STATUS_LABELS = {
   pending: 'На рассмотрении',
@@ -30,6 +31,18 @@ function normalizeStatus(status) {
   return status === 'reviewed' || status === 'rejected' || status === 'pending'
     ? status
     : 'pending';
+}
+
+function parseReminderGroupId(text) {
+  const match = String(text || '').match(
+    /(?:calcpro[\s:,-]*)?(?:уведомления|напоминания|notify)(?:\s+по\s+тарифу)?[\s:#-]*([1-9]\d{3,15})/iu,
+  );
+  return match ? Number(match[1]) : 0;
+}
+
+function normalizeVkUserId(value) {
+  const numericValue = Number(value);
+  return Number.isInteger(numericValue) && numericValue > 0 ? numericValue : 0;
 }
 
 export default async function handler(request, response) {
@@ -68,6 +81,24 @@ export default async function handler(request, response) {
             type: 'show_snackbar',
             text: `Статус обновлён: ${STATUS_LABELS[status]}`,
           },
+        ).catch(() => undefined);
+      }
+    }
+
+    if (body.type === 'message_new') {
+      const message = body.object?.message || {};
+      const userId = normalizeVkUserId(message.from_id || message.peer_id);
+      const groupId = parseReminderGroupId(message.text);
+
+      if (userId > 0 && groupId > 0) {
+        await linkServerBillingReminderRecipient(groupId, userId);
+        await sendVkMessage(
+          userId,
+          [
+            'Напоминания о продлении тарифа CalcPro подключены.',
+            `Сообщество ID: ${groupId}.`,
+            'Теперь мы сможем заранее написать вам в ЛС перед окончанием оплаченного периода.',
+          ].join('\n'),
         ).catch(() => undefined);
       }
     }

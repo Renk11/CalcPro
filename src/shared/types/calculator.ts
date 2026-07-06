@@ -206,6 +206,8 @@ export interface CalculatorFolder {
 export interface CalculatorAdminSettings {
   groupId?: number;
   managerVkId: string;
+  billingReminderVkId: string;
+  billingReminderConfirmedAt?: string;
   subscription: {
     plan: CalculatorSubscriptionPlan;
     priceRub: number;

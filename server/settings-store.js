@@ -36,11 +36,20 @@ function normalizeSubscription(subscription = {}) {
   };
 }
 
+function normalizeVkUserId(value) {
+  const numericValue = Number(value);
+  return Number.isInteger(numericValue) && numericValue > 0 ? String(numericValue) : '';
+}
+
 export function normalizeAdminSettings(settings = {}) {
   const defaults = createDefaultAdminSettings();
 
   return {
     managerVkId: String(settings.managerVkId || defaults.managerVkId),
+    billingReminderVkId: normalizeVkUserId(settings.billingReminderVkId || defaults.billingReminderVkId),
+    billingReminderConfirmedAt: String(
+      settings.billingReminderConfirmedAt || defaults.billingReminderConfirmedAt,
+    ),
     subscription: normalizeSubscription(settings.subscription),
   };
 }
@@ -107,6 +116,23 @@ export async function updateServerSubscription(subscriptionPatch = {}, groupId) 
       ...settings.subscription,
       ...subscriptionPatch,
     },
+  });
+
+  await writeSettingRow(getAdminSettingsKey(groupId), nextSettings);
+  return nextSettings;
+}
+
+export async function linkServerBillingReminderRecipient(groupId, userId) {
+  const settings = await getServerAdminSettings(groupId);
+  const normalizedUserId = normalizeVkUserId(userId);
+  if (!normalizedUserId) {
+    throw new Error('Valid VK user id is required');
+  }
+
+  const nextSettings = normalizeAdminSettings({
+    ...settings,
+    billingReminderVkId: normalizedUserId,
+    billingReminderConfirmedAt: new Date().toISOString(),
   });
 
   await writeSettingRow(getAdminSettingsKey(groupId), nextSettings);
