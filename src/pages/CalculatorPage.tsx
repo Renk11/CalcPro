@@ -23,6 +23,7 @@ import type {
 interface CalculatorPageProps {
   template: CalculatorTemplate;
   onOpenAdmin?: () => void;
+  onInstallInCommunity?: () => void;
   currentGroupId?: number;
   canSubmitRequests?: boolean;
   requestLimit?: number | null;
@@ -329,6 +330,7 @@ const getPhoneValidationError = (value: string) => {
 export const CalculatorPage = ({
   template,
   onOpenAdmin,
+  onInstallInCommunity,
   currentGroupId = 0,
   canSubmitRequests = true,
   requestLimit = null,
@@ -613,11 +615,20 @@ export const CalculatorPage = ({
     <div className="calculator-page">
       <div className="calculator-page__shell">
         <div className="calculator-page__hero">
-          {onOpenAdmin ? (
+          {onOpenAdmin || (onInstallInCommunity && currentGroupId <= 0) ? (
             <div className="calculator-page__actions">
-              <button className="calculator-page__back" type="button" onClick={onOpenAdmin}>
+              {onInstallInCommunity && currentGroupId <= 0 ? (
+                <button
+                  className="calculator-page__back calculator-page__back_accent"
+                  type="button"
+                  onClick={onInstallInCommunity}
+                >
+                  Установить в сообщество
+                </button>
+              ) : null}
+              {onOpenAdmin ? <button className="calculator-page__back" type="button" onClick={onOpenAdmin}>
                 Админка
-              </button>
+              </button> : null}
             </div>
           ) : null}
           <div className="calculator-page__hero-copy">

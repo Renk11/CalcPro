@@ -2219,6 +2219,7 @@ const App = () => {
                   <CalculatorPage
                     template={selectedTemplate}
                     onOpenAdmin={isViewerGroupAdmin ? openAdminHome : undefined}
+                    onInstallInCommunity={!isViewerGroupAdmin ? openCommunityInstall : undefined}
                     currentGroupId={currentGroupId}
                     canSubmitRequests={canCreateMoreRequests}
                     requestLimit={requestLimit}

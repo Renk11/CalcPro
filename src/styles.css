@@ -6774,6 +6774,13 @@ body::-webkit-scrollbar-thumb:hover,
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
+.calculator-page__back_accent {
+  border: 0;
+  background: linear-gradient(135deg, #ffb36b 0%, #ff9747 100%);
+  color: #1e2329;
+  box-shadow: 0 12px 24px rgba(255, 151, 71, 0.18);
+}
+
 .calculator-page__hero-copy {
   padding: 28px;
   border-radius: 28px;
