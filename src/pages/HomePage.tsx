@@ -155,6 +155,19 @@ const restrictedMonetizationFaqPattern =
 const BILLING_REMINDER_CONTACT_LABEL = 'сообществу CalcPro';
 const BILLING_REMINDER_CONTACT_LINK = 'https://vk.com/im?sel=-180574723';
 
+const formatSubscriptionCountdown = (diffMs: number) => {
+  if (diffMs <= 0) {
+    return 'Срок не активен';
+  }
+
+  const totalMinutes = Math.floor(diffMs / (1000 * 60));
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  return `${days} дн. ${hours} ч. ${minutes} мин.`;
+};
+
 const sanitizeFaqTopicsForRestrictedPlatform = (topics: FaqTopic[]) =>
   topics
     .filter((topic) => topic.id !== 'payments')
@@ -1496,16 +1509,24 @@ export const HomePage = ({
       return 0;
     }
 
-    const diffMs = paidUntil.getTime() - Date.now();
+    const diffMs = paidUntil.getTime() - supportNow;
     if (diffMs <= 0) {
       return 0;
     }
 
     return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-  }, [adminSettings.subscription.paidUntil]);
+  }, [adminSettings.subscription.paidUntil, supportNow]);
+  const subscriptionCountdownLabel = useMemo(() => {
+    const paidUntil = parseSubscriptionDate(adminSettings.subscription.paidUntil);
+    if (!paidUntil) {
+      return 'Срок не активен';
+    }
+
+    return formatSubscriptionCountdown(paidUntil.getTime() - supportNow);
+  }, [adminSettings.subscription.paidUntil, supportNow]);
   const subscriptionDaysLeftLabel =
     subscriptionDaysLeft > 0
-      ? `${subscriptionDaysLeft} дн. осталось`
+      ? subscriptionCountdownLabel
       : 'Срок не активен';
   const requestQuotaLabel =
     requestLimit == null

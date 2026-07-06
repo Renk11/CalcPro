@@ -15,6 +15,12 @@ import { resetAllGroupsData } from '../server/group-reset.js';
 
 const DEFAULT_SUPER_ADMIN_IDS = ['139346496'];
 
+function buildIssuedPaidUntil(days) {
+  const nextDate = new Date();
+  nextDate.setDate(nextDate.getDate() + Math.max(1, Number(days) || 30));
+  return nextDate.toISOString();
+}
+
 function parseGroupId(rawValue) {
   const groupId = Number(rawValue);
   return Number.isInteger(groupId) && groupId > 0 ? groupId : 0;
@@ -159,23 +165,7 @@ export default async function handler(request, response) {
           plan: nextPlan.id,
           priceRub: nextPlan.monthlyPriceRub,
         };
-        const paidUntil = buildNextPaidUntil(
-          baseSubscription.status === 'active' ? baseSubscription.paidUntil : '',
-        );
-
-        let nextPaidUntil = paidUntil;
-        if (days !== 30) {
-          const currentPaidUntil = Date.parse(
-            baseSubscription.status === 'active' ? baseSubscription.paidUntil || '' : '',
-          );
-          const baseTime =
-            Number.isFinite(currentPaidUntil) && currentPaidUntil > Date.now()
-              ? currentPaidUntil
-              : Date.now();
-          const nextDate = new Date(baseTime);
-          nextDate.setDate(nextDate.getDate() + days);
-          nextPaidUntil = nextDate.toISOString();
-        }
+        const nextPaidUntil = days === 30 ? buildNextPaidUntil('') : buildIssuedPaidUntil(days);
 
         const settings = await saveServerAdminSettings(
           {
