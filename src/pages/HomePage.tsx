@@ -1318,10 +1318,6 @@ export const HomePage = ({
   }, [currentSection, currentGroupId]);
 
   useEffect(() => {
-    if (currentSection !== 'settings') {
-      return;
-    }
-
     const timerId = window.setInterval(() => {
       setSupportNow(Date.now());
     }, 1000);
@@ -1329,7 +1325,7 @@ export const HomePage = ({
     return () => {
       window.clearInterval(timerId);
     };
-  }, [currentSection]);
+  }, []);
 
   useEffect(() => {
     setSuperAdminGroupId(currentGroupId > 0 ? String(currentGroupId) : '');
