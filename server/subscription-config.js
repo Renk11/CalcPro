@@ -1,5 +1,6 @@
 export const SUBSCRIPTION_DURATION_DAYS = 30;
 export const DEFAULT_SUBSCRIPTION_PLAN = 'free';
+export const BILLING_REMINDER_SCHEDULE_DAYS = [7, 3, 1, 0];
 
 export const SUBSCRIPTION_PLANS = {
   free: {
@@ -57,6 +58,12 @@ export function createDefaultAdminSettings() {
     managerVkId: '',
     billingReminderVkId: '',
     billingReminderConfirmedAt: '',
+    billingReminderState: {
+      cycleId: '',
+      sentStages: {},
+      lastCheckedAt: '',
+      lastSentAt: '',
+    },
     subscription: createDefaultSubscriptionSettings(),
   };
 }

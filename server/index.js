@@ -9,6 +9,7 @@ import supportHandler from '../api/support.js';
 import templatesHandler from '../api/templates.js';
 import vkCallbackHandler from '../api/vk-callback.js';
 import yookassaHandler from '../api/yookassa.js';
+import { startBillingReminderScheduler } from './billing-reminders.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -261,6 +262,10 @@ function handleStaticRequest(request, response, url) {
 
 loadEnvFile();
 logVkLaunchSecretStatus();
+const billingReminderTimer = startBillingReminderScheduler();
+if (typeof billingReminderTimer?.unref === 'function') {
+  billingReminderTimer.unref();
+}
 
 const server = http.createServer(async (request, response) => {
   setSecurityHeaders(response);

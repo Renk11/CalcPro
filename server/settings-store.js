@@ -42,8 +42,35 @@ function normalizeVkUserId(value) {
   return Number.isInteger(numericValue) && numericValue > 0 ? String(numericValue) : '';
 }
 
+function normalizeBillingReminderState(state = {}, paidUntil = '') {
+  const normalizedState =
+    state && typeof state === 'object' && !Array.isArray(state) ? state : {};
+  const normalizedCycleId = String(normalizedState.cycleId || '').trim();
+  const fallbackCycleId = paidUntil ? `paidUntil:${paidUntil}` : '';
+  const sentStagesSource =
+    normalizedState.sentStages &&
+    typeof normalizedState.sentStages === 'object' &&
+    !Array.isArray(normalizedState.sentStages)
+      ? normalizedState.sentStages
+      : {};
+
+  const sentStages = Object.fromEntries(
+    Object.entries(sentStagesSource)
+      .map(([stage, value]) => [String(stage).trim(), String(value || '').trim()])
+      .filter(([stage, value]) => stage && value),
+  );
+
+  return {
+    cycleId: normalizedCycleId || fallbackCycleId,
+    sentStages,
+    lastCheckedAt: String(normalizedState.lastCheckedAt || '').trim(),
+    lastSentAt: String(normalizedState.lastSentAt || '').trim(),
+  };
+}
+
 export function normalizeAdminSettings(settings = {}) {
   const defaults = createDefaultAdminSettings();
+  const subscription = normalizeSubscription(settings.subscription);
 
   return {
     managerVkId: String(settings.managerVkId || defaults.managerVkId),
@@ -51,7 +78,11 @@ export function normalizeAdminSettings(settings = {}) {
     billingReminderConfirmedAt: String(
       settings.billingReminderConfirmedAt || defaults.billingReminderConfirmedAt,
     ),
-    subscription: normalizeSubscription(settings.subscription),
+    billingReminderState: normalizeBillingReminderState(
+      settings.billingReminderState,
+      subscription.paidUntil,
+    ),
+    subscription,
   };
 }
 
@@ -107,6 +138,36 @@ export async function saveServerAdminSettings(settings, groupId) {
   const normalized = normalizeAdminSettings(settings);
   await writeSettingRow(getAdminSettingsKey(groupId), normalized);
   return normalized;
+}
+
+export async function listServerAdminSettings() {
+  try {
+    const rows = await supabaseSelect('app_settings', {
+      select: 'key,value',
+      filter: { key: 'key', value: `like.${GROUP_SETTINGS_KEY_PREFIX}%` },
+      limit: 5000,
+    });
+
+    return rows
+      .map((row) => {
+        const groupId = normalizeGroupId(String(row?.key || '').split(':').pop() || '');
+        if (!groupId) {
+          return null;
+        }
+
+        return {
+          groupId: Number(groupId),
+          settings: normalizeAdminSettings(row?.value || {}),
+        };
+      })
+      .filter(Boolean);
+  } catch (error) {
+    if (String(error?.message || '').includes('schema cache')) {
+      return [];
+    }
+
+    throw error;
+  }
 }
 
 export async function updateServerSubscription(subscriptionPatch = {}, groupId) {

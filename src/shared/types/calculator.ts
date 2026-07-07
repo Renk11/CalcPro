@@ -208,6 +208,12 @@ export interface CalculatorAdminSettings {
   managerVkId: string;
   billingReminderVkId: string;
   billingReminderConfirmedAt?: string;
+  billingReminderState?: {
+    cycleId?: string;
+    sentStages?: Record<string, string>;
+    lastCheckedAt?: string;
+    lastSentAt?: string;
+  };
   subscription: {
     plan: CalculatorSubscriptionPlan;
     priceRub: number;

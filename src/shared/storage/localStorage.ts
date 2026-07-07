@@ -79,6 +79,12 @@ const ensureScopedStorageInitialized = (groupId = activeStorageGroupId) => {
       managerVkId: '',
       billingReminderVkId: '',
       billingReminderConfirmedAt: '',
+      billingReminderState: {
+        cycleId: '',
+        sentStages: {},
+        lastCheckedAt: '',
+        lastSentAt: '',
+      },
       subscription: createDefaultSubscriptionSettings(),
     } satisfies CalculatorAdminSettings,
   };
@@ -492,6 +498,12 @@ export const getAdminSettings = (): CalculatorAdminSettings => {
     managerVkId: settings.managerVkId ?? '',
     billingReminderVkId: settings.billingReminderVkId ?? '',
     billingReminderConfirmedAt: settings.billingReminderConfirmedAt ?? '',
+    billingReminderState: {
+      cycleId: settings.billingReminderState?.cycleId ?? '',
+      sentStages: settings.billingReminderState?.sentStages ?? {},
+      lastCheckedAt: settings.billingReminderState?.lastCheckedAt ?? '',
+      lastSentAt: settings.billingReminderState?.lastSentAt ?? '',
+    },
     subscription: {
       ...defaultSubscription,
       ...(settings.subscription ?? {}),
