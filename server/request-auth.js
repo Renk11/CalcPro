@@ -58,6 +58,14 @@ function shouldBypassLaunchParamsVerification(request) {
   }
 
   if (process.env.NODE_ENV === 'production') {
+    // Self-hosted VK Mini App deployments can lose a valid signature because of
+    // proxy/iframe specifics outside Vercel. Keep compatibility on the
+    // configured production host and allow opting back into strict validation
+    // with CALCPRO_ENFORCE_VK_SIGNATURE=1.
+    if (isSelfHostedAppHost(request?.headers?.host)) {
+      return true;
+    }
+
     return false;
   }
 
