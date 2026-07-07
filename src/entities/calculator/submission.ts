@@ -1,5 +1,6 @@
 import bridge from '@vkontakte/vk-bridge';
 import { addRequest } from '../../shared/storage/localStorage';
+import { appendVkLaunchParamsToPath, createVkAuthHeaders, getWindowLaunchParams } from '../../shared/vkAuth';
 import type {
   CalculatorFieldValue,
   CalculatorRequest,
@@ -61,10 +62,11 @@ export const submitRequest = async (request: CalculatorRequest, groupId = 0) => 
   const message = buildMessage(request);
 
   try {
-    const response = await fetch('/api/requests', {
+    const response = await fetch(appendVkLaunchParamsToPath('/api/requests', getWindowLaunchParams()), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...createVkAuthHeaders(getWindowLaunchParams()),
       },
       body: JSON.stringify({
         ...request,

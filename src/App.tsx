@@ -747,7 +747,7 @@ const App = () => {
       return;
     }
 
-    if (isPublicViewer && isTemplatesLoading) {
+    if (isPublicViewer) {
       return;
     }
 
@@ -783,7 +783,7 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [effectiveAdminGroupId, isLaunchParamsResolved, isPublicViewer, isTemplatesLoading]);
+  }, [effectiveAdminGroupId, isLaunchParamsResolved, isPublicViewer]);
 
   useEffect(() => {
     if (!isLaunchParamsResolved) {

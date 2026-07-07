@@ -1,5 +1,9 @@
 import { sendJson } from '../server/http.js';
-import { getTrustedViewerContext, sendTrustedViewerContextError } from '../server/request-auth.js';
+import {
+  getTrustedViewerContext,
+  requireTrustedViewerContext,
+  sendTrustedViewerContextError,
+} from '../server/request-auth.js';
 import { getViewerCommunities } from '../server/community-store.js';
 import {
   addServerRequest,
@@ -17,7 +21,14 @@ function parseGroupId(rawValue) {
 }
 
 function parseManagerIds(rawValue) {
-  return [...new Set(String(rawValue || '').split(/[,\s;]+/).map((item) => item.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      String(rawValue || '')
+        .split(/[,\s;]+/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 function parseRequestPatch(rawValue) {
@@ -71,11 +82,13 @@ function parseRequestPatch(rawValue) {
 
 function formatRequestValue(value) {
   if (Array.isArray(value)) {
-    return value
-      .map((item) =>
-        typeof item === 'object' && item !== null && 'name' in item ? String(item.name) : String(item),
-      )
-      .join(', ') || '-';
+    return (
+      value
+        .map((item) =>
+          typeof item === 'object' && item !== null && 'name' in item ? String(item.name) : String(item),
+        )
+        .join(', ') || '-'
+    );
   }
 
   if (typeof value === 'boolean') {
@@ -96,20 +109,22 @@ function formatRequestValue(value) {
 }
 
 function buildMessage(request) {
-  const details = (Array.isArray(request?.details) && request.details.length > 0
-    ? request.details.map((item) => `${item.label}: ${item.value}`)
-    : Object.entries(request?.values || {}).map(([key, value]) => `${key}: ${formatRequestValue(value)}`))
+  const details = (
+    Array.isArray(request?.details) && request.details.length > 0
+      ? request.details.map((item) => `${item.label}: ${item.value}`)
+      : Object.entries(request?.values || {}).map(([key, value]) => `${key}: ${formatRequestValue(value)}`)
+  )
     .map((item) => `• ${item}`)
     .join('\n');
 
   return [
-    '🆕 Новая заявка',
-    `🧮 Калькулятор: ${request?.templateTitle || 'Калькулятор'}`,
-    `👤 Имя: ${request?.name || '-'}`,
-    `📞 Телефон: ${request?.phone || '-'}`,
-    `💬 Комментарий: ${request?.comment || 'Без комментария'}`,
-    `💰 Сумма: ${Number(request?.amount) || 0} ₽`,
-    details ? `\n📋 Детали:\n${details}` : '',
+    'Новая заявка',
+    `Калькулятор: ${request?.templateTitle || 'Калькулятор'}`,
+    `Имя: ${request?.name || '-'}`,
+    `Телефон: ${request?.phone || '-'}`,
+    `Комментарий: ${request?.comment || 'Без комментария'}`,
+    `Сумма: ${Number(request?.amount) || 0} ₽`,
+    details ? `\nДетали:\n${details}` : '',
   ].join('\n');
 }
 
@@ -220,16 +235,27 @@ export default async function handler(request, response) {
         return sendJson(response, 200, { ok: true, data: requests });
       }
 
+      const auth = requireTrustedViewerContext(request, response);
+      if (!auth) {
+        return undefined;
+      }
+
+      if (groupId <= 0 || auth.groupId <= 0 || auth.groupId !== groupId) {
+        return sendJson(response, 403, {
+          ok: false,
+          error: 'Requests can be submitted only from the current VK community context',
+        });
+      }
+
       const requestPayload = request.body || {};
       let savedRequests = [];
 
-      if (groupId > 0) {
-        try {
-          savedRequests = await addServerRequest(requestPayload, groupId);
-        } catch {
-          savedRequests = [];
-        }
+      try {
+        savedRequests = await addServerRequest(requestPayload, groupId);
+      } catch {
+        savedRequests = [];
       }
+
       const settings = await getServerAdminSettings(groupId);
       const managerIds = parseManagerIds(settings.managerVkId);
 
@@ -253,13 +279,27 @@ export default async function handler(request, response) {
       const results = [];
 
       for (const managerId of managerIds) {
-        const vkResponse = await sendVkMessage(managerId, message);
-        results.push({ managerId, vkResponse });
+        try {
+          const vkResponse = await sendVkMessage(managerId, message);
+          results.push({ managerId, vkResponse, ok: true });
+        } catch (error) {
+          results.push({
+            managerId,
+            ok: false,
+            error: error instanceof Error ? error.message : 'VK send failed',
+          });
+        }
       }
+
+      const deliveredCount = results.filter((item) => item.ok).length;
+      const failedCount = results.length - deliveredCount;
 
       return sendJson(response, 200, {
         ok: true,
-        message: `Заявка отправлена ${managerIds.length} менеджер(ам).`,
+        message:
+          failedCount === 0
+            ? `Заявка отправлена ${deliveredCount} менеджер(ам).`
+            : `Заявка сохранена. Успешно отправлено: ${deliveredCount}, ошибок: ${failedCount}.`,
         data: savedRequests,
         notifications: results,
       });
