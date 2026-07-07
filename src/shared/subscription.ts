@@ -108,9 +108,27 @@ export const createDefaultSubscriptionSettings = (): CalculatorAdminSettings['su
     status: 'inactive',
     paidUntil: '',
     quotaStartedAt: '',
+    quotaMonthlyUsage: {},
     provider: '',
     externalPaymentId: '',
   };
+};
+
+export const getSubscriptionQuotaCycleId = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+export const getSubscriptionMonthlyUsage = (
+  subscription: CalculatorAdminSettings['subscription'],
+  date = new Date(),
+) => {
+  const usage = subscription.quotaMonthlyUsage;
+  if (!usage || typeof usage !== 'object') {
+    return null;
+  }
+
+  const cycleId = getSubscriptionQuotaCycleId(date);
+  const rawValue = usage[cycleId];
+  return Number.isFinite(rawValue) ? Math.max(0, Math.trunc(rawValue)) : null;
 };
 
 export const parseSubscriptionDate = (value?: string) => {

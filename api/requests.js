@@ -12,7 +12,11 @@ import {
   mergeServerRequests,
   updateServerRequest,
 } from '../server/request-store.js';
-import { getServerAdminSettings } from '../server/settings-store.js';
+import { getServerAdminSettings, saveServerAdminSettings } from '../server/settings-store.js';
+import {
+  getEffectiveSubscriptionPlan,
+  getSubscriptionQuotaCycleId,
+} from '../server/subscription-config.js';
 import { hasVkGroupToken, sendVkMessage } from '../server/vk.js';
 
 function parseGroupId(rawValue) {
@@ -126,6 +130,17 @@ function buildMessage(request) {
     `Сумма: ${Number(request?.amount) || 0} ₽`,
     details ? `\nДетали:\n${details}` : '',
   ].join('\n');
+}
+
+function getMonthlyUsageFromSubscription(subscription, date = new Date()) {
+  const usage = subscription?.quotaMonthlyUsage;
+  if (!usage || typeof usage !== 'object') {
+    return 0;
+  }
+
+  const cycleId = getSubscriptionQuotaCycleId(date);
+  const rawValue = usage[cycleId];
+  return Number.isFinite(rawValue) ? Math.max(0, Math.trunc(rawValue)) : 0;
 }
 
 async function resolveAvailableGroupIds(auth) {
@@ -248,6 +263,19 @@ export default async function handler(request, response) {
       }
 
       const requestPayload = request.body || {};
+      const settings = await getServerAdminSettings(groupId);
+      const currentPlan = getEffectiveSubscriptionPlan(settings.subscription);
+      const requestLimit = currentPlan.monthlyRequestLimit;
+      const usedRequests = getMonthlyUsageFromSubscription(settings.subscription);
+
+      if (requestLimit != null && usedRequests >= requestLimit) {
+        return sendJson(response, 200, {
+          ok: false,
+          error: 'MONTHLY_REQUEST_LIMIT_REACHED',
+          message: `Лимит заявок на этот месяц исчерпан: ${usedRequests} из ${requestLimit}.`,
+        });
+      }
+
       let savedRequests = [];
 
       try {
@@ -256,7 +284,23 @@ export default async function handler(request, response) {
         savedRequests = [];
       }
 
-      const settings = await getServerAdminSettings(groupId);
+      if (requestLimit != null) {
+        const cycleId = getSubscriptionQuotaCycleId();
+        await saveServerAdminSettings(
+          {
+            ...settings,
+            subscription: {
+              ...settings.subscription,
+              quotaMonthlyUsage: {
+                ...(settings.subscription.quotaMonthlyUsage || {}),
+                [cycleId]: usedRequests + 1,
+              },
+            },
+          },
+          groupId,
+        );
+      }
+
       const managerIds = parseManagerIds(settings.managerVkId);
 
       if (managerIds.length === 0) {

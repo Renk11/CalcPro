@@ -2739,7 +2739,11 @@ export const HomePage = ({
             <div className="payments-price-card__meta-row">
               <div className="payments-price-card__meta-label">Уведомления</div>
               <div className="payments-price-card__meta-value">
-                {canUseNotifications ? 'Включены' : 'Доступны только на Pro'}
+                {currentPlan.id === 'free'
+                  ? 'Менеджер настраивается вручную'
+                  : canUseNotifications
+                    ? 'Включены'
+                    : 'Ограничены текущим тарифом'}
               </div>
             </div>
             <div className="payments-price-card__meta-row">
@@ -3421,31 +3425,23 @@ export const HomePage = ({
               inputMode="text"
               placeholder="Например: 123456789"
               value={managerVkId}
-              disabled={!canUseNotifications}
               onChange={(event) => setManagerVkId(event.target.value.replace(/[^\d,\s;-]/g, ''))}
             />
           </label>
 
           <div className="settings-form__hint">
-            {canUseNotifications
-              ? 'Укажите VK ID сотрудника, которому будут приходить заявки из калькуляторов.'
-              : canManageMonetization
-                ? 'Отправка заявок менеджерам доступна на тарифе Про.'
-                : 'Отправка заявок менеджерам сейчас недоступна.'}
+            Укажите VK ID сотрудника, которому будут приходить заявки из калькуляторов.
           </div>
 
-          {canUseNotifications ? (
-            <div className="settings-form__hint settings-form__hint settings-form__hint_accent">
-              Важно: сотрудник должен отправить в диалог с сообществом любое сообщение, иначе VK не
-              сможет доставлять ему уведомления.
-            </div>
-          ) : null}
+          <div className="settings-form__hint settings-form__hint settings-form__hint_accent">
+            Важно: сотрудник должен отправить в диалог с сообществом любое сообщение, иначе VK не
+            сможет доставлять ему уведомления.
+          </div>
 
           <div className="settings-form__actions">
             <button
               className="settings-form__button"
               type="button"
-              disabled={!canUseNotifications}
               onClick={() => {
                 onSaveAdminSettings({
                   ...adminSettings,
@@ -3458,19 +3454,10 @@ export const HomePage = ({
             </button>
 
             <a
-              className={`settings-form__button settings-form__button_secondary${
-                !canUseNotifications ? ' settings-form__button_disabled' : ''
-              }`}
-              href={canUseNotifications ? BILLING_REMINDER_CONTACT_LINK : undefined}
+              className="settings-form__button settings-form__button_secondary"
+              href={BILLING_REMINDER_CONTACT_LINK}
               target="_blank"
               rel="noreferrer"
-              aria-disabled={!canUseNotifications}
-              tabIndex={canUseNotifications ? 0 : -1}
-              onClick={(event) => {
-                if (!canUseNotifications) {
-                  event.preventDefault();
-                }
-              }}
             >
               Диалог с сообществом
             </a>

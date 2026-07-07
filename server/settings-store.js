@@ -23,6 +23,20 @@ function getAdminSettingsKey(groupId) {
 function normalizeSubscription(subscription = {}) {
   const defaults = createDefaultSubscriptionSettings();
   const planConfig = getSubscriptionPlanConfig(subscription.plan || defaults.plan);
+  const quotaMonthlyUsageSource =
+    subscription.quotaMonthlyUsage &&
+    typeof subscription.quotaMonthlyUsage === 'object' &&
+    !Array.isArray(subscription.quotaMonthlyUsage)
+      ? subscription.quotaMonthlyUsage
+      : {};
+  const quotaMonthlyUsage = Object.fromEntries(
+    Object.entries(quotaMonthlyUsageSource)
+      .map(([cycleId, value]) => [
+        String(cycleId).trim(),
+        Math.max(0, Math.trunc(Number(value) || 0)),
+      ])
+      .filter(([cycleId, value]) => cycleId && Number.isFinite(value)),
+  );
 
   return {
     ...defaults,
@@ -32,6 +46,7 @@ function normalizeSubscription(subscription = {}) {
     status: subscription.status === 'active' ? 'active' : 'inactive',
     paidUntil: String(subscription.paidUntil || defaults.paidUntil),
     quotaStartedAt: String(subscription.quotaStartedAt || defaults.quotaStartedAt),
+    quotaMonthlyUsage,
     provider: String(subscription.provider || defaults.provider),
     externalPaymentId: String(subscription.externalPaymentId || defaults.externalPaymentId),
   };

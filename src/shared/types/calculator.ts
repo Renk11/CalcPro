@@ -220,6 +220,7 @@ export interface CalculatorAdminSettings {
     status: CalculatorSubscriptionStatus;
     paidUntil?: string;
     quotaStartedAt?: string;
+    quotaMonthlyUsage?: Record<string, number>;
     provider?: string;
     externalPaymentId?: string;
   };

@@ -35,6 +35,7 @@ import {
   buildNextPaidUntil,
   createDefaultSubscriptionSettings,
   getEffectiveSubscriptionPlan,
+  getSubscriptionMonthlyUsage,
   getSubscriptionPlanConfig,
   isSubscriptionActive,
 } from './shared/subscription';
@@ -460,8 +461,10 @@ const App = () => {
     [adminSettings.subscription.plan],
   );
   const monthlyRequestsUsed = useMemo(
-    () => getMonthRequestCount(requests, adminSettings.subscription.quotaStartedAt),
-    [adminSettings.subscription.quotaStartedAt, requests],
+    () =>
+      getSubscriptionMonthlyUsage(adminSettings.subscription) ??
+      getMonthRequestCount(requests, adminSettings.subscription.quotaStartedAt),
+    [adminSettings.subscription, requests],
   );
   const requestLimit = currentPlan.monthlyRequestLimit;
   const canCreateMoreRequests = requestLimit == null || monthlyRequestsUsed < requestLimit;

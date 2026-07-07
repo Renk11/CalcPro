@@ -58,45 +58,61 @@ const buildMessage = (request: CalculatorRequest) => {
 };
 
 export const submitRequest = async (request: CalculatorRequest, groupId = 0) => {
-  addRequest(request);
   const message = buildMessage(request);
 
   try {
-    const response = await fetch(appendVkLaunchParamsToPath('/api/requests', getWindowLaunchParams()), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...createVkAuthHeaders(getWindowLaunchParams()),
+    const response = await fetch(
+      appendVkLaunchParamsToPath('/api/requests', getWindowLaunchParams()),
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...createVkAuthHeaders(getWindowLaunchParams()),
+        },
+        body: JSON.stringify({
+          ...request,
+          groupId,
+        }),
       },
-      body: JSON.stringify({
-        ...request,
-        groupId,
-      }),
-    });
+    );
     const payload = (await response.json().catch(() => null)) as
-      | { ok?: boolean; message?: string }
+      | { ok?: boolean; message?: string; error?: string }
       | null;
 
     if (response.ok && payload?.ok) {
+      addRequest(request);
       return {
         ok: true,
+        shouldStoreLocally: true,
         message: payload.message || 'Заявка отправлена менеджеру.',
+      };
+    }
+
+    if (payload?.message || payload?.error) {
+      return {
+        ok: false,
+        shouldStoreLocally: false,
+        message: payload.message || payload.error || 'Не удалось отправить заявку.',
       };
     }
   } catch {
     // Fall back to manual delivery when server-side VK sending is unavailable.
   }
 
+  addRequest(request);
+
   try {
     await bridge.send('VKWebAppCopyText', { text: message });
     return {
       ok: true,
+      shouldStoreLocally: true,
       message: 'Заявка сохранена, текст скопирован для ручной отправки в сообщения сообщества.',
     };
   } catch {
     await navigator.clipboard.writeText(message).catch(() => undefined);
     return {
       ok: true,
+      shouldStoreLocally: true,
       message: 'Заявка сохранена локально. Текст подготовлен для отправки.',
     };
   }

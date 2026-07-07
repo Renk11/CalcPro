@@ -48,6 +48,7 @@ export function createDefaultSubscriptionSettings() {
     status: 'inactive',
     paidUntil: '',
     quotaStartedAt: '',
+    quotaMonthlyUsage: {},
     provider: '',
     externalPaymentId: '',
   };
@@ -71,6 +72,35 @@ export function createDefaultAdminSettings() {
 export function parseSubscriptionDate(value = '') {
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? null : new Date(timestamp);
+}
+
+export function isSubscriptionActive(subscription, now = Date.now()) {
+  const plan = getSubscriptionPlanConfig(subscription?.plan);
+  if (plan.id === 'free') {
+    return true;
+  }
+
+  if (subscription?.status !== 'active') {
+    return false;
+  }
+
+  const paidUntil = parseSubscriptionDate(subscription?.paidUntil);
+  return Boolean(paidUntil && paidUntil.getTime() >= now);
+}
+
+export function getEffectiveSubscriptionPlan(subscription, now = Date.now()) {
+  const configuredPlan = getSubscriptionPlanConfig(subscription?.plan);
+  if (configuredPlan.id === 'free') {
+    return configuredPlan;
+  }
+
+  return isSubscriptionActive(subscription, now)
+    ? configuredPlan
+    : getSubscriptionPlanConfig(DEFAULT_SUBSCRIPTION_PLAN);
+}
+
+export function getSubscriptionQuotaCycleId(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 export function buildNextPaidUntil(currentPaidUntil = '') {

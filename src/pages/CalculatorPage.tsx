@@ -548,8 +548,10 @@ export const CalculatorPage = ({
 
     try {
       const response = await submitRequest(request, currentGroupId);
-      setRequests((current) => [request, ...current]);
-      onRequestCreated(request);
+      if (response.shouldStoreLocally) {
+        setRequests((current) => [request, ...current]);
+        onRequestCreated(request);
+      }
       setStatus(response.message);
       if (response.ok) {
         setSuccessModalMessage(response.message);

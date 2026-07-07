@@ -514,6 +514,8 @@ export const getAdminSettings = (): CalculatorAdminSettings => {
       status: settings.subscription?.status ?? defaultSubscription.status,
       paidUntil: settings.subscription?.paidUntil ?? defaultSubscription.paidUntil,
       quotaStartedAt: settings.subscription?.quotaStartedAt ?? defaultSubscription.quotaStartedAt,
+      quotaMonthlyUsage:
+        settings.subscription?.quotaMonthlyUsage ?? defaultSubscription.quotaMonthlyUsage,
       provider: settings.subscription?.provider ?? defaultSubscription.provider,
       externalPaymentId:
         settings.subscription?.externalPaymentId ?? defaultSubscription.externalPaymentId,
