@@ -2720,7 +2720,10 @@ export const HomePage = ({
                 </div>
               ) : (
                 <div className="analytics-empty analytics-empty_compact">
-                  Пока нет просмотров за выбранный период.
+                  <div className="analytics-empty__title">Пока пусто</div>
+                  <div className="analytics-empty__text">
+                    Источники появятся после первых просмотров за выбранный период.
+                  </div>
                 </div>
               )}
             </div>
@@ -2775,7 +2778,10 @@ export const HomePage = ({
                 </div>
               ) : (
                 <div className="analytics-empty analytics-empty_compact">
-                  Пока нет просмотров за выбранный период.
+                  <div className="analytics-empty__title">Пока пусто</div>
+                  <div className="analytics-empty__text">
+                    Устройства появятся после первых просмотров за выбранный период.
+                  </div>
                 </div>
               )}
             </div>
