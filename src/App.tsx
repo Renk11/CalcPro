@@ -211,11 +211,25 @@ const BuilderPageFallback = () => (
 
 const StartupSplash = () => (
   <div className="startup-splash" role="status" aria-live="polite" aria-label="Загрузка CalcPro">
+    <div className="startup-splash__backdrop" aria-hidden="true">
+      <span className="startup-splash__mesh startup-splash__mesh_left" />
+      <span className="startup-splash__mesh startup-splash__mesh_right" />
+      <span className="startup-splash__beam startup-splash__beam_orange" />
+      <span className="startup-splash__beam startup-splash__beam_teal" />
+      <span className="startup-splash__particle startup-splash__particle_1" />
+      <span className="startup-splash__particle startup-splash__particle_2" />
+      <span className="startup-splash__particle startup-splash__particle_3" />
+      <span className="startup-splash__particle startup-splash__particle_4" />
+      <span className="startup-splash__particle startup-splash__particle_5" />
+    </div>
     <div className="startup-splash__panel">
       <div className="startup-splash__eyebrow">CalcPro</div>
       <div className="startup-splash__mark" aria-hidden="true">
+        <span className="startup-splash__halo startup-splash__halo_outer" />
+        <span className="startup-splash__halo startup-splash__halo_inner" />
         <span className="startup-splash__glow startup-splash__glow_left" />
         <span className="startup-splash__glow startup-splash__glow_right" />
+        <span className="startup-splash__scanline" />
         <span className="startup-splash__orbit startup-splash__orbit_outer">
           <span className="startup-splash__satellite startup-splash__satellite_orange" />
         </span>
@@ -230,11 +244,17 @@ const StartupSplash = () => (
             <img className="startup-splash__logo-image" src={calcProLogo} alt="" aria-hidden="true" />
           </span>
         </span>
+        <span className="startup-splash__pedestal" />
       </div>
       <h1 className="startup-splash__title">Подготавливаем калькулятор</h1>
       <p className="startup-splash__text">
         Шаблоны, настройки и рабочий контекст сообщества уже на подходе.
       </p>
+      <div className="startup-splash__status-row" aria-hidden="true">
+        <span className="startup-splash__status-pill">Шаблоны</span>
+        <span className="startup-splash__status-pill">Аналитика</span>
+        <span className="startup-splash__status-pill">VK</span>
+      </div>
       <div className="startup-splash__wave" aria-hidden="true">
         <span className="startup-splash__wave-bar" />
         <span className="startup-splash__wave-bar" />
