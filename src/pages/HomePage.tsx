@@ -1662,7 +1662,11 @@ export const HomePage = ({
       ? `Менеджер ${currentGroupId} ${managerVkId.trim()}`
       : '';
   const managerLinkCommandParts = managerLinkCommand ? managerLinkCommand.split(' ') : [];
-  const isManagerLinked = Boolean(adminSettings.managerVkId && adminSettings.managerVkConfirmedAt);
+  const normalizedDraftManagerVkId = managerVkId.trim();
+  const hasSavedManager = Boolean(adminSettings.managerVkId);
+  const isManagerDraftChanged = normalizedDraftManagerVkId !== adminSettings.managerVkId;
+  const isManagerLinked =
+    Boolean(adminSettings.managerVkId && adminSettings.managerVkConfirmedAt) && !isManagerDraftChanged;
   const isBillingReminderLinked = Boolean(
     adminSettings.billingReminderVkId && adminSettings.billingReminderConfirmedAt,
   );
@@ -1675,9 +1679,15 @@ export const HomePage = ({
   const billingReminderStatusLabel = isBillingReminderLinked
     ? `Подключены для VK ID ${adminSettings.billingReminderVkId}`
     : 'Не подключены';
-  const managerLinkStatusLabel = isManagerLinked
-    ? `Подключен VK ID ${adminSettings.managerVkId}`
-    : 'Не подключен';
+  const managerLinkStatusLabel = isManagerDraftChanged
+    ? normalizedDraftManagerVkId
+      ? `Подготовлена замена на VK ID ${normalizedDraftManagerVkId}`
+      : hasSavedManager
+        ? 'Менеджер будет отключён после сохранения'
+        : 'Не подключен'
+    : isManagerLinked
+      ? `Подключен VK ID ${adminSettings.managerVkId}`
+      : 'Не подключен';
   const managerProfile = adminSettings.managerProfile;
   const managerFullName =
     [managerProfile?.firstName, managerProfile?.lastName].filter(Boolean).join(' ').trim() ||
@@ -1749,9 +1759,33 @@ export const HomePage = ({
         `Код скопирован. Пусть менеджер отправит его в ЛС ${BILLING_REMINDER_CONTACT_LABEL}.`,
       );
     } catch {
-      setManagerVkIdStatus(
-        `Автокопирование недоступно. Скопируйте вручную: ${managerLinkCommand}`,
-      );
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = managerLinkCommand;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.pointerEvents = 'none';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        textarea.setSelectionRange(0, textarea.value.length);
+        const isCopied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        if (!isCopied) {
+          throw new Error('execCommand copy failed');
+        }
+
+        setManagerVkIdStatus(
+          `Код скопирован. Пусть менеджер отправит его в ЛС ${BILLING_REMINDER_CONTACT_LABEL}.`,
+        );
+      } catch {
+        setManagerVkIdStatus(
+          `Автокопирование недоступно. Скопируйте вручную: ${managerLinkCommand}`,
+        );
+      }
     }
   };
 
@@ -3812,7 +3846,7 @@ export const HomePage = ({
               className="settings-form__button"
               type="button"
               onClick={() => {
-                const normalizedManagerVkId = managerVkId.trim();
+                const normalizedManagerVkId = normalizedDraftManagerVkId;
                 onSaveAdminSettings({
                   ...adminSettings,
                   managerVkId: normalizedManagerVkId,
@@ -3829,6 +3863,22 @@ export const HomePage = ({
               }}
             >
               Сохранить
+            </button>
+
+            <button
+              className="settings-form__button settings-form__button_danger"
+              type="button"
+              disabled={!managerVkId && !adminSettings.managerVkId}
+              onClick={() => {
+                setManagerVkId('');
+                setManagerVkIdStatus(
+                  adminSettings.managerVkId
+                    ? 'Нажмите «Сохранить», чтобы отключить текущего менеджера.'
+                    : 'Менеджер уже не подключён.',
+                );
+              }}
+            >
+              Удалить менеджера
             </button>
 
             <button
@@ -3850,7 +3900,13 @@ export const HomePage = ({
           </div>
 
           <div className="settings-form__hint">
-            {isManagerLinked
+            {isManagerDraftChanged
+              ? normalizedDraftManagerVkId
+                ? `После сохранения новый менеджер VK ID ${normalizedDraftManagerVkId} должен отправить код в диалог CalcPro.`
+                : hasSavedManager
+                  ? 'После сохранения текущий менеджер будет отключён и заявки перестанут отправляться в личные сообщения.'
+                  : managerLinkStatusLabel
+              : isManagerLinked
               ? `${managerLinkStatusLabel}. Подтверждено ${formatSubscriptionDate(
                   adminSettings.managerVkConfirmedAt,
                 ) || 'недавно'}.`
