@@ -14,12 +14,21 @@ const REMINDER_CHECK_INTERVAL_MS = Math.max(
   5 * 60 * 1000,
   (Number(process.env.BILLING_REMINDER_CHECK_INTERVAL_MINUTES) || 30) * 60 * 1000,
 );
+const REMINDER_SEND_HOUR_MOSCOW = Math.min(
+  23,
+  Math.max(0, Number(process.env.BILLING_REMINDER_SEND_HOUR_MOSCOW) || 10),
+);
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MOSCOW_DATE_FORMATTER = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/Moscow',
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',
+});
+const MOSCOW_HOUR_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Moscow',
+  hour: '2-digit',
+  hour12: false,
 });
 
 function isPaidSubscriptionActive(subscription) {
@@ -70,33 +79,39 @@ function getMoscowDateDayNumber(date) {
   return Math.floor(Date.UTC(year, month - 1, day) / DAY_MS);
 }
 
+function getMoscowHour(date) {
+  return Number(MOSCOW_HOUR_FORMATTER.format(date));
+}
+
+function getRemainingMoscowCalendarDays(paidUntil, now = new Date()) {
+  return getMoscowDateDayNumber(paidUntil) - getMoscowDateDayNumber(now);
+}
+
 function resolveReminderStage(paidUntil, sentStages = {}, now = new Date()) {
   const remainingMs = paidUntil.getTime() - now.getTime();
   if (remainingMs <= 0) {
     return null;
   }
 
-  const isSameMoscowDate = getMoscowDateDayNumber(paidUntil) === getMoscowDateDayNumber(now);
-  const stages = [...BILLING_REMINDER_SCHEDULE_DAYS]
-    .filter((stage) => stage > 0)
-    .sort((left, right) => left - right);
-
-  for (const stage of stages) {
-    if (remainingMs <= stage * DAY_MS) {
-      const stageKey = String(stage);
-      if (!sentStages[stageKey]) {
-        return stageKey;
-      }
-
-      if (stage === 1 && isSameMoscowDate && !sentStages['0']) {
-        return '0';
-      }
-
-      return null;
-    }
+  if (getMoscowHour(now) < REMINDER_SEND_HOUR_MOSCOW) {
+    return null;
   }
 
-  return null;
+  const remainingCalendarDays = getRemainingMoscowCalendarDays(paidUntil, now);
+  if (remainingCalendarDays < 0) {
+    return null;
+  }
+
+  if (remainingCalendarDays === 0) {
+    return sentStages['0'] ? null : '0';
+  }
+
+  const stageKey = String(remainingCalendarDays);
+  if (!BILLING_REMINDER_SCHEDULE_DAYS.includes(remainingCalendarDays)) {
+    return null;
+  }
+
+  return sentStages[stageKey] ? null : stageKey;
 }
 
 function formatMoscowDate(isoString) {
@@ -116,15 +131,17 @@ function formatMoscowDate(isoString) {
   }).format(date);
 }
 
-function formatRemainingLabel(remainingMs) {
+function formatRemainingLabel(paidUntil, now = new Date()) {
+  const remainingMs = paidUntil.getTime() - now.getTime();
+  const remainingCalendarDays = getRemainingMoscowCalendarDays(paidUntil, now);
+
+  if (remainingCalendarDays > 0) {
+    return `${remainingCalendarDays} дн.`;
+  }
+
   const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
-  const days = Math.floor(totalSeconds / (60 * 60 * 24));
   const hours = Math.floor((totalSeconds % (60 * 60 * 24)) / (60 * 60));
   const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
-
-  if (days > 0) {
-    return `${days} дн. ${hours} ч.`;
-  }
 
   if (hours > 0) {
     return `${hours} ч. ${minutes} мин.`;
@@ -141,7 +158,7 @@ function buildReminderTitle(stage) {
   return `Напоминание: до окончания тарифа CalcPro осталось ${stage} дн.`;
 }
 
-async function buildReminderMessage(groupId, settings, stage, remainingMs) {
+async function buildReminderMessage(groupId, settings, stage, paidUntil, now) {
   let communityName = `Сообщество ${groupId}`;
   let communityLink = `https://vk.com/club${groupId}`;
 
@@ -162,7 +179,7 @@ async function buildReminderMessage(groupId, settings, stage, remainingMs) {
     `Ссылка: ${communityLink}`,
     `Тариф: ${String(settings.subscription.plan || '').toUpperCase()}`,
     `Оплачен до: ${formatMoscowDate(settings.subscription.paidUntil)}`,
-    `Осталось: ${formatRemainingLabel(remainingMs)}`,
+    `Осталось: ${formatRemainingLabel(paidUntil, now)}`,
     '',
     'Желательно продлить тариф заранее, чтобы уведомления и заявки продолжали работать без паузы.',
   ].join('\n');
@@ -183,7 +200,6 @@ async function processGroupReminder(groupId) {
   }
 
   const reminderState = createReminderState(settings);
-  const remainingMs = paidUntil.getTime() - now.getTime();
   const stage = resolveReminderStage(paidUntil, reminderState.sentStages, now);
   const nextCheckedAt = now.toISOString();
 
@@ -191,7 +207,7 @@ async function processGroupReminder(groupId) {
     return false;
   }
 
-  const message = await buildReminderMessage(groupId, settings, stage, remainingMs);
+  const message = await buildReminderMessage(groupId, settings, stage, paidUntil, now);
   await sendVkMessage(recipientId, message);
 
   await saveServerAdminSettings(

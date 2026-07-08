@@ -1,6 +1,13 @@
 export const SUBSCRIPTION_DURATION_DAYS = 30;
 export const DEFAULT_SUBSCRIPTION_PLAN = 'free';
 export const BILLING_REMINDER_SCHEDULE_DAYS = [7, 3, 1, 0];
+const MOSCOW_UTC_OFFSET = '+03:00';
+const MOSCOW_YMD_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Moscow',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
 export const SUBSCRIPTION_PLANS = {
   free: {
@@ -77,6 +84,17 @@ export function parseSubscriptionDate(value = '') {
   return Number.isNaN(timestamp) ? null : new Date(timestamp);
 }
 
+function getMoscowDateParts(date) {
+  const [year, month, day] = MOSCOW_YMD_FORMATTER.format(date).split('-').map(Number);
+  return { year, month, day };
+}
+
+function buildMoscowEndOfDayIso(date) {
+  const { year, month, day } = getMoscowDateParts(date);
+  const isoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return new Date(`${isoDate}T23:59:59.999${MOSCOW_UTC_OFFSET}`).toISOString();
+}
+
 export function isSubscriptionActive(subscription, now = Date.now()) {
   const plan = getSubscriptionPlanConfig(subscription?.plan);
   if (plan.id === 'free') {
@@ -111,7 +129,7 @@ export function buildNextPaidUntil(currentPaidUntil = '') {
   const baseTime = current && current.getTime() > Date.now() ? current.getTime() : Date.now();
   const next = new Date(baseTime);
   next.setDate(next.getDate() + SUBSCRIPTION_DURATION_DAYS);
-  return next.toISOString();
+  return buildMoscowEndOfDayIso(next);
 }
 
 export function normalizeSubscriptionAmount(value, plan = DEFAULT_SUBSCRIPTION_PLAN) {

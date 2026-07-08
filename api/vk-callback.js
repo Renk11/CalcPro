@@ -45,9 +45,11 @@ function parseReminderGroupId(text) {
 }
 
 function parseManagerLinkRequest(text) {
-  const match = String(text || '').match(
-    /(?:calcpro[\s:,-]*)?(?:РјРµРЅРµРґР¶РµСЂ|manager)(?:\s+РґР»СЏ\s+Р·Р°СЏРІРѕРє)?[\s:#-]*([1-9]\d{3,15})(?:[\s,#-]+([1-9]\d{3,15}))?/iu,
-  );
+  const match = String(text || '')
+    .trim()
+    .match(
+      /(?:calcpro[\s:,-]*)?(?:менеджер|manager)(?:\s+для\s+заявок)?[\s:#-]*([1-9]\d{3,15})(?:[\s,#-]+([1-9]\d{3,15}))?/iu,
+    );
 
   return {
     groupId: match ? Number(match[1]) : 0,
@@ -128,18 +130,18 @@ export default async function handler(request, response) {
           await sendVkMessage(
             userId,
             [
-              'РџСЂРёРІСЏР·РєР° РјРµРЅРµРґР¶РµСЂР° РЅРµ РІС‹РїРѕР»РЅРµРЅР°.',
-              `РЎРѕРѕР±С‰РµСЃС‚РІРѕ ID: ${managerLinkRequest.groupId}.`,
-              'РЎРЅР°С‡Р°Р»Р° СѓРєР°Р¶РёС‚Рµ VK ID РјРµРЅРµРґР¶РµСЂР° РІ РЅР°СЃС‚СЂРѕР№РєР°С… CalcPro.',
+              'Привязка менеджера не выполнена.',
+              `Сообщество ID: ${managerLinkRequest.groupId}.`,
+              'Сначала укажите VK ID менеджера в настройках CalcPro.',
             ].join('\n'),
           ).catch(() => undefined);
-        } else if (configuredManagerId !== String(userId)) {
+        } else if (configuredManagerId !== userId) {
           await sendVkMessage(
             userId,
             [
-              'РџСЂРёРІСЏР·РєР° РјРµРЅРµРґР¶РµСЂР° РѕС‚РєР»РѕРЅРµРЅР°.',
-              `РЎРѕРѕР±С‰РµСЃС‚РІРѕ ID: ${managerLinkRequest.groupId}.`,
-              `Р’ РЅР°СЃС‚СЂРѕР№РєР°С… РѕР¶РёРґР°РµС‚СЃСЏ VK ID ${configuredManagerId}.`,
+              'Привязка менеджера отклонена.',
+              `Сообщество ID: ${managerLinkRequest.groupId}.`,
+              `В настройках ожидается VK ID ${configuredManagerId}.`,
             ].join('\n'),
           ).catch(() => undefined);
         } else {
@@ -147,9 +149,9 @@ export default async function handler(request, response) {
           await sendVkMessage(
             userId,
             [
-              'РњРµРЅРµРґР¶РµСЂ РґР»СЏ Р·Р°СЏРІРѕРє CalcPro РїРѕРґРєР»СЋС‡РµРЅ.',
-              `РЎРѕРѕР±С‰РµСЃС‚РІРѕ ID: ${managerLinkRequest.groupId}.`,
-              'РўРµРїРµСЂСЊ РјС‹ СЃРјРѕР¶РµРј РѕС‚РїСЂР°РІР»СЏС‚СЊ РІР°Рј РЅРѕРІС‹Рµ Р·Р°СЏРІРєРё РёР· РєР°Р»СЊРєСѓР»СЏС‚РѕСЂРѕРІ.',
+              'Менеджер для заявок CalcPro подключен.',
+              `Сообщество ID: ${managerLinkRequest.groupId}.`,
+              'Теперь мы сможем отправлять вам новые заявки из калькуляторов.',
             ].join('\n'),
           ).catch(() => undefined);
         }

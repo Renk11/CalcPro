@@ -15,11 +15,20 @@ import { resetAllGroupsData, resetSingleGroupData } from '../server/group-reset.
 import { getVkUserInfo, hasVkGroupToken } from '../server/vk.js';
 
 const DEFAULT_SUPER_ADMIN_IDS = ['139346496'];
+const MOSCOW_UTC_OFFSET = '+03:00';
+const MOSCOW_YMD_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Moscow',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
 function buildIssuedPaidUntil(days) {
   const nextDate = new Date();
   nextDate.setDate(nextDate.getDate() + Math.max(1, Number(days) || 30));
-  return nextDate.toISOString();
+  const [year, month, day] = MOSCOW_YMD_FORMATTER.format(nextDate).split('-').map(Number);
+  const isoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return new Date(`${isoDate}T23:59:59.999${MOSCOW_UTC_OFFSET}`).toISOString();
 }
 
 function parseGroupId(rawValue) {

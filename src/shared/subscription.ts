@@ -4,6 +4,13 @@ import type {
 } from './types/calculator';
 
 export const SUBSCRIPTION_DURATION_DAYS = 30;
+const MOSCOW_UTC_OFFSET = '+03:00';
+const MOSCOW_YMD_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Moscow',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
 export type SubscriptionPlanFeatures = {
   analytics: boolean;
@@ -140,6 +147,17 @@ export const parseSubscriptionDate = (value?: string) => {
   return Number.isNaN(timestamp) ? null : new Date(timestamp);
 };
 
+const getMoscowDateParts = (date: Date) => {
+  const [year, month, day] = MOSCOW_YMD_FORMATTER.format(date).split('-').map(Number);
+  return { year, month, day };
+};
+
+const buildMoscowEndOfDayIso = (date: Date) => {
+  const { year, month, day } = getMoscowDateParts(date);
+  const isoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return new Date(`${isoDate}T23:59:59.999${MOSCOW_UTC_OFFSET}`).toISOString();
+};
+
 export const isSubscriptionActive = (
   subscription: CalculatorAdminSettings['subscription'],
   now = Date.now(),
@@ -176,7 +194,7 @@ export const buildNextPaidUntil = (currentPaidUntil?: string) => {
   const baseTime = current && current.getTime() > Date.now() ? current.getTime() : Date.now();
   const next = new Date(baseTime);
   next.setDate(next.getDate() + SUBSCRIPTION_DURATION_DAYS);
-  return next.toISOString();
+  return buildMoscowEndOfDayIso(next);
 };
 
 export const formatSubscriptionDate = (value?: string) => {
