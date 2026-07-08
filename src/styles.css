@@ -1606,7 +1606,7 @@ body,
 }
 
 .payments-reminder-card__command {
-  padding: 14px 16px;
+  padding: 16px 18px;
   border: 1px dashed rgba(255, 179, 107, 0.28);
   border-radius: 18px;
   background: rgba(20, 24, 30, 0.34);
@@ -1614,7 +1614,28 @@ body,
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.03em;
+  line-height: 1.55;
   word-break: break-word;
+}
+
+.payments-reminder-card__command-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  font-family: Consolas, "SFMono-Regular", Menlo, Monaco, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.015em;
+}
+
+.payments-reminder-card__command-parts > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 207, 156, 0.08);
 }
 
 .payments-reminder-card__actions {
@@ -3082,26 +3103,33 @@ body,
 }
 
 .analytics-stat__meta {
-  max-width: 220px;
+  max-width: none;
   color: #5f6773;
   font-size: 13px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .analytics-stat__footer {
   margin-top: auto;
-  display: inline-flex;
-  align-items: center;
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
   color: #6f7682;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .analytics-stat__footer::before {
+  flex: 0 0 28px;
   content: '';
   width: 28px;
   height: 1px;
+  margin-top: 0.45em;
   background: currentColor;
   opacity: 0.5;
 }
@@ -3131,6 +3159,8 @@ body,
 
 .analytics-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   isolation: isolate;
   min-height: 100%;
@@ -3289,6 +3319,8 @@ body,
 .analytics-card__body {
   display: grid;
   gap: 14px;
+  flex: 1;
+  align-content: start;
 }
 
 .analytics-card__title {
@@ -3434,6 +3466,7 @@ body,
   align-items: start;
   justify-items: center;
   grid-template-rows: 92px auto;
+  min-height: 252px;
   padding: 18px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.42);
@@ -3496,6 +3529,7 @@ body,
   display: grid;
   gap: 14px;
   align-content: start;
+  min-height: 252px;
   padding: 18px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.42);
@@ -3581,6 +3615,13 @@ body,
   color: #6f675d;
   text-align: center;
   font-weight: 600;
+}
+
+.analytics-empty_compact {
+  min-height: 252px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .templates-hub__ghost-action {

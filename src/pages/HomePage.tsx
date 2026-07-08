@@ -1661,6 +1661,7 @@ export const HomePage = ({
     currentGroupId > 0 && managerVkId.trim()
       ? `Менеджер ${currentGroupId} ${managerVkId.trim()}`
       : '';
+  const managerLinkCommandParts = managerLinkCommand ? managerLinkCommand.split(' ') : [];
   const isManagerLinked = Boolean(adminSettings.managerVkId && adminSettings.managerVkConfirmedAt);
   const isBillingReminderLinked = Boolean(
     adminSettings.billingReminderVkId && adminSettings.billingReminderConfirmedAt,
@@ -2684,38 +2685,44 @@ export const HomePage = ({
               </div>
             </div>
             <div className="analytics-card__body">
-            <div className="analytics-donut-card">
-              <svg viewBox="0 0 42 42" className="analytics-donut" aria-hidden="true">
-                {analytics.sourceSegments.map((segment) => (
-                  <circle
-                    key={segment.label}
-                    cx="21"
-                    cy="21"
-                    r="15.915"
-                    fill="transparent"
-                    stroke={segment.color}
-                    strokeWidth="5"
-                    strokeDasharray={segment.strokeDasharray}
-                    strokeDashoffset={segment.strokeDashoffset}
-                    className="analytics-donut__segment"
-                  />
-                ))}
-              </svg>
-              <div className="analytics-donut-legend">
-                {analytics.sourceSegments.map((segment) => (
-                  <div key={segment.label} className="analytics-donut-legend__row">
-                    <span className="analytics-donut-legend__label">
-                      <span
-                        className="analytics-donut-legend__dot"
-                        style={{ backgroundColor: segment.color }}
+              {analytics.sourceSegments.length > 0 ? (
+                <div className="analytics-donut-card">
+                  <svg viewBox="0 0 42 42" className="analytics-donut" aria-hidden="true">
+                    {analytics.sourceSegments.map((segment) => (
+                      <circle
+                        key={segment.label}
+                        cx="21"
+                        cy="21"
+                        r="15.915"
+                        fill="transparent"
+                        stroke={segment.color}
+                        strokeWidth="5"
+                        strokeDasharray={segment.strokeDasharray}
+                        strokeDashoffset={segment.strokeDashoffset}
+                        className="analytics-donut__segment"
                       />
-                      {segment.label}
-                    </span>
-                    <strong>{formatPercent(segment.percentage)}</strong>
+                    ))}
+                  </svg>
+                  <div className="analytics-donut-legend">
+                    {analytics.sourceSegments.map((segment) => (
+                      <div key={segment.label} className="analytics-donut-legend__row">
+                        <span className="analytics-donut-legend__label">
+                          <span
+                            className="analytics-donut-legend__dot"
+                            style={{ backgroundColor: segment.color }}
+                          />
+                          {segment.label}
+                        </span>
+                        <strong>{formatPercent(segment.percentage)}</strong>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              ) : (
+                <div className="analytics-empty analytics-empty_compact">
+                  Пока нет просмотров за выбранный период.
+                </div>
+              )}
             </div>
           </article>
 
@@ -2733,38 +2740,44 @@ export const HomePage = ({
               </div>
             </div>
             <div className="analytics-card__body">
-            <div className="analytics-donut-card">
-              <svg viewBox="0 0 42 42" className="analytics-donut" aria-hidden="true">
-                {analytics.deviceSegments.map((segment) => (
-                  <circle
-                    key={segment.label}
-                    cx="21"
-                    cy="21"
-                    r="15.915"
-                    fill="transparent"
-                    stroke={segment.color}
-                    strokeWidth="5"
-                    strokeDasharray={segment.strokeDasharray}
-                    strokeDashoffset={segment.strokeDashoffset}
-                    className="analytics-donut__segment"
-                  />
-                ))}
-              </svg>
-              <div className="analytics-donut-legend">
-                {analytics.deviceSegments.map((segment) => (
-                  <div key={segment.label} className="analytics-donut-legend__row">
-                    <span className="analytics-donut-legend__label">
-                      <span
-                        className="analytics-donut-legend__dot"
-                        style={{ backgroundColor: segment.color }}
+              {analytics.deviceSegments.length > 0 ? (
+                <div className="analytics-donut-card">
+                  <svg viewBox="0 0 42 42" className="analytics-donut" aria-hidden="true">
+                    {analytics.deviceSegments.map((segment) => (
+                      <circle
+                        key={segment.label}
+                        cx="21"
+                        cy="21"
+                        r="15.915"
+                        fill="transparent"
+                        stroke={segment.color}
+                        strokeWidth="5"
+                        strokeDasharray={segment.strokeDasharray}
+                        strokeDashoffset={segment.strokeDashoffset}
+                        className="analytics-donut__segment"
                       />
-                      {segment.label}
-                    </span>
-                    <strong>{formatPercent(segment.percentage)}</strong>
+                    ))}
+                  </svg>
+                  <div className="analytics-donut-legend">
+                    {analytics.deviceSegments.map((segment) => (
+                      <div key={segment.label} className="analytics-donut-legend__row">
+                        <span className="analytics-donut-legend__label">
+                          <span
+                            className="analytics-donut-legend__dot"
+                            style={{ backgroundColor: segment.color }}
+                          />
+                          {segment.label}
+                        </span>
+                        <strong>{formatPercent(segment.percentage)}</strong>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              ) : (
+                <div className="analytics-empty analytics-empty_compact">
+                  Пока нет просмотров за выбранный период.
+                </div>
+              )}
             </div>
           </article>
 
@@ -3776,7 +3789,17 @@ export const HomePage = ({
             VK не сможет доставлять ему заявки.
           </div>
 
-          <div className="payments-reminder-card__command">{managerLinkCommand || 'Сначала укажите ID менеджера'}</div>
+          <div className="payments-reminder-card__command">
+            {managerLinkCommandParts.length === 3 ? (
+              <span className="payments-reminder-card__command-parts">
+                <span>{managerLinkCommandParts[0]}</span>
+                <span>{managerLinkCommandParts[1]}</span>
+                <span>{managerLinkCommandParts[2]}</span>
+              </span>
+            ) : (
+              managerLinkCommand || 'Сначала укажите ID менеджера'
+            )}
+          </div>
 
           <div className="settings-form__actions">
             <button
