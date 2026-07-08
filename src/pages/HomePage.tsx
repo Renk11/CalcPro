@@ -3824,22 +3824,26 @@ export const HomePage = ({
             попросите его подтвердить диалог кодом.
           </div>
 
-          <div className="settings-form__hint settings-form__hint settings-form__hint_accent">
-            Менеджер должен отправить этот код в диалог с {BILLING_REMINDER_CONTACT_LABEL}, иначе
-            VK не сможет доставлять ему заявки.
-          </div>
+          {!isManagerLinked ? (
+            <>
+              <div className="settings-form__hint settings-form__hint settings-form__hint_accent">
+                Менеджер должен отправить этот код в диалог с {BILLING_REMINDER_CONTACT_LABEL},
+                иначе VK не сможет доставлять ему заявки.
+              </div>
 
-          <div className="payments-reminder-card__command">
-            {managerLinkCommandParts.length === 3 ? (
-              <span className="payments-reminder-card__command-parts">
-                <span>{managerLinkCommandParts[0]}</span>
-                <span>{managerLinkCommandParts[1]}</span>
-                <span>{managerLinkCommandParts[2]}</span>
-              </span>
-            ) : (
-              managerLinkCommand || 'Сначала укажите ID менеджера'
-            )}
-          </div>
+              <div className="payments-reminder-card__command">
+                {managerLinkCommandParts.length === 3 ? (
+                  <span className="payments-reminder-card__command-parts">
+                    <span>{managerLinkCommandParts[0]}</span>
+                    <span>{managerLinkCommandParts[1]}</span>
+                    <span>{managerLinkCommandParts[2]}</span>
+                  </span>
+                ) : (
+                  managerLinkCommand || 'Сначала укажите ID менеджера'
+                )}
+              </div>
+            </>
+          ) : null}
 
           <div className="settings-form__actions">
             <button
