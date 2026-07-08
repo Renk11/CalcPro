@@ -46,6 +46,8 @@ export type CalculatorPublicationStatus = 'draft' | 'published' | 'hidden' | 'ar
 export type CalculatorSubscriptionStatus = 'inactive' | 'active';
 export type CalculatorSubscriptionPlan = 'free' | 'start' | 'pro';
 export type CalculatorRequestStatus = 'new' | 'in_progress' | 'done' | 'rejected';
+export type CalculatorAnalyticsEventType = 'view';
+export type CalculatorAnalyticsDeviceType = 'desktop' | 'tablet' | 'mobile';
 
 export type CalculatorOptionValue = string | number;
 
@@ -216,6 +218,8 @@ export interface CalculatorAdminSettings {
   };
   billingReminderVkId: string;
   billingReminderConfirmedAt?: string;
+  googleSheetsWebhookUrl?: string;
+  googleSheetsLastExportAt?: string;
   billingReminderState?: {
     cycleId?: string;
     sentStages?: Record<string, string>;
@@ -242,6 +246,17 @@ export interface CalculatorConnectedCommunity {
   role?: string;
   addedAt: string;
   lastUsedAt: string;
+}
+
+export interface CalculatorAnalyticsEvent {
+  id: string;
+  type: CalculatorAnalyticsEventType;
+  groupId: number;
+  templateId: string;
+  templateTitle: string;
+  source: string;
+  device: CalculatorAnalyticsDeviceType;
+  createdAt: string;
 }
 
 export type CalculatorSupportTicketType = 'message' | 'bug' | 'suggestion';

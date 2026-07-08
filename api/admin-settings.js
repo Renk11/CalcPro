@@ -274,6 +274,10 @@ export default async function handler(request, response) {
             incomingSettings.billingReminderVkId ?? currentSettings.billingReminderVkId,
           billingReminderConfirmedAt:
             incomingSettings.billingReminderConfirmedAt ?? currentSettings.billingReminderConfirmedAt,
+          googleSheetsWebhookUrl:
+            incomingSettings.googleSheetsWebhookUrl ?? currentSettings.googleSheetsWebhookUrl,
+          googleSheetsLastExportAt:
+            incomingSettings.googleSheetsLastExportAt ?? currentSettings.googleSheetsLastExportAt,
           subscription: currentSettings.subscription,
         },
         groupId,

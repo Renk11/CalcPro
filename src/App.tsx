@@ -51,6 +51,7 @@ import { appendVkLaunchParamsToPath, createVkAuthHeaders, getWindowLaunchParams 
 import type {
   CalculatorPublicationStatus,
   CalculatorAdminSettings,
+  CalculatorAnalyticsEvent,
   CalculatorConnectedCommunity,
   CalculatorFolder,
   CalculatorRequestHistoryEntry,
@@ -415,6 +416,7 @@ const App = () => {
   const [templates, setTemplates] = useState<CalculatorTemplate[]>(() => getTemplates());
   const [folders, setFolders] = useState<CalculatorFolder[]>(() => getFolders());
   const [requests, setRequests] = useState<CalculatorRequest[]>(() => getRequests());
+  const [analyticsEvents, setAnalyticsEvents] = useState<CalculatorAnalyticsEvent[]>([]);
   const [adminSettings, setAdminSettings] = useState<CalculatorAdminSettings>(() =>
     getAdminSettings(),
   );
@@ -520,6 +522,7 @@ const App = () => {
     setTemplates(getTemplates());
     setFolders(getFolders());
     setRequests(getRequests());
+    setAnalyticsEvents([]);
     setAdminSettings(getAdminSettings());
     setSelectedTemplate(undefined);
     setActiveFolderId('all');
@@ -967,6 +970,54 @@ const App = () => {
     vkAuthHeaders,
   ]);
 
+  useEffect(() => {
+    if (!isLaunchParamsResolved) {
+      return;
+    }
+
+    if (!isViewerGroupAdmin) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const syncAnalyticsFromServer = async () => {
+      try {
+        const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
+        const response = await fetch(createApiUrl(`/api/analytics${query}`), {
+          headers: vkAuthHeaders,
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; data?: CalculatorAnalyticsEvent[]; error?: string }
+          | null;
+
+        if (isProtectedApiUnavailable(payload, response.status)) {
+          return;
+        }
+
+        if (!response.ok || !payload?.ok || !Array.isArray(payload.data) || isCancelled) {
+          return;
+        }
+
+        setAnalyticsEvents(payload.data);
+      } catch {
+        // Keep analytics empty when the API is unavailable.
+      }
+    };
+
+    syncAnalyticsFromServer();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    effectiveAdminGroupId,
+    isLaunchParamsResolved,
+    isViewerGroupAdmin,
+    liveSyncRevision,
+    vkAuthHeaders,
+  ]);
+
   const sortedTemplates = useMemo(
     () =>
       [...templates].sort(
@@ -1150,6 +1201,57 @@ const App = () => {
     }).catch(() => {
       // Local settings remain saved even if the API request fails.
     });
+  };
+
+  const handleExportRequestsToGoogleSheets = async () => {
+    if (!isViewerGroupAdmin || effectiveAdminGroupId <= 0) {
+      return {
+        ok: false,
+        message: 'Откройте приложение внутри нужного сообщества VK.',
+      };
+    }
+
+    try {
+      const query = `?groupId=${effectiveAdminGroupId}&action=export-google-sheets`;
+      const response = await fetch(createApiUrl(`/api/requests${query}`), {
+        method: 'POST',
+        headers: createJsonHeaders(),
+        body: JSON.stringify({
+          groupId: effectiveAdminGroupId,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; error?: string; message?: string; settings?: CalculatorAdminSettings }
+        | null;
+
+      if (isProtectedApiUnavailable(payload, response.status)) {
+        return {
+          ok: false,
+          message: getVkLaunchParamsErrorMessage(payload, response.status),
+        };
+      }
+
+      if (!response.ok || !payload?.ok) {
+        return {
+          ok: false,
+          message: payload?.error || payload?.message || 'Не удалось выгрузить заявки в Google Sheets.',
+        };
+      }
+
+      if (payload.settings) {
+        persistAdminSettings(payload.settings);
+      }
+
+      return {
+        ok: true,
+        message: payload.message || 'Заявки отправлены в Google Sheets.',
+      };
+    } catch {
+      return {
+        ok: false,
+        message: 'Не удалось выгрузить заявки в Google Sheets.',
+      };
+    }
   };
 
   const handleGrantProAccess = async (
@@ -2264,6 +2366,7 @@ const App = () => {
                     isAdminNavOpen={isAdminNavOpen}
                     currentSection={homeSection}
                     requests={requests}
+                    analyticsEvents={analyticsEvents}
                     onSectionChange={setHomeSection}
                     onSaveAdminSettings={handleSaveAdminSettings}
                     onUpdateRequestStatus={handleUpdateRequestStatus}
@@ -2295,6 +2398,7 @@ const App = () => {
                     onDisconnectCommunity={handleDisconnectCommunity}
                     onStartPayment={startSubscriptionPayment}
                     onInstallInCommunity={openCommunityInstall}
+                    onExportRequestsToGoogleSheets={handleExportRequestsToGoogleSheets}
                     requestLimit={requestLimit}
                     canUseTemplates={canUseTemplates}
                     canUseAnalytics={canUseAnalytics}
@@ -2340,6 +2444,7 @@ const App = () => {
                     requestLimit={requestLimit}
                     requestsUsedThisMonth={monthlyRequestsUsed}
                     showBranding={!canHideBranding}
+                    shouldTrackView={!isViewerGroupAdmin && currentGroupId > 0}
                     onRequestCreated={(request) =>
                       persistRequests([
                         request,

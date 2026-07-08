@@ -2908,61 +2908,214 @@ body,
 .analytics-stat {
   position: relative;
   display: grid;
-  gap: 10px;
+  gap: 14px;
   overflow: hidden;
+  min-height: 176px;
+  isolation: isolate;
+  transform: translateY(0);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+  animation: analyticsStatFadeIn 460ms ease both;
+}
+
+.analytics-stat::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.86), transparent 42%),
+    linear-gradient(140deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 58%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .analytics-stat::after {
   content: '';
   position: absolute;
-  right: 16px;
-  bottom: 14px;
-  width: 46px;
-  height: 32px;
-  border-radius: 14px;
-  opacity: 0.18;
+  right: -22px;
+  bottom: -28px;
+  width: 134px;
+  height: 134px;
+  border-radius: 999px;
+  opacity: 0.2;
+  filter: blur(4px);
   pointer-events: none;
+  z-index: 0;
 }
 
 .analytics-stat_blue::after {
-  background:
-    linear-gradient(135deg, transparent 0 42%, #2f7cff 42% 52%, transparent 52% 60%, #2f7cff 60% 70%, transparent 70%);
+  background: radial-gradient(circle, rgba(47, 124, 255, 0.95) 0%, rgba(47, 124, 255, 0) 72%);
 }
 
 .analytics-stat_purple::after {
-  background:
-    linear-gradient(90deg, #c084fc 0 18%, transparent 18% 28%, #a855f7 28% 46%, transparent 46% 56%, #7c3aed 56% 74%, transparent 74%);
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.95) 0%, rgba(168, 85, 247, 0) 72%);
 }
 
 .analytics-stat_green::after {
-  background:
-    linear-gradient(135deg, transparent 0 28%, #4ade80 28% 38%, transparent 38% 48%, #22c55e 48% 58%, transparent 58% 68%, #16a34a 68% 78%, transparent 78%);
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.92) 0%, rgba(34, 197, 94, 0) 72%);
 }
 
 .analytics-stat_mint::after {
-  background:
-    linear-gradient(135deg, transparent 0 32%, #76e4a2 32% 42%, transparent 42% 52%, #34d399 52% 62%, transparent 62% 72%, #10b981 72% 82%, transparent 82%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.9) 0%, rgba(16, 185, 129, 0) 72%);
+}
+
+.analytics-stat_blue {
+  background: linear-gradient(180deg, rgba(246, 250, 255, 0.98) 0%, rgba(234, 243, 255, 0.96) 100%);
+  border-color: rgba(169, 203, 255, 0.72);
+}
+
+.analytics-stat_purple {
+  background: linear-gradient(180deg, rgba(252, 247, 255, 0.98) 0%, rgba(244, 235, 255, 0.96) 100%);
+  border-color: rgba(214, 186, 255, 0.72);
+}
+
+.analytics-stat_green {
+  background: linear-gradient(180deg, rgba(247, 255, 250, 0.98) 0%, rgba(235, 250, 240, 0.96) 100%);
+  border-color: rgba(177, 231, 194, 0.74);
+}
+
+.analytics-stat_mint {
+  background: linear-gradient(180deg, rgba(245, 255, 251, 0.98) 0%, rgba(232, 250, 244, 0.96) 100%);
+  border-color: rgba(175, 233, 212, 0.72);
+}
+
+.analytics-stat > * {
+  position: relative;
+  z-index: 1;
+}
+
+.analytics-stat:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 24px 44px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.analytics-stat:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.analytics-stat:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.analytics-stat:nth-child(4) {
+  animation-delay: 180ms;
+}
+
+.analytics-stat__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.analytics-stat__identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.analytics-stat__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.84);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 12px 24px rgba(78, 95, 120, 0.12);
+}
+
+.analytics-stat_blue .analytics-stat__icon {
+  color: #2f7cff;
+}
+
+.analytics-stat_purple .analytics-stat__icon {
+  color: #8b4df3;
+}
+
+.analytics-stat_green .analytics-stat__icon {
+  color: #1ba159;
+}
+
+.analytics-stat_mint .analytics-stat__icon {
+  color: #0f9f7a;
 }
 
 .analytics-stat__label,
 .analytics-card__eyebrow {
-  color: #857567;
-  font-size: 11px;
+  color: #756756;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .analytics-stat__value {
-  color: #1f2530;
-  font-size: 36px;
+  color: #16202c;
+  font-size: clamp(32px, 3vw, 40px);
   font-weight: 800;
-  line-height: 1;
+  line-height: 0.96;
+  letter-spacing: -0.04em;
 }
 
-.analytics-stat__delta {
-  color: #43b97b;
+.analytics-stat__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: #1f6945;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(113, 201, 146, 0.34);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
   font-size: 13px;
   font-weight: 700;
+}
+
+.analytics-stat__meta {
+  max-width: 220px;
+  color: #5f6773;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.analytics-stat__footer {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #6f7682;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.analytics-stat__footer::before {
+  content: '';
+  width: 28px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+@keyframes analyticsStatFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .analytics-grid {
@@ -8453,6 +8606,34 @@ body::-webkit-scrollbar-thumb:hover,
 
   .analytics-stat__value {
     font-size: 28px;
+  }
+
+  .analytics-stat {
+    min-height: 0;
+    padding: 18px;
+  }
+
+  .analytics-stat__top {
+    gap: 10px;
+  }
+
+  .analytics-stat__identity {
+    gap: 10px;
+  }
+
+  .analytics-stat__icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .analytics-stat__meta {
+    max-width: none;
+    font-size: 12px;
+  }
+
+  .analytics-stat__footer {
+    font-size: 11px;
   }
 
   .analytics-donut-card {

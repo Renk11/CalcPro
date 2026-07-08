@@ -5,6 +5,7 @@ import {
   isBookingDateSelectable,
   isBookingValue,
 } from '../entities/calculator/booking';
+import { trackCalculatorView } from '../entities/calculator/analytics';
 import { calculateTemplate } from '../entities/calculator/model';
 import { submitRequest } from '../entities/calculator/submission';
 import { legalDocs, type LegalDocKey } from '../shared/legal';
@@ -29,6 +30,7 @@ interface CalculatorPageProps {
   requestLimit?: number | null;
   requestsUsedThisMonth?: number;
   showBranding?: boolean;
+  shouldTrackView?: boolean;
   onRequestCreated: (request: CalculatorRequest) => void;
 }
 
@@ -336,6 +338,7 @@ export const CalculatorPage = ({
   requestLimit = null,
   requestsUsedThisMonth = 0,
   showBranding = true,
+  shouldTrackView = true,
   onRequestCreated,
 }: CalculatorPageProps) => {
   const [values, setValues] = useState<CalculatorValues>(() => createInitialValues(template));
@@ -391,6 +394,14 @@ export const CalculatorPage = ({
 
     return () => window.clearTimeout(timeoutId);
   }, [successModalMessage]);
+
+  useEffect(() => {
+    if (!shouldTrackView) {
+      return;
+    }
+
+    void trackCalculatorView(template, currentGroupId);
+  }, [currentGroupId, shouldTrackView, template]);
 
   const result = useMemo(() => calculateTemplate(template, values), [template, values]);
 

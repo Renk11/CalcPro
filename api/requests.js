@@ -17,6 +17,7 @@ import {
   getEffectiveSubscriptionPlan,
   getSubscriptionQuotaCycleId,
 } from '../server/subscription-config.js';
+import { sendRequestsToGoogleSheets } from '../server/google-sheets.js';
 import { hasVkGroupToken, sendVkMessage } from '../server/vk.js';
 
 function parseGroupId(rawValue) {
@@ -250,6 +251,44 @@ export default async function handler(request, response) {
         return sendJson(response, 200, { ok: true, data: requests });
       }
 
+      if (action === 'export-google-sheets') {
+        const auth = await requireWorkspaceCommunityAdmin(request, response, groupId);
+        if (!auth) {
+          return undefined;
+        }
+
+        const settings = await getServerAdminSettings(groupId);
+        if (!settings.googleSheetsWebhookUrl) {
+          return sendJson(response, 400, {
+            ok: false,
+            error: 'Google Sheets webhook URL is not configured',
+          });
+        }
+
+        const requests = await getServerRequests(groupId);
+        const exportResult = await sendRequestsToGoogleSheets({
+          webhookUrl: settings.googleSheetsWebhookUrl,
+          groupId,
+          mode: 'replace',
+          requests,
+        });
+
+        const nextSettings = await saveServerAdminSettings(
+          {
+            ...settings,
+            googleSheetsLastExportAt: exportResult.exportedAt,
+          },
+          groupId,
+        );
+
+        return sendJson(response, 200, {
+          ok: true,
+          data: requests,
+          settings: nextSettings,
+          message: `В Google Sheets выгружено ${requests.length} заявок.`,
+        });
+      }
+
       const auth = requireTrustedViewerContext(request, response);
       if (!auth) {
         return undefined;
@@ -282,6 +321,31 @@ export default async function handler(request, response) {
         savedRequests = await addServerRequest(requestPayload, groupId);
       } catch {
         savedRequests = [];
+      }
+
+      if (settings.googleSheetsWebhookUrl) {
+        sendRequestsToGoogleSheets({
+          webhookUrl: settings.googleSheetsWebhookUrl,
+          groupId,
+          mode: 'append',
+          requests: [requestPayload],
+        })
+          .then(async (exportResult) => {
+            try {
+              await saveServerAdminSettings(
+                {
+                  ...settings,
+                  googleSheetsLastExportAt: exportResult.exportedAt,
+                },
+                groupId,
+              );
+            } catch {
+              // Ignore export status persistence failures.
+            }
+          })
+          .catch(() => {
+            // Google Sheets export must not block request processing.
+          });
       }
 
       if (requestLimit != null) {

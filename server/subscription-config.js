@@ -60,6 +60,8 @@ export function createDefaultAdminSettings() {
     managerVkConfirmedAt: '',
     billingReminderVkId: '',
     billingReminderConfirmedAt: '',
+    googleSheetsWebhookUrl: '',
+    googleSheetsLastExportAt: '',
     billingReminderState: {
       cycleId: '',
       sentStages: {},

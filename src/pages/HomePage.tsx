@@ -38,6 +38,7 @@ import type { SubscriptionPlanConfig } from '../shared/subscription';
 import { SUBSCRIPTION_PLANS, formatSubscriptionDate, parseSubscriptionDate } from '../shared/subscription';
 import type {
   CalculatorAdminSettings,
+  CalculatorAnalyticsEvent,
   CalculatorConnectedCommunity,
   CalculatorFolder,
   CalculatorPublicationStatus,
@@ -59,6 +60,7 @@ interface HomePageProps {
   isTemplatesLoading: boolean;
   isCommunitiesLoading: boolean;
   requests: CalculatorRequest[];
+  analyticsEvents: CalculatorAnalyticsEvent[];
   adminSettings: CalculatorAdminSettings;
   adminProfile: AdminProfile;
   vkAuthHeaders: Record<string, string>;
@@ -118,6 +120,7 @@ interface HomePageProps {
   onDisconnectCommunity: (groupId: number) => void;
   onStartPayment: (plan: CalculatorSubscriptionPlan) => void;
   onInstallInCommunity: () => void;
+  onExportRequestsToGoogleSheets: () => Promise<{ ok: boolean; message: string }>;
   onGrantProAccess: (
     targetGroupId: number,
     plan: CalculatorSubscriptionPlan,
@@ -983,29 +986,16 @@ const percentFormatter = new Intl.NumberFormat('ru-RU', {
 
 const formatCurrency = (value: number) => `${currencyFormatter.format(Math.round(value))} ₽`;
 const formatPercent = (value: number) => `${percentFormatter.format(value)}%`;
+const formatDeltaLabel = (value: number, suffix = '%') => {
+  if (!Number.isFinite(value) || value === 0) {
+    return `0${suffix}`;
+  }
+
+  return `${value > 0 ? '+' : ''}${percentFormatter.format(value)}${suffix}`;
+};
 const formatDayLabel = (date: Date) =>
   date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 const paidPlanOrder: CalculatorSubscriptionPlan[] = ['start', 'pro'];
-
-const describeTemplateType = (type: CalculatorTemplate['type']) => {
-  switch (type) {
-    case 'services':
-      return 'Услуги';
-    case 'goods':
-      return 'Товары';
-    case 'delivery':
-      return 'Доставка';
-    case 'repair':
-      return 'Ремонт';
-    case 'construction':
-      return 'Строительство';
-    default:
-      return 'Другое';
-  }
-};
-
-const hashString = (value: string) =>
-  value.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
 const buildPolylinePath = (
   values: number[],
@@ -1130,6 +1120,7 @@ export const HomePage = ({
   isTemplatesLoading,
   isCommunitiesLoading,
   requests,
+  analyticsEvents,
   adminSettings,
   adminProfile,
   vkAuthHeaders,
@@ -1172,6 +1163,7 @@ export const HomePage = ({
   onDisconnectCommunity,
   onStartPayment,
   onInstallInCommunity,
+  onExportRequestsToGoogleSheets,
   onGrantProAccess,
   onResetAllGroups,
   onResetGroup,
@@ -1226,6 +1218,10 @@ export const HomePage = ({
   const [requestCommentDraft, setRequestCommentDraft] = useState<Record<string, string>>({});
   const [managerVkId, setManagerVkId] = useState(adminSettings.managerVkId);
   const [managerVkIdStatus, setManagerVkIdStatus] = useState('');
+  const [googleSheetsWebhookUrl, setGoogleSheetsWebhookUrl] = useState(
+    adminSettings.googleSheetsWebhookUrl || '',
+  );
+  const [googleSheetsStatus, setGoogleSheetsStatus] = useState('');
   const [superAdminGroupId, setSuperAdminGroupId] = useState(
     currentGroupId > 0 ? String(currentGroupId) : '',
   );
@@ -1296,8 +1292,16 @@ export const HomePage = ({
   }, [adminSettings.managerVkId]);
 
   useEffect(() => {
+    setGoogleSheetsWebhookUrl(adminSettings.googleSheetsWebhookUrl || '');
+  }, [adminSettings.googleSheetsWebhookUrl]);
+
+  useEffect(() => {
     setManagerVkIdStatus('');
   }, [managerVkId]);
+
+  useEffect(() => {
+    setGoogleSheetsStatus('');
+  }, [googleSheetsWebhookUrl]);
 
   useEffect(() => {
     setBillingReminderActionStatus('');
@@ -1920,6 +1924,16 @@ export const HomePage = ({
     const previousPeriodStart = new Date(periodStart);
     previousPeriodStart.setDate(previousPeriodStart.getDate() - analyticsRange);
 
+    const viewsInRange = analyticsEvents.filter((event) => {
+      const createdAt = new Date(event.createdAt).getTime();
+      return createdAt >= periodStart.getTime() && createdAt <= now.getTime();
+    });
+
+    const previousViews = analyticsEvents.filter((event) => {
+      const createdAt = new Date(event.createdAt).getTime();
+      return createdAt >= previousPeriodStart.getTime() && createdAt < periodStart.getTime();
+    });
+
     const requestsInRange = requests.filter((request) => {
       const createdAt = new Date(request.createdAt).getTime();
       return createdAt >= periodStart.getTime() && createdAt <= now.getTime();
@@ -1933,23 +1947,34 @@ export const HomePage = ({
     const totalRevenue = requestsInRange.reduce((sum, request) => sum + request.amount, 0);
     const previousRevenue = previousRequests.reduce((sum, request) => sum + request.amount, 0);
     const averageCheck = requestsInRange.length ? totalRevenue / requestsInRange.length : 0;
-    const previousAverageCheck = previousRequests.length
-      ? previousRevenue / previousRequests.length
+    const conversion = viewsInRange.length ? (requestsInRange.length / viewsInRange.length) * 100 : 0;
+    const previousConversion = previousViews.length
+      ? (previousRequests.length / previousViews.length) * 100
       : 0;
 
-    const activeTemplateIds = new Set(requestsInRange.map((request) => request.templateId));
-    const activeShare = allTemplates.length
-      ? (activeTemplateIds.size / allTemplates.length) * 100
-      : 0;
+    const activeTemplateIds = new Set(viewsInRange.map((event) => event.templateId));
+    const previousActiveTemplateIds = new Set(previousViews.map((event) => event.templateId));
 
-    const previousActiveTemplateIds = new Set(previousRequests.map((request) => request.templateId));
-    const previousActiveShare = allTemplates.length
-      ? (previousActiveTemplateIds.size / allTemplates.length) * 100
-      : 0;
-
+    const viewDelta = previousViews.length
+      ? ((viewsInRange.length - previousViews.length) / previousViews.length) * 100
+      : viewsInRange.length > 0
+        ? 100
+        : 0;
     const requestDelta = previousRequests.length
       ? ((requestsInRange.length - previousRequests.length) / previousRequests.length) * 100
       : requestsInRange.length > 0
+        ? 100
+        : 0;
+    const conversionDelta = previousConversion
+      ? ((conversion - previousConversion) / previousConversion) * 100
+      : conversion > 0
+        ? 100
+        : 0;
+    const activeTemplateCount = activeTemplateIds.size;
+    const previousActiveTemplateCount = previousActiveTemplateIds.size;
+    const activeDelta = previousActiveTemplateCount
+      ? ((activeTemplateCount - previousActiveTemplateCount) / previousActiveTemplateCount) * 100
+      : activeTemplateCount > 0
         ? 100
         : 0;
     const revenueDelta = previousRevenue
@@ -1957,146 +1982,150 @@ export const HomePage = ({
       : totalRevenue > 0
         ? 100
         : 0;
-    const averageDelta = previousAverageCheck
-      ? ((averageCheck - previousAverageCheck) / previousAverageCheck) * 100
-      : averageCheck > 0
-        ? 100
-        : 0;
-    const activeDelta = previousActiveShare ? activeShare - previousActiveShare : activeShare;
 
     const dailyBuckets = Array.from({ length: analyticsRange }, (_, index) => {
       const date = new Date(periodStart);
       date.setDate(periodStart.getDate() + index);
       const key = date.toISOString().slice(0, 10);
-      return { key, label: formatDayLabel(date), requests: 0, revenue: 0 };
+      return { key, label: formatDayLabel(date), views: 0, requests: 0 };
     });
 
     const bucketMap = new Map(dailyBuckets.map((bucket) => [bucket.key, bucket]));
+    viewsInRange.forEach((event) => {
+      const key = event.createdAt.slice(0, 10);
+      const bucket = bucketMap.get(key);
+      if (bucket) {
+        bucket.views += 1;
+      }
+    });
+
     requestsInRange.forEach((request) => {
       const key = request.createdAt.slice(0, 10);
       const bucket = bucketMap.get(key);
       if (bucket) {
         bucket.requests += 1;
-        bucket.revenue += request.amount;
       }
     });
 
+    const viewsMax = Math.max(1, ...dailyBuckets.map((bucket) => bucket.views));
     const requestsMax = Math.max(1, ...dailyBuckets.map((bucket) => bucket.requests));
-    const revenueMax = Math.max(1, ...dailyBuckets.map((bucket) => bucket.revenue));
 
-    const topTemplates = Object.values(
-      requestsInRange.reduce<Record<string, {
-        templateId: string;
-        templateTitle: string;
-        requests: number;
-        revenue: number;
-      }>>((acc, request) => {
-        const current = acc[request.templateId] ?? {
-          templateId: request.templateId,
-          templateTitle: request.templateTitle,
-          requests: 0,
-          revenue: 0,
-        };
-        current.requests += 1;
-        current.revenue += request.amount;
-        acc[request.templateId] = current;
+    const topTemplatesMap = new Map<
+      string,
+      { templateId: string; templateTitle: string; views: number; requests: number; revenue: number }
+    >();
+
+    viewsInRange.forEach((event) => {
+      const current = topTemplatesMap.get(event.templateId) ?? {
+        templateId: event.templateId,
+        templateTitle: event.templateTitle,
+        views: 0,
+        requests: 0,
+        revenue: 0,
+      };
+      current.views += 1;
+      topTemplatesMap.set(event.templateId, current);
+    });
+
+    requestsInRange.forEach((request) => {
+      const current = topTemplatesMap.get(request.templateId) ?? {
+        templateId: request.templateId,
+        templateTitle: request.templateTitle,
+        views: 0,
+        requests: 0,
+        revenue: 0,
+      };
+      current.requests += 1;
+      current.revenue += request.amount;
+      topTemplatesMap.set(request.templateId, current);
+    });
+
+    const topTemplates = [...topTemplatesMap.values()].sort(
+      (left, right) =>
+        right.views - left.views || right.requests - left.requests || right.revenue - left.revenue,
+    );
+
+    const sourceBreakdown = Array.from(
+      viewsInRange.reduce<Map<string, { label: string; value: number }>>((acc, event) => {
+        const label = event.source || 'Прямой';
+        const current = acc.get(label) ?? { label, value: 0 };
+        current.value += 1;
+        acc.set(label, current);
         return acc;
-      }, {}),
-    ).sort((left, right) => right.revenue - left.revenue || right.requests - left.requests);
+      }, new Map()).values(),
+    ).sort((left, right) => right.value - left.value);
 
-    const typeBreakdown = Object.values(
-      allTemplates.reduce<Record<string, { label: string; requests: number; revenue: number }>>(
-        (acc, template) => {
-          const label = describeTemplateType(template.type);
-          if (!acc[label]) {
-            acc[label] = { label, requests: 0, revenue: 0 };
-          }
-          return acc;
-        },
-        {},
-      ),
-    );
+    const deviceLabelMap: Record<CalculatorAnalyticsEvent['device'], string> = {
+      desktop: 'Компьютеры',
+      tablet: 'Планшеты',
+      mobile: 'Телефоны',
+    };
+    const deviceBreakdown = Array.from(
+      viewsInRange.reduce<Map<string, { label: string; value: number }>>((acc, event) => {
+        const label = deviceLabelMap[event.device] ?? 'Неизвестно';
+        const current = acc.get(label) ?? { label, value: 0 };
+        current.value += 1;
+        acc.set(label, current);
+        return acc;
+      }, new Map()).values(),
+    ).sort((left, right) => right.value - left.value);
 
-    const typeMap = new Map(allTemplates.map((template) => [template.id, describeTemplateType(template.type)]));
-    requestsInRange.forEach((request) => {
-          const label = typeMap.get(request.templateId) ?? 'Другое';
-      const item = typeBreakdown.find((entry) => entry.label === label);
-      if (item) {
-        item.requests += 1;
-        item.revenue += request.amount;
-      }
-    });
-    typeBreakdown.sort((left, right) => right.requests - left.requests);
+    const statusBreakdown = Array.from(
+      requestsInRange.reduce<Map<string, { label: string; value: number }>>((acc, request) => {
+        const label =
+          request.status === 'done'
+            ? 'Завершены'
+            : request.status === 'in_progress'
+              ? 'В работе'
+              : request.status === 'rejected'
+                ? 'Отклонены'
+                : 'Новые';
+        const current = acc.get(label) ?? { label, value: 0 };
+        current.value += 1;
+        acc.set(label, current);
+        return acc;
+      }, new Map()).values(),
+    ).sort((left, right) => right.value - left.value);
 
-    const folderMap = new Map(folders.map((folder) => [folder.id, folder.name]));
-    const templateFolderMap = new Map(
-      allTemplates.map((template) => [template.id, template.folderId ? folderMap.get(template.folderId) ?? 'Без папки' : 'Без папки']),
-    );
-    const folderBreakdown = Array.from(
-      requestsInRange.reduce<Map<string, { label: string; requests: number; revenue: number }>>(
-        (acc, request) => {
-          const label = templateFolderMap.get(request.templateId) ?? 'Без папки';
-          const current = acc.get(label) ?? { label, requests: 0, revenue: 0 };
-          current.requests += 1;
-          current.revenue += request.amount;
-          acc.set(label, current);
-          return acc;
-        },
-        new Map(),
-      ).values(),
-    ).sort((left, right) => right.requests - left.requests);
-
-    const latestRequests = [...requestsInRange]
-      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
-      .slice(0, 6);
-
-    const sourceLabels = ['ВКонтакте', 'Прямые переходы', 'Телеграм', 'Другое'] as const;
-    const deviceLabels = ['Мобильные', 'Десктоп', 'Планшеты'] as const;
-    const geoLabels = ['Москва', 'Санкт-Петербург', 'Казань', 'Екатеринбург', 'Другое'] as const;
-
-    const sourceCounts = sourceLabels.map((label) => ({ label, value: 0 }));
-    const deviceCounts = deviceLabels.map((label) => ({ label, value: 0 }));
-    const geoCounts = geoLabels.map((label) => ({ label, value: 0 }));
-
-    requestsInRange.forEach((request) => {
-      const seed = hashString(request.id + request.templateId + request.phone);
-      sourceCounts[seed % sourceCounts.length].value += 1;
-      deviceCounts[seed % deviceCounts.length].value += 1;
-      geoCounts[seed % geoCounts.length].value += 1;
-    });
-
+    const viewSeries = dailyBuckets.map((bucket) => bucket.views);
     const requestSeries = dailyBuckets.map((bucket) => bucket.requests);
-    const revenueSeries = dailyBuckets.map((bucket) => bucket.revenue);
     const chartWidth = 640;
     const chartHeight = 260;
     const chartPadding = 24;
 
     return {
+      viewsInRange,
       requestsInRange,
       totalRevenue,
+      conversion,
       averageCheck,
-      activeTemplateCount: activeTemplateIds.size,
-      activeShare,
+      activeTemplateCount,
+      viewDelta,
       requestDelta,
-      revenueDelta,
-      averageDelta,
+      conversionDelta,
       activeDelta,
+      revenueDelta,
       dailyBuckets,
+      viewsMax,
       requestsMax,
-      revenueMax,
       topTemplates,
-      typeBreakdown,
-      folderBreakdown,
-      latestRequests,
+      sourceBreakdown,
+      deviceBreakdown,
+      viewLinePath: buildPolylinePath(viewSeries, chartWidth, chartHeight, chartPadding),
       requestLinePath: buildPolylinePath(requestSeries, chartWidth, chartHeight, chartPadding),
-      revenueLinePath: buildPolylinePath(revenueSeries, chartWidth, chartHeight, chartPadding),
+      viewAreaPath: buildAreaPath(viewSeries, chartWidth, chartHeight, chartPadding),
       requestAreaPath: buildAreaPath(requestSeries, chartWidth, chartHeight, chartPadding),
-      revenueAreaPath: buildAreaPath(revenueSeries, chartWidth, chartHeight, chartPadding),
-      sourceSegments: getDonutSegments(sourceCounts, ['#2f7cff', '#7a47ff', '#12b5ff', '#a5b1c2']),
-      deviceSegments: getDonutSegments(deviceCounts, ['#2f7cff', '#5fa8ff', '#a5b1c2']),
-      geoSegments: geoCounts,
+      sourceSegments: getDonutSegments(
+        sourceBreakdown.map((item) => ({ label: item.label, value: item.value })),
+        ['#2f7cff', '#7a47ff', '#12b5ff', '#a5b1c2', '#5cc988'],
+      ),
+      deviceSegments: getDonutSegments(
+        deviceBreakdown.map((item) => ({ label: item.label, value: item.value })),
+        ['#5cc988', '#2f7cff', '#ffb36b', '#a5b1c2', '#7a47ff'],
+      ),
+      statusBreakdown,
     };
-  }, [allTemplates, analyticsRange, folders, requests]);
+  }, [analyticsEvents, analyticsRange, requests]);
 
   const commitFolderName = (folderId: string) => {
     onRenameFolder(folderId, draftFolderName);
@@ -2391,28 +2420,60 @@ export const HomePage = ({
       <section className="analytics-dashboard">
         <div className="analytics-stats">
           <article className="analytics-stat analytics-stat_blue">
-            <div className="analytics-stat__label">Просмотры</div>
-            <div className="analytics-stat__value">{currencyFormatter.format(analytics.requestsInRange.length * 4)}</div>
-            <div className="analytics-stat__delta">+{formatPercent(Math.abs(analytics.requestDelta || 18))}</div>
+            <div className="analytics-stat__top">
+              <div className="analytics-stat__identity">
+                <span className="analytics-stat__icon" aria-hidden="true">
+                  <Icon20GraphOutline />
+                </span>
+                <div className="analytics-stat__label">Просмотры</div>
+              </div>
+              <div className="analytics-stat__pill">{formatDeltaLabel(analytics.viewDelta)}</div>
+            </div>
+            <div className="analytics-stat__value">{currencyFormatter.format(analytics.viewsInRange.length)}</div>
+            <div className="analytics-stat__meta">Открытия калькуляторов за выбранный период</div>
+            <div className="analytics-stat__footer">Живые события открытия</div>
           </article>
           <article className="analytics-stat analytics-stat_purple">
-            <div className="analytics-stat__label">Заполнения</div>
+            <div className="analytics-stat__top">
+              <div className="analytics-stat__identity">
+                <span className="analytics-stat__icon" aria-hidden="true">
+                  <Icon20WriteOutline />
+                </span>
+                <div className="analytics-stat__label">Заявки</div>
+              </div>
+              <div className="analytics-stat__pill">{formatDeltaLabel(analytics.requestDelta)}</div>
+            </div>
             <div className="analytics-stat__value">{currencyFormatter.format(analytics.requestsInRange.length)}</div>
-            <div className="analytics-stat__delta">+{formatPercent(Math.abs(analytics.requestDelta || 22))}</div>
+            <div className="analytics-stat__meta">Отправленные формы без ручного пересчёта</div>
+            <div className="analytics-stat__footer">Фиксируются автоматически</div>
           </article>
           <article className="analytics-stat analytics-stat_green">
-            <div className="analytics-stat__label">Конверсия</div>
-            <div className="analytics-stat__value">
-              {formatPercent(
-                analytics.requestsInRange.length ? (analytics.requestsInRange.length / (analytics.requestsInRange.length * 4)) * 100 : 0,
-              )}
+            <div className="analytics-stat__top">
+              <div className="analytics-stat__identity">
+                <span className="analytics-stat__icon" aria-hidden="true">
+                  <Icon20CrownVerified />
+                </span>
+                <div className="analytics-stat__label">Конверсия</div>
+              </div>
+              <div className="analytics-stat__pill">{formatDeltaLabel(analytics.conversionDelta)}</div>
             </div>
-            <div className="analytics-stat__delta">+{formatPercent(5)}</div>
+            <div className="analytics-stat__value">{formatPercent(analytics.conversion)}</div>
+            <div className="analytics-stat__meta">Доля заявок от общего числа просмотров</div>
+            <div className="analytics-stat__footer">Главный показатель эффективности</div>
           </article>
           <article className="analytics-stat analytics-stat_mint">
-            <div className="analytics-stat__label">Средний доход</div>
-            <div className="analytics-stat__value">{formatCurrency(analytics.averageCheck)}</div>
-            <div className="analytics-stat__delta">+{formatPercent(Math.abs(analytics.averageDelta || 31))}</div>
+            <div className="analytics-stat__top">
+              <div className="analytics-stat__identity">
+                <span className="analytics-stat__icon" aria-hidden="true">
+                  <Icon20WalletOutline />
+                </span>
+                <div className="analytics-stat__label">Сумма заявок</div>
+              </div>
+              <div className="analytics-stat__pill">{formatDeltaLabel(analytics.revenueDelta)}</div>
+            </div>
+            <div className="analytics-stat__value">{formatCurrency(analytics.totalRevenue)}</div>
+            <div className="analytics-stat__meta">Совокупная сумма всех полученных заявок</div>
+            <div className="analytics-stat__footer">По фактическим данным CRM</div>
           </article>
         </div>
 
@@ -2421,14 +2482,14 @@ export const HomePage = ({
             <div className="analytics-card__head">
               <div>
                 <div className="analytics-card__eyebrow">Динамика</div>
-                <h3 className="analytics-card__title">Просмотры и заполнения</h3>
+                <h3 className="analytics-card__title">Просмотры и заявки</h3>
               </div>
               <div className="analytics-legend">
                 <span className="analytics-legend__item analytics-legend__item_requests">
                   Просмотры
                 </span>
                 <span className="analytics-legend__item analytics-legend__item_revenue">
-                  Заполнения
+                  Заявки
                 </span>
               </div>
             </div>
@@ -2455,19 +2516,19 @@ export const HomePage = ({
                   />
                 ))}
                 <path
-                  d={analytics.requestAreaPath}
+                  d={analytics.viewAreaPath}
                   className="analytics-line-chart__area analytics-line-chart__area_blue"
                 />
                 <path
-                  d={analytics.revenueAreaPath}
+                  d={analytics.requestAreaPath}
                   className="analytics-line-chart__area analytics-line-chart__area_purple"
                 />
                 <path
-                  d={analytics.requestLinePath}
+                  d={analytics.viewLinePath}
                   className="analytics-line-chart__path analytics-line-chart__path_blue"
                 />
                 <path
-                  d={analytics.revenueLinePath}
+                  d={analytics.requestLinePath}
                   className="analytics-line-chart__path analytics-line-chart__path_purple"
                 />
               </svg>
@@ -2493,11 +2554,11 @@ export const HomePage = ({
                 <div key={item.templateId} className="analytics-table__row">
                   <span className="analytics-table__index">{index + 1}</span>
                   <span className="analytics-table__name">{item.templateTitle}</span>
-                  <strong className="analytics-table__value">{item.requests}</strong>
+                  <strong className="analytics-table__value">{item.views}</strong>
                 </div>
               ))}
               {analytics.topTemplates.length === 0 ? (
-                <div className="analytics-empty">Пока нет заявок за выбранный период.</div>
+                <div className="analytics-empty">Пока нет просмотров за выбранный период.</div>
               ) : null}
             </div>
           </article>
@@ -2505,8 +2566,8 @@ export const HomePage = ({
           <article className="analytics-card">
             <div className="analytics-card__head">
               <div>
-                <div className="analytics-card__eyebrow">Источники</div>
-                <h3 className="analytics-card__title">Источники трафика</h3>
+                <div className="analytics-card__eyebrow">Срез</div>
+                <h3 className="analytics-card__title">Источники</h3>
               </div>
             </div>
             <div className="analytics-donut-card">
@@ -2546,7 +2607,7 @@ export const HomePage = ({
           <article className="analytics-card">
             <div className="analytics-card__head">
               <div>
-                <div className="analytics-card__eyebrow">Устройства</div>
+                <div className="analytics-card__eyebrow">Срез</div>
                 <h3 className="analytics-card__title">Устройства</h3>
               </div>
             </div>
@@ -2587,24 +2648,21 @@ export const HomePage = ({
           <article className="analytics-card">
             <div className="analytics-card__head">
               <div>
-                <div className="analytics-card__eyebrow">География</div>
-                <h3 className="analytics-card__title">География</h3>
+                <div className="analytics-card__eyebrow">Срез</div>
+                <h3 className="analytics-card__title">Статусы заявок</h3>
               </div>
             </div>
             <div className="analytics-map">
-              <div className="analytics-map__canvas">
-                <span className="analytics-map__blob analytics-map__blob_1" />
-                <span className="analytics-map__blob analytics-map__blob_2" />
-                <span className="analytics-map__blob analytics-map__blob_3" />
-                <span className="analytics-map__blob analytics-map__blob_4" />
-              </div>
               <div className="analytics-map__legend">
-                {analytics.geoSegments.map((item) => (
+                {analytics.statusBreakdown.map((item) => (
                   <div key={item.label} className="analytics-map__legend-row">
                     <span>{item.label}</span>
                     <strong>{item.value}</strong>
                   </div>
                 ))}
+                {analytics.statusBreakdown.length === 0 ? (
+                  <div className="analytics-empty">Пока нет заявок за выбранный период.</div>
+                ) : null}
               </div>
             </div>
           </article>
@@ -3103,6 +3161,69 @@ export const HomePage = ({
               ? 'Удаление заявки очищает её из списка, но не уменьшает счётчик использованных заявок в лимите текущего тарифа.'
               : 'Удаление заявки очищает её из списка, но не меняет уже сохранённую статистику.'}
           </div>
+
+          <div className="settings-form__hint settings-form__hint_accent">
+            Подключите Google Sheets, чтобы новые заявки уходили в таблицу автоматически, а всю
+            текущую базу можно было выгрузить одной кнопкой.
+          </div>
+
+          <label className="settings-form__field">
+            <span className="settings-form__label">Webhook URL Google Apps Script</span>
+            <input
+              className="settings-form__input"
+              type="url"
+              placeholder="https://script.google.com/macros/s/.../exec"
+              value={googleSheetsWebhookUrl}
+              onChange={(event) => setGoogleSheetsWebhookUrl(event.target.value)}
+            />
+          </label>
+
+          <div className="settings-form__hint">
+            Используйте ссылку опубликованного Google Apps Script Web App. После сохранения каждая
+            новая заявка будет добавляться в таблицу автоматически.
+          </div>
+
+          <div className="settings-form__actions">
+            <button
+              className="settings-form__button"
+              type="button"
+              onClick={() => {
+                onSaveAdminSettings({
+                  ...adminSettings,
+                  googleSheetsWebhookUrl: googleSheetsWebhookUrl.trim(),
+                });
+                setGoogleSheetsStatus(
+                  googleSheetsWebhookUrl.trim()
+                    ? 'Ссылка Google Sheets сохранена.'
+                    : 'Ссылка Google Sheets очищена.',
+                );
+              }}
+            >
+              Сохранить ссылку
+            </button>
+
+            <button
+              className="settings-form__button settings-form__button_secondary"
+              type="button"
+              disabled={!adminSettings.googleSheetsWebhookUrl}
+              onClick={async () => {
+                const result = await onExportRequestsToGoogleSheets();
+                setGoogleSheetsStatus(result.message);
+              }}
+            >
+              Выгрузить все заявки
+            </button>
+          </div>
+
+          <div className="settings-form__hint">
+            {adminSettings.googleSheetsLastExportAt
+              ? `Последняя выгрузка: ${formatSubscriptionDate(adminSettings.googleSheetsLastExportAt) || 'недавно'}`
+              : 'Ручная выгрузка ещё не запускалась.'}
+          </div>
+
+          {googleSheetsStatus ? (
+            <div className="settings-form__status settings-form__status_success">{googleSheetsStatus}</div>
+          ) : null}
 
           {!canUseRequestStatuses ? (
             <div className="settings-form__hint">

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
+import analyticsHandler from '../api/analytics.js';
 import adminSettingsHandler from '../api/admin-settings.js';
 import communitiesHandler from '../api/communities.js';
 import requestsHandler from '../api/requests.js';
@@ -20,6 +21,7 @@ const VK_LAUNCH_SECRET_ENV_KEYS = ['VK_APP_SECRET', 'VK_MINI_APP_SECRET', 'VK_CL
 const DEFAULT_APP_HOSTS = ['app.calcpro.su'];
 
 const API_ROUTES = new Map([
+  ['/api/analytics', analyticsHandler],
   ['/api/admin-settings', adminSettingsHandler],
   ['/api/communities', communitiesHandler],
   ['/api/requests', requestsHandler],

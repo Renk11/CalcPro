@@ -66,6 +66,20 @@ function normalizeManagerVkUserId(value) {
   return normalizeVkUserId(firstToken);
 }
 
+function normalizeWebhookUrl(value) {
+  const trimmedValue = String(value || '').trim();
+  if (!trimmedValue) {
+    return '';
+  }
+
+  try {
+    const url = new URL(trimmedValue);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
 function normalizeBillingReminderState(state = {}, paidUntil = '') {
   const normalizedState =
     state && typeof state === 'object' && !Array.isArray(state) ? state : {};
@@ -103,6 +117,12 @@ export function normalizeAdminSettings(settings = {}) {
     billingReminderConfirmedAt: String(
       settings.billingReminderConfirmedAt || defaults.billingReminderConfirmedAt,
     ),
+    googleSheetsWebhookUrl: normalizeWebhookUrl(
+      settings.googleSheetsWebhookUrl || defaults.googleSheetsWebhookUrl,
+    ),
+    googleSheetsLastExportAt: String(
+      settings.googleSheetsLastExportAt || defaults.googleSheetsLastExportAt,
+    ).trim(),
     billingReminderState: normalizeBillingReminderState(
       settings.billingReminderState,
       subscription.paidUntil,

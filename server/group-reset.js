@@ -2,6 +2,7 @@ import { getViewerCommunities, saveViewerCommunities } from './community-store.j
 import { hasSupabaseCredentials, supabaseDelete, supabaseSelect } from './supabase.js';
 
 const RESET_PREFIXES = [
+  'calcpro:analytics:group:',
   'calcpro:templates:group:',
   'calcpro:requests:group:',
   'calcpro:support-tickets:group:',
