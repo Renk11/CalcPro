@@ -427,6 +427,7 @@ const App = () => {
   const [homeSection, setHomeSection] = useState<AdminSection>('calculators');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
+  const [liveSyncRevision, setLiveSyncRevision] = useState(0);
   const [isCommunitiesLoading, setIsCommunitiesLoading] = useState(true);
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
   const [isStartupSplashVisible, setIsStartupSplashVisible] = useState(true);
@@ -524,6 +525,30 @@ const App = () => {
     setActiveFolderId('all');
     templatesSyncVersionRef.current += 1;
   }, [effectiveAdminGroupId]);
+
+  useEffect(() => {
+    if (!isLaunchParamsResolved || isPublicViewer) {
+      return;
+    }
+
+    const triggerLiveSync = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
+
+      setLiveSyncRevision((current) => current + 1);
+    };
+
+    const intervalId = window.setInterval(triggerLiveSync, 10000);
+    window.addEventListener('focus', triggerLiveSync);
+    document.addEventListener('visibilitychange', triggerLiveSync);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', triggerLiveSync);
+      document.removeEventListener('visibilitychange', triggerLiveSync);
+    };
+  }, [isLaunchParamsResolved, isPublicViewer]);
 
   useEffect(() => {
     if (currentGroupId > 0 && activeAdminGroupId === 0) {
@@ -664,7 +689,9 @@ const App = () => {
     }
 
     let isCancelled = false;
-    setIsCommunitiesLoading(true);
+    if (liveSyncRevision === 0) {
+      setIsCommunitiesLoading(true);
+    }
 
     const syncCommunities = async () => {
       try {
@@ -744,6 +771,7 @@ const App = () => {
     fallbackCommunity,
     isLaunchParamsResolved,
     isPublicViewer,
+    liveSyncRevision,
   ]);
 
   useEffect(() => {
@@ -787,7 +815,7 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [effectiveAdminGroupId, isLaunchParamsResolved, isPublicViewer]);
+  }, [effectiveAdminGroupId, isLaunchParamsResolved, isPublicViewer, liveSyncRevision]);
 
   useEffect(() => {
     if (!isLaunchParamsResolved) {
@@ -931,7 +959,13 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [effectiveAdminGroupId, isLaunchParamsResolved, isViewerGroupAdmin, vkAuthHeaders]);
+  }, [
+    effectiveAdminGroupId,
+    isLaunchParamsResolved,
+    isViewerGroupAdmin,
+    liveSyncRevision,
+    vkAuthHeaders,
+  ]);
 
   const sortedTemplates = useMemo(
     () =>

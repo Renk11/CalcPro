@@ -77,6 +77,7 @@ const ensureScopedStorageInitialized = (groupId = activeStorageGroupId) => {
     supportTickets: [] as CalculatorSupportTicket[],
     settings: {
       managerVkId: '',
+      managerVkConfirmedAt: '',
       billingReminderVkId: '',
       billingReminderConfirmedAt: '',
       billingReminderState: {
@@ -510,6 +511,7 @@ export const getAdminSettings = (): CalculatorAdminSettings => {
 
   return {
     managerVkId: settings.managerVkId ?? '',
+    managerVkConfirmedAt: settings.managerVkConfirmedAt ?? '',
     billingReminderVkId: settings.billingReminderVkId ?? '',
     billingReminderConfirmedAt: settings.billingReminderConfirmedAt ?? '',
     billingReminderState: {

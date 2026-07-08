@@ -57,6 +57,15 @@ function normalizeVkUserId(value) {
   return Number.isInteger(numericValue) && numericValue > 0 ? String(numericValue) : '';
 }
 
+function normalizeManagerVkUserId(value) {
+  const firstToken = String(value || '')
+    .split(/[,\s;]+/)
+    .map((item) => item.trim())
+    .find(Boolean);
+
+  return normalizeVkUserId(firstToken);
+}
+
 function normalizeBillingReminderState(state = {}, paidUntil = '') {
   const normalizedState =
     state && typeof state === 'object' && !Array.isArray(state) ? state : {};
@@ -88,7 +97,8 @@ export function normalizeAdminSettings(settings = {}) {
   const subscription = normalizeSubscription(settings.subscription);
 
   return {
-    managerVkId: String(settings.managerVkId || defaults.managerVkId),
+    managerVkId: normalizeManagerVkUserId(settings.managerVkId || defaults.managerVkId),
+    managerVkConfirmedAt: String(settings.managerVkConfirmedAt || defaults.managerVkConfirmedAt).trim(),
     billingReminderVkId: normalizeVkUserId(settings.billingReminderVkId || defaults.billingReminderVkId),
     billingReminderConfirmedAt: String(
       settings.billingReminderConfirmedAt || defaults.billingReminderConfirmedAt,
@@ -210,6 +220,27 @@ export async function linkServerBillingReminderRecipient(groupId, userId) {
     ...settings,
     billingReminderVkId: normalizedUserId,
     billingReminderConfirmedAt: new Date().toISOString(),
+  });
+
+  await writeSettingRow(getAdminSettingsKey(groupId), nextSettings);
+  return nextSettings;
+}
+
+export async function linkServerManagerRecipient(groupId, userId) {
+  const settings = await getServerAdminSettings(groupId);
+  const normalizedUserId = normalizeVkUserId(userId);
+  if (!normalizedUserId) {
+    throw new Error('Valid VK user id is required');
+  }
+
+  if (settings.managerVkId && settings.managerVkId !== normalizedUserId) {
+    throw new Error('Manager VK id does not match the configured recipient');
+  }
+
+  const nextSettings = normalizeAdminSettings({
+    ...settings,
+    managerVkId: normalizedUserId,
+    managerVkConfirmedAt: new Date().toISOString(),
   });
 
   await writeSettingRow(getAdminSettingsKey(groupId), nextSettings);

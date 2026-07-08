@@ -311,6 +311,15 @@ export default async function handler(request, response) {
         });
       }
 
+      if (!settings.managerVkConfirmedAt) {
+        return sendJson(response, 200, {
+          ok: true,
+          message:
+            'Р—Р°СЏРІРєР° СЃРѕС…СЂР°РЅРµРЅР°. РњРµРЅРµРґР¶РµСЂ РµС‰С‘ РЅРµ РїРѕРґС‚РІРµСЂРґРёР» РґРёР°Р»РѕРі СЃ CalcPro.',
+          data: savedRequests,
+        });
+      }
+
       if (!hasVkGroupToken()) {
         return sendJson(response, 200, {
           ok: true,

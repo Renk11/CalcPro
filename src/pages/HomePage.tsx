@@ -1566,6 +1566,11 @@ export const HomePage = ({
       ];
   const billingReminderCommand =
     currentGroupId > 0 ? `Уведомления ${currentGroupId}` : '';
+  const managerLinkCommand =
+    currentGroupId > 0 && managerVkId.trim()
+      ? `Менеджер ${currentGroupId} ${managerVkId.trim()}`
+      : '';
+  const isManagerLinked = Boolean(adminSettings.managerVkId && adminSettings.managerVkConfirmedAt);
   const isBillingReminderLinked = Boolean(
     adminSettings.billingReminderVkId && adminSettings.billingReminderConfirmedAt,
   );
@@ -1578,6 +1583,9 @@ export const HomePage = ({
   const billingReminderStatusLabel = isBillingReminderLinked
     ? `Подключены для VK ID ${adminSettings.billingReminderVkId}`
     : 'Не подключены';
+  const managerLinkStatusLabel = isManagerLinked
+    ? `Подключен VK ID ${adminSettings.managerVkId}`
+    : 'Не подключен';
 
   const handleCopyBillingReminderCommand = async () => {
     if (!billingReminderCommand) {
@@ -1621,6 +1629,28 @@ export const HomePage = ({
           `Автокопирование недоступно. Скопируйте вручную: ${billingReminderCommand}`,
         );
       }
+    }
+  };
+
+  const handleCopyManagerLinkCommand = async () => {
+    if (!managerLinkCommand) {
+      setManagerVkIdStatus('Сначала укажите ID менеджера, затем скопируйте код.');
+      return;
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(managerLinkCommand);
+      } else {
+        throw new Error('Clipboard API is unavailable');
+      }
+      setManagerVkIdStatus(
+        `Код скопирован. Пусть менеджер отправит его в ЛС ${BILLING_REMINDER_CONTACT_LABEL}.`,
+      );
+    } catch {
+      setManagerVkIdStatus(
+        `Автокопирование недоступно. Скопируйте вручную: ${managerLinkCommand}`,
+      );
     }
   };
 
@@ -2673,7 +2703,7 @@ export const HomePage = ({
                         adminSettings.billingReminderConfirmedAt,
                       ) || 'недавно'}.`
                     : billingReminderActionStatus ||
-                      'После отправки сообщения статус обновится автоматически при следующем открытии кабинета.'}
+                      'После отправки сообщения статус обновится автоматически через несколько секунд.'}
                 </div>
               </div>
             ) : null}
@@ -3447,7 +3477,7 @@ export const HomePage = ({
       <section className="settings-section">
         <article className="settings-card">
           <div className="settings-card__eyebrow">Менеджер заявок</div>
-          <h2 className="settings-card__title">ID менеджера для отправки заявок</h2>
+          <h2 className="settings-card__title">Подключение менеджера для отправки заявок</h2>
           <p className="settings-card__text">
             Если для кнопки выбрано действие <strong>Отправить заявку</strong>, заявка будет
             отправлена менеджеру, которого вы указали в настройках.
@@ -3458,35 +3488,55 @@ export const HomePage = ({
             <input
               className="settings-form__input"
               type="text"
-              inputMode="text"
+              inputMode="numeric"
               placeholder="Например: 123456789"
               value={managerVkId}
-              onChange={(event) => setManagerVkId(event.target.value.replace(/[^\d,\s;-]/g, ''))}
+              onChange={(event) => setManagerVkId(event.target.value.replace(/[^\d]/g, ''))}
             />
           </label>
 
           <div className="settings-form__hint">
-            Укажите VK ID сотрудника, которому будут приходить заявки из калькуляторов.
+            Укажите VK ID сотрудника, которому будут приходить заявки из калькуляторов, затем
+            попросите его подтвердить диалог кодом.
           </div>
 
           <div className="settings-form__hint settings-form__hint settings-form__hint_accent">
-            Важно: сотрудник должен отправить в диалог с сообществом любое сообщение, иначе VK не
-            сможет доставлять ему уведомления.
+            Менеджер должен отправить этот код в диалог с {BILLING_REMINDER_CONTACT_LABEL}, иначе
+            VK не сможет доставлять ему заявки.
           </div>
+
+          <div className="payments-reminder-card__command">{managerLinkCommand || 'Сначала укажите ID менеджера'}</div>
 
           <div className="settings-form__actions">
             <button
               className="settings-form__button"
               type="button"
               onClick={() => {
+                const normalizedManagerVkId = managerVkId.trim();
                 onSaveAdminSettings({
                   ...adminSettings,
-                  managerVkId: managerVkId.trim(),
+                  managerVkId: normalizedManagerVkId,
+                  managerVkConfirmedAt:
+                    normalizedManagerVkId === adminSettings.managerVkId
+                      ? adminSettings.managerVkConfirmedAt
+                      : '',
                 });
-                setManagerVkIdStatus('ID менеджера сохранён.');
+                setManagerVkIdStatus(
+                  normalizedManagerVkId
+                    ? 'ID менеджера сохранён. Теперь попросите его отправить код в диалог CalcPro.'
+                    : 'ID менеджера очищен.',
+                );
               }}
             >
               Сохранить
+            </button>
+
+            <button
+              className="settings-form__button settings-form__button_secondary"
+              type="button"
+              onClick={handleCopyManagerLinkCommand}
+            >
+              Скопировать код
             </button>
 
             <a
@@ -3497,6 +3547,14 @@ export const HomePage = ({
             >
               Диалог с сообществом
             </a>
+          </div>
+
+          <div className="settings-form__hint">
+            {isManagerLinked
+              ? `${managerLinkStatusLabel}. Подтверждено ${formatSubscriptionDate(
+                  adminSettings.managerVkConfirmedAt,
+                ) || 'недавно'}.`
+              : managerLinkStatusLabel}
           </div>
 
           {managerVkIdStatus ? (

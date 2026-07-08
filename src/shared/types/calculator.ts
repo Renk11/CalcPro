@@ -206,6 +206,7 @@ export interface CalculatorFolder {
 export interface CalculatorAdminSettings {
   groupId?: number;
   managerVkId: string;
+  managerVkConfirmedAt?: string;
   billingReminderVkId: string;
   billingReminderConfirmedAt?: string;
   billingReminderState?: {

@@ -219,10 +219,22 @@ export default async function handler(request, response) {
       }
 
       const currentSettings = await getServerAdminSettings(groupId);
+      const incomingManagerVkId =
+        incomingSettings.managerVkId === undefined
+          ? undefined
+          : String(incomingSettings.managerVkId || '')
+              .split(/[,\s;]+/)
+              .map((value) => value.trim())
+              .find(Boolean) || '';
+      const shouldResetManagerConfirmation =
+        incomingManagerVkId !== undefined && incomingManagerVkId !== currentSettings.managerVkId;
       const settings = await saveServerAdminSettings(
         {
           ...currentSettings,
-          managerVkId: incomingSettings.managerVkId ?? currentSettings.managerVkId,
+          managerVkId: incomingManagerVkId ?? currentSettings.managerVkId,
+          managerVkConfirmedAt: shouldResetManagerConfirmation
+            ? ''
+            : currentSettings.managerVkConfirmedAt,
           billingReminderVkId:
             incomingSettings.billingReminderVkId ?? currentSettings.billingReminderVkId,
           billingReminderConfirmedAt:

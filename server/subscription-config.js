@@ -57,6 +57,7 @@ export function createDefaultSubscriptionSettings() {
 export function createDefaultAdminSettings() {
   return {
     managerVkId: '',
+    managerVkConfirmedAt: '',
     billingReminderVkId: '',
     billingReminderConfirmedAt: '',
     billingReminderState: {

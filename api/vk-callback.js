@@ -1,4 +1,8 @@
-import { linkServerBillingReminderRecipient } from '../server/settings-store.js';
+import {
+  getServerAdminSettings,
+  linkServerBillingReminderRecipient,
+  linkServerManagerRecipient,
+} from '../server/settings-store.js';
 import { updateServerSupportTicketStatus } from '../server/support-store.js';
 import { sendVkMessage, sendVkMessageEventAnswer } from '../server/vk.js';
 
@@ -38,6 +42,17 @@ function parseReminderGroupId(text) {
     /(?:calcpro[\s:,-]*)?(?:уведомления|напоминания|notify)(?:\s+по\s+тарифу)?[\s:#-]*([1-9]\d{3,15})/iu,
   );
   return match ? Number(match[1]) : 0;
+}
+
+function parseManagerLinkRequest(text) {
+  const match = String(text || '').match(
+    /(?:calcpro[\s:,-]*)?(?:РјРµРЅРµРґР¶РµСЂ|manager)(?:\s+РґР»СЏ\s+Р·Р°СЏРІРѕРє)?[\s:#-]*([1-9]\d{3,15})(?:[\s,#-]+([1-9]\d{3,15}))?/iu,
+  );
+
+  return {
+    groupId: match ? Number(match[1]) : 0,
+    managerVkId: match ? Number(match[2]) || 0 : 0,
+  };
 }
 
 function normalizeVkUserId(value) {
@@ -89,6 +104,7 @@ export default async function handler(request, response) {
       const message = body.object?.message || {};
       const userId = normalizeVkUserId(message.from_id || message.peer_id);
       const groupId = parseReminderGroupId(message.text);
+      const managerLinkRequest = parseManagerLinkRequest(message.text);
 
       if (userId > 0 && groupId > 0) {
         await linkServerBillingReminderRecipient(groupId, userId);
@@ -100,6 +116,43 @@ export default async function handler(request, response) {
             'Теперь мы сможем заранее написать вам в ЛС перед окончанием оплаченного периода.',
           ].join('\n'),
         ).catch(() => undefined);
+      }
+
+      if (userId > 0 && managerLinkRequest.groupId > 0) {
+        const settings = await getServerAdminSettings(managerLinkRequest.groupId);
+        const configuredManagerId = normalizeVkUserId(
+          managerLinkRequest.managerVkId || settings.managerVkId,
+        );
+
+        if (!configuredManagerId) {
+          await sendVkMessage(
+            userId,
+            [
+              'РџСЂРёРІСЏР·РєР° РјРµРЅРµРґР¶РµСЂР° РЅРµ РІС‹РїРѕР»РЅРµРЅР°.',
+              `РЎРѕРѕР±С‰РµСЃС‚РІРѕ ID: ${managerLinkRequest.groupId}.`,
+              'РЎРЅР°С‡Р°Р»Р° СѓРєР°Р¶РёС‚Рµ VK ID РјРµРЅРµРґР¶РµСЂР° РІ РЅР°СЃС‚СЂРѕР№РєР°С… CalcPro.',
+            ].join('\n'),
+          ).catch(() => undefined);
+        } else if (configuredManagerId !== String(userId)) {
+          await sendVkMessage(
+            userId,
+            [
+              'РџСЂРёРІСЏР·РєР° РјРµРЅРµРґР¶РµСЂР° РѕС‚РєР»РѕРЅРµРЅР°.',
+              `РЎРѕРѕР±С‰РµСЃС‚РІРѕ ID: ${managerLinkRequest.groupId}.`,
+              `Р’ РЅР°СЃС‚СЂРѕР№РєР°С… РѕР¶РёРґР°РµС‚СЃСЏ VK ID ${configuredManagerId}.`,
+            ].join('\n'),
+          ).catch(() => undefined);
+        } else {
+          await linkServerManagerRecipient(managerLinkRequest.groupId, userId);
+          await sendVkMessage(
+            userId,
+            [
+              'РњРµРЅРµРґР¶РµСЂ РґР»СЏ Р·Р°СЏРІРѕРє CalcPro РїРѕРґРєР»СЋС‡РµРЅ.',
+              `РЎРѕРѕР±С‰РµСЃС‚РІРѕ ID: ${managerLinkRequest.groupId}.`,
+              'РўРµРїРµСЂСЊ РјС‹ СЃРјРѕР¶РµРј РѕС‚РїСЂР°РІР»СЏС‚СЊ РІР°Рј РЅРѕРІС‹Рµ Р·Р°СЏРІРєРё РёР· РєР°Р»СЊРєСѓР»СЏС‚РѕСЂРѕРІ.',
+            ].join('\n'),
+          ).catch(() => undefined);
+        }
       }
     }
 
