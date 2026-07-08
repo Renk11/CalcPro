@@ -1586,6 +1586,15 @@ export const HomePage = ({
   const managerLinkStatusLabel = isManagerLinked
     ? `Подключен VK ID ${adminSettings.managerVkId}`
     : 'Не подключен';
+  const managerProfile = adminSettings.managerProfile;
+  const managerFullName =
+    [managerProfile?.firstName, managerProfile?.lastName].filter(Boolean).join(' ').trim() ||
+    `Менеджер VK ID ${adminSettings.managerVkId || 'не указан'}`;
+  const managerProfileLink = managerProfile?.screenName
+    ? `https://vk.com/${managerProfile.screenName}`
+    : adminSettings.managerVkId
+      ? `https://vk.com/id${adminSettings.managerVkId}`
+      : BILLING_REMINDER_CONTACT_LINK;
 
   const handleCopyBillingReminderCommand = async () => {
     if (!billingReminderCommand) {
@@ -3556,6 +3565,42 @@ export const HomePage = ({
                 ) || 'недавно'}.`
               : managerLinkStatusLabel}
           </div>
+
+          {isManagerLinked ? (
+            <div className="manager-profile-card">
+              <div className="manager-profile-card__media">
+                {managerProfile?.photoUrl ? (
+                  <img
+                    className="manager-profile-card__avatar"
+                    src={managerProfile.photoUrl}
+                    alt={managerFullName}
+                  />
+                ) : (
+                  <div className="manager-profile-card__avatar manager-profile-card__avatar_fallback">
+                    {(managerProfile?.firstName || 'M').slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <div className="manager-profile-card__copy">
+                  <div className="manager-profile-card__name">{managerFullName}</div>
+                  <div className="manager-profile-card__meta">
+                    {managerProfile?.screenName ? `@${managerProfile.screenName}` : `id${adminSettings.managerVkId}`}
+                  </div>
+                  <div className="manager-profile-card__meta">
+                    VK ID {adminSettings.managerVkId}
+                  </div>
+                </div>
+              </div>
+
+              <a
+                className="manager-profile-card__link"
+                href={managerProfileLink}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Открыть профиль VK
+              </a>
+            </div>
+          ) : null}
 
           {managerVkIdStatus ? (
             <div className="settings-form__status settings-form__status_success">{managerVkIdStatus}</div>

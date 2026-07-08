@@ -70,29 +70,29 @@ function getMoscowDateDayNumber(date) {
   return Math.floor(Date.UTC(year, month - 1, day) / DAY_MS);
 }
 
-function getRemainingMoscowCalendarDays(paidUntil, now = new Date()) {
-  return Math.max(0, getMoscowDateDayNumber(paidUntil) - getMoscowDateDayNumber(now));
-}
-
-function resolveReminderStage(paidUntil, now = new Date()) {
+function resolveReminderStage(paidUntil, sentStages = {}, now = new Date()) {
   const remainingMs = paidUntil.getTime() - now.getTime();
   if (remainingMs <= 0) {
     return null;
   }
 
-  const remainingCalendarDays = getRemainingMoscowCalendarDays(paidUntil, now);
-
-  if (remainingCalendarDays === 0) {
-    return '0';
-  }
-
+  const isSameMoscowDate = getMoscowDateDayNumber(paidUntil) === getMoscowDateDayNumber(now);
   const stages = [...BILLING_REMINDER_SCHEDULE_DAYS]
     .filter((stage) => stage > 0)
     .sort((left, right) => left - right);
 
   for (const stage of stages) {
-    if (remainingCalendarDays <= stage) {
-      return String(stage);
+    if (remainingMs <= stage * DAY_MS) {
+      const stageKey = String(stage);
+      if (!sentStages[stageKey]) {
+        return stageKey;
+      }
+
+      if (stage === 1 && isSameMoscowDate && !sentStages['0']) {
+        return '0';
+      }
+
+      return null;
     }
   }
 
@@ -184,7 +184,7 @@ async function processGroupReminder(groupId) {
 
   const reminderState = createReminderState(settings);
   const remainingMs = paidUntil.getTime() - now.getTime();
-  const stage = resolveReminderStage(paidUntil, now);
+  const stage = resolveReminderStage(paidUntil, reminderState.sentStages, now);
   const nextCheckedAt = now.toISOString();
 
   if (!stage || reminderState.sentStages[stage]) {

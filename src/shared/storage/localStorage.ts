@@ -512,6 +512,18 @@ export const getAdminSettings = (): CalculatorAdminSettings => {
   return {
     managerVkId: settings.managerVkId ?? '',
     managerVkConfirmedAt: settings.managerVkConfirmedAt ?? '',
+    managerProfile:
+      settings.managerProfile &&
+      typeof settings.managerProfile === 'object' &&
+      Number.isInteger(Number(settings.managerProfile.id))
+        ? {
+            id: Number(settings.managerProfile.id),
+            firstName: String(settings.managerProfile.firstName || ''),
+            lastName: String(settings.managerProfile.lastName || ''),
+            screenName: String(settings.managerProfile.screenName || ''),
+            photoUrl: String(settings.managerProfile.photoUrl || ''),
+          }
+        : undefined,
     billingReminderVkId: settings.billingReminderVkId ?? '',
     billingReminderConfirmedAt: settings.billingReminderConfirmedAt ?? '',
     billingReminderState: {

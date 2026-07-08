@@ -12,6 +12,7 @@ import {
 } from '../server/subscription-config.js';
 import { getViewerCommunities } from '../server/community-store.js';
 import { resetAllGroupsData, resetSingleGroupData } from '../server/group-reset.js';
+import { getVkUserInfo, hasVkGroupToken } from '../server/vk.js';
 
 const DEFAULT_SUPER_ADMIN_IDS = ['139346496'];
 
@@ -86,6 +87,40 @@ async function requireWorkspaceCommunityAdmin(request, response, groupId) {
   return auth;
 }
 
+async function enrichAdminSettingsResponse(settings) {
+  if (!settings?.managerVkId || !settings?.managerVkConfirmedAt) {
+    return settings;
+  }
+
+  let managerProfile = {
+    id: Number(settings.managerVkId),
+    firstName: '',
+    lastName: '',
+    screenName: '',
+    photoUrl: '',
+  };
+
+  if (hasVkGroupToken()) {
+    try {
+      const user = await getVkUserInfo(settings.managerVkId);
+      managerProfile = {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        screenName: user.screenName,
+        photoUrl: user.photoUrl,
+      };
+    } catch {
+      // Keep fallback profile shape when VK lookup is temporarily unavailable.
+    }
+  }
+
+  return {
+    ...settings,
+    managerProfile,
+  };
+}
+
 export default async function handler(request, response) {
   try {
     const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
@@ -97,7 +132,7 @@ export default async function handler(request, response) {
       }
 
       const settings = await getServerAdminSettings(groupId);
-      return sendJson(response, 200, { ok: true, data: settings });
+      return sendJson(response, 200, { ok: true, data: await enrichAdminSettingsResponse(settings) });
     }
 
     if (request.method === 'POST') {
@@ -243,7 +278,7 @@ export default async function handler(request, response) {
         },
         groupId,
       );
-      return sendJson(response, 200, { ok: true, data: settings });
+      return sendJson(response, 200, { ok: true, data: await enrichAdminSettingsResponse(settings) });
     }
 
     return sendJson(response, 405, { ok: false, error: 'Method not allowed' });

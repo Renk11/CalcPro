@@ -207,6 +207,13 @@ export interface CalculatorAdminSettings {
   groupId?: number;
   managerVkId: string;
   managerVkConfirmedAt?: string;
+  managerProfile?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    screenName?: string;
+    photoUrl?: string;
+  };
   billingReminderVkId: string;
   billingReminderConfirmedAt?: string;
   billingReminderState?: {
