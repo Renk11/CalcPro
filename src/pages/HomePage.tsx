@@ -996,6 +996,66 @@ const formatDeltaLabel = (value: number, suffix = '%') => {
 const formatDayLabel = (date: Date) =>
   date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 const paidPlanOrder: CalculatorSubscriptionPlan[] = ['start', 'pro'];
+const GOOGLE_SHEETS_APPS_SCRIPT_TEMPLATE = `function doPost(e) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Заявки')
+    || SpreadsheetApp.getActiveSpreadsheet().insertSheet('Заявки');
+  const payload = JSON.parse(e.postData.contents || '{}');
+  const requests = Array.isArray(payload.requests) ? payload.requests : [];
+
+  const headers = [
+    'ID заявки',
+    'ID группы',
+    'ID калькулятора',
+    'Калькулятор',
+    'Статус',
+    'Имя',
+    'Телефон',
+    'Комментарий',
+    'Сумма',
+    'Ответственный',
+    'Создана',
+    'Обновлена',
+    'История',
+    'Комментарии',
+    'Детали',
+  ];
+
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(headers);
+  }
+
+  if (payload.mode === 'replace' && sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).clearContent();
+  }
+
+  requests.forEach((request) => {
+    sheet.appendRow([
+      request.id || '',
+      request.groupId || '',
+      request.calculatorId || '',
+      request.calculator || '',
+      request.status || '',
+      request.name || '',
+      request.phone || '',
+      request.comment || '',
+      request.amount || 0,
+      request.assignedTo || '',
+      request.createdAt || '',
+      request.updatedAt || '',
+      request.historyCount || 0,
+      request.commentsCount || 0,
+      request.details || '',
+    ]);
+  });
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ ok: true, count: requests.length }))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+const GOOGLE_SHEETS_DEPLOYMENT_CHECKLIST = `Тип развертывания: Веб-приложение
+Выполнять от имени: Me
+Кто имеет доступ: Все, у кого есть ссылка
+Финальный URL: ссылка должна заканчиваться на /exec`;
 
 const buildPolylinePath = (
   values: number[],
@@ -1222,6 +1282,8 @@ export const HomePage = ({
     adminSettings.googleSheetsWebhookUrl || '',
   );
   const [googleSheetsStatus, setGoogleSheetsStatus] = useState('');
+  const [isGoogleSheetsHelpOpen, setIsGoogleSheetsHelpOpen] = useState(false);
+  const [googleSheetsHelpStatus, setGoogleSheetsHelpStatus] = useState('');
   const [superAdminGroupId, setSuperAdminGroupId] = useState(
     currentGroupId > 0 ? String(currentGroupId) : '',
   );
@@ -2478,12 +2540,21 @@ export const HomePage = ({
         </div>
 
         <div className="analytics-grid">
-          <article className="analytics-card analytics-card_wide">
+          <article className="analytics-card analytics-card_wide analytics-card analytics-card_blue">
             <div className="analytics-card__head">
-              <div>
-                <div className="analytics-card__eyebrow">Динамика</div>
-                <h3 className="analytics-card__title">Просмотры и заявки</h3>
+              <div className="analytics-card__identity">
+                <span className="analytics-card__icon" aria-hidden="true">
+                  <Icon20GraphOutline />
+                </span>
+                <div>
+                  <div className="analytics-card__eyebrow">Динамика</div>
+                  <h3 className="analytics-card__title">Просмотры и заявки</h3>
+                  <div className="analytics-card__subtext">
+                    Живая воронка по событиям открытия и отправки формы
+                  </div>
+                </div>
               </div>
+              <div className="analytics-card__badge">Период: {analyticsRangeLabels[analyticsRange]}</div>
               <div className="analytics-legend">
                 <span className="analytics-legend__item analytics-legend__item_requests">
                   Просмотры
@@ -2493,62 +2564,72 @@ export const HomePage = ({
                 </span>
               </div>
             </div>
-            <div className="analytics-line-chart">
-              <svg viewBox="0 0 640 260" className="analytics-line-chart__svg" aria-hidden="true">
-                <defs>
-                  <linearGradient id="analyticsBlueFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2f7cff" stopOpacity="0.18" />
-                    <stop offset="100%" stopColor="#2f7cff" stopOpacity="0" />
-                  </linearGradient>
-                  <linearGradient id="analyticsPurpleFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#a855f7" stopOpacity="0.16" />
-                    <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                {[0, 1, 2, 3].map((line) => (
-                  <line
-                    key={line}
-                    x1="24"
-                    x2="616"
-                    y1={24 + line * 53}
-                    y2={24 + line * 53}
-                    className="analytics-line-chart__grid-line"
-                  />
-                ))}
-                <path
-                  d={analytics.viewAreaPath}
-                  className="analytics-line-chart__area analytics-line-chart__area_blue"
-                />
-                <path
-                  d={analytics.requestAreaPath}
-                  className="analytics-line-chart__area analytics-line-chart__area_purple"
-                />
-                <path
-                  d={analytics.viewLinePath}
-                  className="analytics-line-chart__path analytics-line-chart__path_blue"
-                />
-                <path
-                  d={analytics.requestLinePath}
-                  className="analytics-line-chart__path analytics-line-chart__path_purple"
-                />
-              </svg>
-              <div className="analytics-line-chart__labels">
-                {analytics.dailyBuckets
-                  .filter((_, index) => index % Math.max(1, Math.floor(analytics.dailyBuckets.length / 6)) === 0)
-                  .map((bucket) => (
-                    <span key={bucket.key}>{bucket.label}</span>
+            <div className="analytics-card__body">
+              <div className="analytics-line-chart">
+                <svg viewBox="0 0 640 260" className="analytics-line-chart__svg" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="analyticsBlueFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#2f7cff" stopOpacity="0.18" />
+                      <stop offset="100%" stopColor="#2f7cff" stopOpacity="0" />
+                    </linearGradient>
+                    <linearGradient id="analyticsPurpleFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#a855f7" stopOpacity="0.16" />
+                      <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {[0, 1, 2, 3].map((line) => (
+                    <line
+                      key={line}
+                      x1="24"
+                      x2="616"
+                      y1={24 + line * 53}
+                      y2={24 + line * 53}
+                      className="analytics-line-chart__grid-line"
+                    />
                   ))}
+                  <path
+                    d={analytics.viewAreaPath}
+                    className="analytics-line-chart__area analytics-line-chart__area_blue"
+                  />
+                  <path
+                    d={analytics.requestAreaPath}
+                    className="analytics-line-chart__area analytics-line-chart__area_purple"
+                  />
+                  <path
+                    d={analytics.viewLinePath}
+                    className="analytics-line-chart__path analytics-line-chart__path_blue"
+                  />
+                  <path
+                    d={analytics.requestLinePath}
+                    className="analytics-line-chart__path analytics-line-chart__path_purple"
+                  />
+                </svg>
+                <div className="analytics-line-chart__labels">
+                  {analytics.dailyBuckets
+                    .filter((_, index) => index % Math.max(1, Math.floor(analytics.dailyBuckets.length / 6)) === 0)
+                    .map((bucket) => (
+                      <span key={bucket.key}>{bucket.label}</span>
+                    ))}
+                </div>
               </div>
             </div>
           </article>
 
-          <article className="analytics-card">
+          <article className="analytics-card analytics-card_sand">
             <div className="analytics-card__head">
-              <div>
-                <div className="analytics-card__eyebrow">Лидеры</div>
-                <h3 className="analytics-card__title">Популярные калькуляторы</h3>
+              <div className="analytics-card__identity">
+                <span className="analytics-card__icon" aria-hidden="true">
+                  <Icon20CrownVerified />
+                </span>
+                <div>
+                  <div className="analytics-card__eyebrow">Лидеры</div>
+                  <h3 className="analytics-card__title">Популярные калькуляторы</h3>
+                  <div className="analytics-card__subtext">Какие калькуляторы открывают чаще всего</div>
+                </div>
               </div>
+              <div className="analytics-card__badge">Top 5</div>
             </div>
+            <div className="analytics-card__body">
             <div className="analytics-table">
               {analytics.topTemplates.slice(0, 5).map((item, index) => (
                 <div key={item.templateId} className="analytics-table__row">
@@ -2561,15 +2642,23 @@ export const HomePage = ({
                 <div className="analytics-empty">Пока нет просмотров за выбранный период.</div>
               ) : null}
             </div>
+            </div>
           </article>
 
-          <article className="analytics-card">
+          <article className="analytics-card analytics-card_blue-soft">
             <div className="analytics-card__head">
-              <div>
-                <div className="analytics-card__eyebrow">Срез</div>
-                <h3 className="analytics-card__title">Источники</h3>
+              <div className="analytics-card__identity">
+                <span className="analytics-card__icon" aria-hidden="true">
+                  <Icon20HomeOutline />
+                </span>
+                <div>
+                  <div className="analytics-card__eyebrow">Срез</div>
+                  <h3 className="analytics-card__title">Источники</h3>
+                  <div className="analytics-card__subtext">Откуда приходят открытия калькулятора</div>
+                </div>
               </div>
             </div>
+            <div className="analytics-card__body">
             <div className="analytics-donut-card">
               <svg viewBox="0 0 42 42" className="analytics-donut" aria-hidden="true">
                 {analytics.sourceSegments.map((segment) => (
@@ -2602,15 +2691,23 @@ export const HomePage = ({
                 ))}
               </div>
             </div>
+            </div>
           </article>
 
-          <article className="analytics-card">
+          <article className="analytics-card analytics-card_mint-soft">
             <div className="analytics-card__head">
-              <div>
-                <div className="analytics-card__eyebrow">Срез</div>
-                <h3 className="analytics-card__title">Устройства</h3>
+              <div className="analytics-card__identity">
+                <span className="analytics-card__icon" aria-hidden="true">
+                  <Icon20PaymentCardOutline />
+                </span>
+                <div>
+                  <div className="analytics-card__eyebrow">Срез</div>
+                  <h3 className="analytics-card__title">Устройства</h3>
+                  <div className="analytics-card__subtext">С каких экранов открывают приложение</div>
+                </div>
               </div>
             </div>
+            <div className="analytics-card__body">
             <div className="analytics-donut-card">
               <svg viewBox="0 0 42 42" className="analytics-donut" aria-hidden="true">
                 {analytics.deviceSegments.map((segment) => (
@@ -2643,15 +2740,23 @@ export const HomePage = ({
                 ))}
               </div>
             </div>
+            </div>
           </article>
 
-          <article className="analytics-card">
+          <article className="analytics-card analytics-card_purple-soft">
             <div className="analytics-card__head">
-              <div>
-                <div className="analytics-card__eyebrow">Срез</div>
-                <h3 className="analytics-card__title">Статусы заявок</h3>
+              <div className="analytics-card__identity">
+                <span className="analytics-card__icon" aria-hidden="true">
+                  <Icon20ArticleOutline />
+                </span>
+                <div>
+                  <div className="analytics-card__eyebrow">Срез</div>
+                  <h3 className="analytics-card__title">Статусы заявок</h3>
+                  <div className="analytics-card__subtext">Текущее распределение по CRM-статусам</div>
+                </div>
               </div>
             </div>
+            <div className="analytics-card__body">
             <div className="analytics-map">
               <div className="analytics-map__legend">
                 {analytics.statusBreakdown.map((item) => (
@@ -2664,6 +2769,7 @@ export const HomePage = ({
                   <div className="analytics-empty">Пока нет заявок за выбранный период.</div>
                 ) : null}
               </div>
+            </div>
             </div>
           </article>
         </div>
@@ -3165,6 +3271,16 @@ export const HomePage = ({
           <div className="settings-form__hint settings-form__hint_accent">
             Подключите Google Sheets, чтобы новые заявки уходили в таблицу автоматически, а всю
             текущую базу можно было выгрузить одной кнопкой.
+          </div>
+
+          <div className="settings-form__actions settings-form__actions_compact">
+            <button
+              className="settings-support__button settings-support__button_secondary"
+              type="button"
+              onClick={() => setIsGoogleSheetsHelpOpen(true)}
+            >
+              Как настроить Google Sheets
+            </button>
           </div>
 
           <label className="settings-form__field">
@@ -4464,6 +4580,138 @@ export const HomePage = ({
                 }}
               >
                 Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isGoogleSheetsHelpOpen ? (
+        <div className="admin-modal" role="dialog" aria-modal="true">
+          <div className="admin-modal__backdrop" onClick={() => setIsGoogleSheetsHelpOpen(false)} />
+          <div className="admin-modal__card admin-modal__card_wide google-sheets-help-modal">
+            <div className="admin-modal__eyebrow">Google Sheets</div>
+            <h3 className="admin-modal__title">Как подключить выгрузку заявок</h3>
+            <p className="admin-modal__text">
+              Настройка делается один раз. После этого новые заявки будут уходить в таблицу
+              автоматически, а кнопку ручной выгрузки можно использовать для полной синхронизации.
+            </p>
+
+            <div className="google-sheets-help">
+              <section className="google-sheets-help__section">
+                <h4 className="google-sheets-help__title">1. Создайте таблицу</h4>
+                <ul className="google-sheets-help__list">
+                  <li>Откройте Google Sheets и создайте новую таблицу для заявок.</li>
+                  <li>Можно назвать лист, например, `Заявки`.</li>
+                </ul>
+              </section>
+
+              <section className="google-sheets-help__section">
+                <h4 className="google-sheets-help__title">2. Откройте Apps Script</h4>
+                <ul className="google-sheets-help__list">
+                  <li>В таблице нажмите `Расширения` → `Apps Script`.</li>
+                  <li>Удалите стартовый код и вставьте готовый обработчик ниже.</li>
+                </ul>
+                <textarea
+                  className="admin-modal__textarea google-sheets-help__code"
+                  readOnly
+                  value={GOOGLE_SHEETS_APPS_SCRIPT_TEMPLATE}
+                />
+                <div className="settings-form__actions settings-form__actions_compact">
+                  <button
+                    className="admin-modal__button admin-modal__button_secondary"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(GOOGLE_SHEETS_APPS_SCRIPT_TEMPLATE);
+                        setGoogleSheetsHelpStatus('Код Google Apps Script скопирован.');
+                      } catch {
+                        setGoogleSheetsHelpStatus('Не удалось скопировать код автоматически.');
+                      }
+                    }}
+                  >
+                    Скопировать код
+                  </button>
+                </div>
+              </section>
+
+              <section className="google-sheets-help__section">
+                <h4 className="google-sheets-help__title">3. Опубликуйте Web App</h4>
+                <ul className="google-sheets-help__list">
+                  <li>Нажмите `Развернуть` → `Новое развертывание`.</li>
+                  <li>Выберите тип `Веб-приложение`.</li>
+                  <li>Доступ: `Все, у кого есть ссылка`.</li>
+                  <li>Скопируйте URL вида `https://script.google.com/macros/s/.../exec`.</li>
+                </ul>
+                <div className="google-sheets-help__checklist">
+                  <strong>Что выбрать в настройках развертывания</strong>
+                  <pre className="google-sheets-help__checklist-code">
+                    {GOOGLE_SHEETS_DEPLOYMENT_CHECKLIST}
+                  </pre>
+                </div>
+                <div className="settings-form__actions settings-form__actions_compact">
+                  <button
+                    className="admin-modal__button admin-modal__button_secondary"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(GOOGLE_SHEETS_DEPLOYMENT_CHECKLIST);
+                        setGoogleSheetsHelpStatus('Памятка по развертыванию скопирована.');
+                      } catch {
+                        setGoogleSheetsHelpStatus('Не удалось скопировать памятку автоматически.');
+                      }
+                    }}
+                  >
+                    Скопировать параметры развертывания
+                  </button>
+                </div>
+              </section>
+
+              <section className="google-sheets-help__section">
+                <h4 className="google-sheets-help__title">4. Подключите URL в CalcPro</h4>
+                <ul className="google-sheets-help__list">
+                  <li>Вставьте этот URL в поле `Webhook URL Google Apps Script`.</li>
+                  <li>Нажмите `Сохранить ссылку`.</li>
+                </ul>
+              </section>
+
+              <section className="google-sheets-help__section">
+                <h4 className="google-sheets-help__title">5. Проверьте работу</h4>
+                <ul className="google-sheets-help__list">
+                  <li>Нажмите `Выгрузить все заявки`, чтобы отправить текущую базу.</li>
+                  <li>Создайте тестовую заявку и проверьте, что новая строка добавилась автоматически.</li>
+                </ul>
+              </section>
+
+              <div className="google-sheets-help__note">
+                CalcPro отправляет в таблицу: ID заявки, ID группы, калькулятор, статус, имя,
+                телефон, комментарий, сумму, ответственного, даты и детали расчёта.
+              </div>
+
+              {googleSheetsHelpStatus ? (
+                <div className="settings-form__status settings-form__status_success">
+                  {googleSheetsHelpStatus}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="admin-modal__actions">
+              <button
+                className="admin-modal__button admin-modal__button_secondary"
+                type="button"
+                onClick={() => setIsGoogleSheetsHelpOpen(false)}
+              >
+                Понятно
+              </button>
+              <button
+                className="admin-modal__button"
+                type="button"
+                onClick={() => {
+                  setIsGoogleSheetsHelpOpen(false);
+                  onSectionChange('faq');
+                }}
+              >
+                Открыть FAQ
               </button>
             </div>
           </div>
