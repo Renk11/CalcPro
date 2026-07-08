@@ -22,6 +22,7 @@ import {
   getTemplates,
   normalizeTemplateRecord,
   resetAllCalcProStorage,
+  resetCalcProStorageForGroup,
   saveAdminSettings,
   saveFolders,
   saveRequests,
@@ -1227,6 +1228,66 @@ const App = () => {
     }
   };
 
+  const handleResetGroup = async (targetGroupId: number, confirmation: string) => {
+    if (!isSuperAdmin || !adminProfile.id || targetGroupId <= 0) {
+      return {
+        ok: false,
+        message: 'Недостаточно прав для сброса группы.',
+      };
+    }
+
+    try {
+      const response = await fetch(createApiUrl('/api/admin-settings?action=reset-group'), {
+        method: 'POST',
+        headers: createJsonHeaders(),
+        body: JSON.stringify({
+          targetGroupId,
+          confirmation,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            ok?: boolean;
+            data?: { groupId?: number; matchedKeys?: number; clearedViewerBuckets?: number };
+            error?: string;
+          }
+        | null;
+
+      if (!response.ok || !payload?.ok || !payload.data) {
+        throw new Error(payload?.error || 'Не удалось выполнить сброс группы.');
+      }
+
+      setConnectedCommunities((current) =>
+        current.filter((community) => community.groupId !== targetGroupId),
+      );
+
+      if (targetGroupId === effectiveAdminGroupId) {
+        resetCalcProStorageForGroup(targetGroupId);
+        setTemplates(getTemplates());
+        setFolders(getFolders());
+        setRequests(getRequests());
+        setAdminSettings(getAdminSettings());
+        setSelectedTemplate(undefined);
+        setActiveFolderId('all');
+      }
+
+      setPaymentStatus({
+        tone: 'success',
+        message: `Сброс группы ${targetGroupId} выполнен. Очищено ключей: ${payload.data.matchedKeys ?? 0}.`,
+      });
+
+      return {
+        ok: true,
+        message: `Группа ${targetGroupId} очищена.`,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : 'Не удалось выполнить сброс группы.',
+      };
+    }
+  };
+
   const persistAdminSettings = (settings: CalculatorAdminSettings) => {
     saveAdminSettings(settings);
     setAdminSettings(settings);
@@ -2208,6 +2269,7 @@ const App = () => {
                     canUseFolders={canUseFolders}
                     onGrantProAccess={handleGrantProAccess}
                     onResetAllGroups={handleResetAllGroups}
+                    onResetGroup={handleResetGroup}
                     isProcessingPayment={isProcessingPayment}
                     paymentStatus={paymentStatus}
                     canManageMonetization={isWebMonetizationPlatform}

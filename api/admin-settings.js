@@ -11,7 +11,7 @@ import {
   getSubscriptionPlanConfig,
 } from '../server/subscription-config.js';
 import { getViewerCommunities } from '../server/community-store.js';
-import { resetAllGroupsData } from '../server/group-reset.js';
+import { resetAllGroupsData, resetSingleGroupData } from '../server/group-reset.js';
 
 const DEFAULT_SUPER_ADMIN_IDS = ['139346496'];
 
@@ -113,7 +113,10 @@ export default async function handler(request, response) {
         const viewerId = String(auth.viewerId || '').trim();
         const targetGroupId = parseGroupId(incomingSettings.targetGroupId);
         const requestedPlan = String(incomingSettings.plan || 'pro').toLowerCase();
-        const targetPlan = requestedPlan === 'start' ? 'start' : 'pro';
+        const targetPlan =
+          requestedPlan === 'free' || requestedPlan === 'start' || requestedPlan === 'pro'
+            ? requestedPlan
+            : 'pro';
         const days = Math.max(1, Number(incomingSettings.days) || 30);
 
         if (!isSuperAdmin(viewerId)) {
@@ -134,6 +137,7 @@ export default async function handler(request, response) {
         };
         const nextPaidUntil = days === 30 ? buildNextPaidUntil('') : buildIssuedPaidUntil(days);
         const quotaStartedAt = new Date().toISOString();
+        const isFreePlan = nextPlan.id === 'free';
 
         const settings = await saveServerAdminSettings(
           {
@@ -142,10 +146,10 @@ export default async function handler(request, response) {
               ...baseSubscription,
               plan: nextPlan.id,
               priceRub: nextPlan.monthlyPriceRub,
-              status: 'active',
-              provider: 'super-admin',
+              status: isFreePlan ? 'inactive' : 'active',
+              provider: isFreePlan ? '' : 'super-admin',
               externalPaymentId: '',
-              paidUntil: nextPaidUntil,
+              paidUntil: isFreePlan ? '' : nextPaidUntil,
               quotaStartedAt,
               quotaMonthlyUsage: {},
             },
@@ -176,6 +180,36 @@ export default async function handler(request, response) {
         }
 
         const result = await resetAllGroupsData();
+        return sendJson(response, 200, { ok: true, data: result });
+      }
+
+      if (action === 'reset-group') {
+        const auth = requireTrustedViewerContext(request, response);
+        if (!auth) {
+          return undefined;
+        }
+
+        const viewerId = String(auth.viewerId || '').trim();
+        if (!isSuperAdmin(viewerId)) {
+          return sendJson(response, 403, { ok: false, error: 'Super admin access required' });
+        }
+
+        const targetGroupId = parseGroupId(incomingSettings.targetGroupId);
+        const confirmation = String(incomingSettings.confirmation || '').trim().toLowerCase();
+        const expectedConfirmation = `reset group ${targetGroupId}`;
+
+        if (!targetGroupId) {
+          return sendJson(response, 400, { ok: false, error: 'targetGroupId is required' });
+        }
+
+        if (confirmation !== expectedConfirmation) {
+          return sendJson(response, 400, {
+            ok: false,
+            error: `Confirmation phrase must be "${expectedConfirmation}"`,
+          });
+        }
+
+        const result = await resetSingleGroupData(targetGroupId);
         return sendJson(response, 200, { ok: true, data: result });
       }
 

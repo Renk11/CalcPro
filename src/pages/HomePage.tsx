@@ -126,6 +126,10 @@ interface HomePageProps {
   onResetAllGroups: (
     confirmation: string,
   ) => Promise<{ ok: boolean; message: string; clearedGroupIds?: number[] }>;
+  onResetGroup: (
+    targetGroupId: number,
+    confirmation: string,
+  ) => Promise<{ ok: boolean; message: string }>;
   isProcessingPayment: boolean;
   paymentStatus: {
     tone: 'neutral' | 'success' | 'error';
@@ -1170,6 +1174,7 @@ export const HomePage = ({
   onInstallInCommunity,
   onGrantProAccess,
   onResetAllGroups,
+  onResetGroup,
   isProcessingPayment,
   paymentStatus,
   canManageMonetization,
@@ -1189,10 +1194,15 @@ export const HomePage = ({
         : sanitizeFaqTopicsForRestrictedPlatform(faqTopics),
     [canManageMonetization],
   );
+  const closeAdminNav = () => {
+    if (isAdminNavOpen) {
+      onToggleAdminNav();
+    }
+  };
 
   const handleSectionSelect = (section: AdminSection) => {
     onSectionChange(isSectionLocked(section) && canManageMonetization ? 'payments' : section);
-    onToggleAdminNav();
+    closeAdminNav();
   };
 
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
@@ -1222,6 +1232,10 @@ export const HomePage = ({
   const [superAdminPlan, setSuperAdminPlan] = useState<CalculatorSubscriptionPlan>('pro');
   const [superAdminDays, setSuperAdminDays] = useState('30');
   const [superAdminStatus, setSuperAdminStatus] = useState('');
+  const [resetGroupIdValue, setResetGroupIdValue] = useState(
+    currentGroupId > 0 ? String(currentGroupId) : '',
+  );
+  const [resetGroupCommandValue, setResetGroupCommandValue] = useState('');
   const [resetCommandValue, setResetCommandValue] = useState('');
   const [supportTickets, setSupportTickets] = useState<CalculatorSupportTicket[]>(() =>
     getSupportTickets(),
@@ -3007,6 +3021,28 @@ export const HomePage = ({
     }
   };
 
+  const handleResetGroupSubmit = async () => {
+    const targetGroupId = Number(resetGroupIdValue);
+
+    if (!Number.isInteger(targetGroupId) || targetGroupId <= 0) {
+      setSuperAdminStatus('Укажите корректный ID группы для точечного сброса.');
+      return;
+    }
+
+    const expectedCommand = `reset group ${targetGroupId}`;
+    if (resetGroupCommandValue.trim().toLowerCase() !== expectedCommand) {
+      setSuperAdminStatus(`Для сброса группы введите команду: ${expectedCommand}`);
+      return;
+    }
+
+    const result = await onResetGroup(targetGroupId, resetGroupCommandValue.trim());
+    setSuperAdminStatus(result.message);
+
+    if (result.ok) {
+      setResetGroupCommandValue('');
+    }
+  };
+
   const renderRequestsSection = () => (
     <main className="admin-home__content admin-home__content_wide">
       <div className="admin-home__content-head">
@@ -3516,11 +3552,10 @@ export const HomePage = ({
                         className="settings-form__input"
                         value={superAdminPlan}
                         onChange={(event) =>
-                          setSuperAdminPlan(
-                            event.target.value as Extract<CalculatorSubscriptionPlan, 'start' | 'pro'>,
-                          )
+                          setSuperAdminPlan(event.target.value as CalculatorSubscriptionPlan)
                         }
                       >
+                        <option value="free">Free</option>
                         <option value="start">Start</option>
                         <option value="pro">Pro</option>
                       </select>
@@ -3541,7 +3576,13 @@ export const HomePage = ({
 
                   <div className="superadmin-panel__note">
                     {currentGroupId > 0
-                      ? `Можно выдать тариф ${superAdminPlan === 'pro' ? 'Pro' : 'Start'} текущей группе или ввести другой ID вручную.`
+                      ? `Можно выдать тариф ${
+                          superAdminPlan === 'pro'
+                            ? 'Pro'
+                            : superAdminPlan === 'start'
+                              ? 'Start'
+                              : 'Free'
+                        } текущей группе или ввести другой ID вручную.`
                       : 'Откройте приложение внутри сообщества или укажите ID группы вручную.'}
                   </div>
 
@@ -3550,7 +3591,13 @@ export const HomePage = ({
                     type="button"
                     onClick={handleGrantProSubmit}
                   >
-                    {`Выдать ${superAdminPlan === 'pro' ? 'Pro' : 'Start'} группе`}
+                    {`Выдать ${
+                      superAdminPlan === 'pro'
+                        ? 'Pro'
+                        : superAdminPlan === 'start'
+                          ? 'Start'
+                          : 'Free'
+                    } группе`}
                   </button>
                 </div>
               </section>
@@ -3559,17 +3606,54 @@ export const HomePage = ({
                 <div className="superadmin-panel__head">
                   <div>
                     <div className="superadmin-panel__eyebrow">Опасная зона</div>
-                    <h3 className="superadmin-panel__title">Массовый сброс всех групп</h3>
+                    <h3 className="superadmin-panel__title">Сброс группы или всех групп</h3>
                   </div>
                 </div>
 
                 <p className="superadmin-panel__note superadmin-panel__note_warning">
-                  Команда удалит данные подключённых групп из серверного хранилища и очистит
-                  локальный кэш CalcPro в текущем браузере.
+                  Можно удалить данные одной конкретной группы или выполнить полный сброс всех
+                  групп из серверного хранилища. Для текущей открытой группы локальный кэш CalcPro
+                  в этом браузере тоже очистится.
                 </p>
 
                 <label className="settings-form__field">
-                  <span className="settings-form__label">Команда подтверждения</span>
+                  <span className="settings-form__label">ID группы для точечного сброса</span>
+                  <input
+                    className="settings-form__input"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Например: 22702487"
+                    value={resetGroupIdValue}
+                    onChange={(event) =>
+                      setResetGroupIdValue(event.target.value.replace(/[^\d]/g, ''))
+                    }
+                  />
+                </label>
+
+                <label className="settings-form__field">
+                  <span className="settings-form__label">Команда подтверждения для группы</span>
+                  <input
+                    className="settings-form__input"
+                    type="text"
+                    inputMode="text"
+                    placeholder={
+                      resetGroupIdValue.trim() ? `reset group ${resetGroupIdValue.trim()}` : 'reset group 22702487'
+                    }
+                    value={resetGroupCommandValue}
+                    onChange={(event) => setResetGroupCommandValue(event.target.value)}
+                  />
+                </label>
+
+                <button
+                  className="settings-form__button settings-form__button_danger"
+                  type="button"
+                  onClick={handleResetGroupSubmit}
+                >
+                  Reset selected group
+                </button>
+
+                <label className="settings-form__field">
+                  <span className="settings-form__label">Команда подтверждения для всех групп</span>
                   <input
                     className="settings-form__input"
                     type="text"
@@ -3898,6 +3982,8 @@ export const HomePage = ({
       >
         <Icon20MenuOutline />
       </button>
+
+      {isAdminNavOpen ? <button className="admin-nav__overlay" type="button" aria-label="Скрыть панель управления" onClick={closeAdminNav} /> : null}
 
       <aside className={`admin-nav ${isAdminNavOpen ? 'admin-nav_open' : 'admin-nav_closed'}`}>
         <div className="admin-nav__head">

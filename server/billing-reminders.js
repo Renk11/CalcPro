@@ -15,6 +15,12 @@ const REMINDER_CHECK_INTERVAL_MS = Math.max(
   (Number(process.env.BILLING_REMINDER_CHECK_INTERVAL_MINUTES) || 30) * 60 * 1000,
 );
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MOSCOW_DATE_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Moscow',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
 function isPaidSubscriptionActive(subscription) {
   return (
@@ -59,23 +65,33 @@ function createReminderState(settings) {
   };
 }
 
-function resolveReminderStage(remainingMs) {
+function getMoscowDateDayNumber(date) {
+  const [year, month, day] = MOSCOW_DATE_FORMATTER.format(date).split('-').map(Number);
+  return Math.floor(Date.UTC(year, month - 1, day) / DAY_MS);
+}
+
+function getRemainingMoscowCalendarDays(paidUntil, now = new Date()) {
+  return Math.max(0, getMoscowDateDayNumber(paidUntil) - getMoscowDateDayNumber(now));
+}
+
+function resolveReminderStage(paidUntil, now = new Date()) {
+  const remainingMs = paidUntil.getTime() - now.getTime();
   if (remainingMs <= 0) {
     return null;
   }
 
-  const remainingDays = remainingMs / DAY_MS;
-  const stages = [...BILLING_REMINDER_SCHEDULE_DAYS].sort((left, right) => left - right);
+  const remainingCalendarDays = getRemainingMoscowCalendarDays(paidUntil, now);
+
+  if (remainingCalendarDays === 0) {
+    return '0';
+  }
+
+  const stages = [...BILLING_REMINDER_SCHEDULE_DAYS]
+    .filter((stage) => stage > 0)
+    .sort((left, right) => left - right);
 
   for (const stage of stages) {
-    if (stage === 0) {
-      if (remainingDays <= 1) {
-        return '0';
-      }
-      continue;
-    }
-
-    if (remainingDays <= stage) {
+    if (remainingCalendarDays <= stage) {
       return String(stage);
     }
   }
@@ -156,6 +172,7 @@ async function processGroupReminder(groupId) {
   const settings = await getServerAdminSettings(groupId);
   const recipientId = String(settings.billingReminderVkId || '').trim();
   const paidUntil = parseSubscriptionDate(settings.subscription.paidUntil);
+  const now = new Date();
 
   if (!recipientId || !settings.billingReminderConfirmedAt || !paidUntil) {
     return;
@@ -166,9 +183,9 @@ async function processGroupReminder(groupId) {
   }
 
   const reminderState = createReminderState(settings);
-  const remainingMs = paidUntil.getTime() - Date.now();
-  const stage = resolveReminderStage(remainingMs);
-  const nextCheckedAt = new Date().toISOString();
+  const remainingMs = paidUntil.getTime() - now.getTime();
+  const stage = resolveReminderStage(paidUntil, now);
+  const nextCheckedAt = now.toISOString();
 
   if (!stage || reminderState.sentStages[stage]) {
     return false;

@@ -171,6 +171,20 @@ export const resetAllCalcProStorage = () => {
   activeStorageGroupId = 0;
 };
 
+export const resetCalcProStorageForGroup = (groupId: number | string) => {
+  const normalizedGroupId = normalizeStorageGroupId(groupId);
+  if (!normalizedGroupId) {
+    return;
+  }
+
+  clearStorageByPrefix(`${BASE_PREFIX}/templates/group/${normalizedGroupId}`);
+  clearStorageByPrefix(`${BASE_PREFIX}/folders/group/${normalizedGroupId}`);
+  clearStorageByPrefix(`${BASE_PREFIX}/requests/group/${normalizedGroupId}`);
+  clearStorageByPrefix(`${BASE_PREFIX}/support-tickets/group/${normalizedGroupId}`);
+  clearStorageByPrefix(`${BASE_PREFIX}/settings/group/${normalizedGroupId}`);
+  clearStorageByPrefix(`${BASE_PREFIX}/seeded/group/${normalizedGroupId}`);
+};
+
 const getDefaultFieldPlaceholder = (field: Partial<CalculatorField>) => {
   if (
     field.type === 'number' ||
