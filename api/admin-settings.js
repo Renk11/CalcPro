@@ -153,13 +153,13 @@ function isPaidSubscription(settings) {
 
 function buildBroadcastUnsubscribeKeyboard(groupId) {
   return {
-    inline: true,
+    one_time: true,
     buttons: [
       [
         {
           action: {
-            type: 'callback',
-            label: 'Отписаться',
+            type: 'text',
+            label: 'РћС‚РїРёСЃР°С‚СЊСЃСЏ',
             payload: JSON.stringify({
               command: 'unsubscribe_updates',
               groupId,
@@ -242,7 +242,7 @@ export default async function handler(request, response) {
           const community = communityMap.get(currentGroupId);
           const communityEntry = {
             groupId: currentGroupId,
-            name: community?.name || `Сообщество ${currentGroupId}`,
+            name: community?.name || `РЎРѕРѕР±С‰РµСЃС‚РІРѕ ${currentGroupId}`,
             subscriptionPlan: settings.subscription.plan,
             paidUntil: settings.subscription.paidUntil || '',
           };
@@ -421,15 +421,15 @@ export default async function handler(request, response) {
 
         if (isTestOnly) {
           try {
-            await sendVkMessage(Number(auth.viewerId), `���� ���������� CalcPro\n\n${messageText}`);
+            await sendVkMessage(Number(auth.viewerId), `Тест обновления CalcPro\n\n${messageText}`);
             return sendJson(response, 200, {
               ok: true,
-              message: `�������� ��������� ���������� �� VK ID ${auth.viewerId}.`,
+              message: `Тестовое сообщение отправлено на VK ID ${auth.viewerId}.`,
             });
           } catch (error) {
             return sendJson(response, 502, {
               ok: false,
-              error: error?.message || '�� ������� ��������� �������� ��������� � VK.',
+              error: error?.message || 'Не удалось отправить тестовое сообщение в VK.',
             });
           }
         }
@@ -469,19 +469,19 @@ export default async function handler(request, response) {
           }
 
           try {
-            await sendVkMessageWithOptions(recipientId, `���������� CalcPro\n\n${messageText}`, {
+            await sendVkMessageWithOptions(recipientId, `Обновление CalcPro\n\n${messageText}`, {
               keyboard: buildBroadcastUnsubscribeKeyboard(recipient.groupId),
             });
             sentCount += 1;
           } catch (error) {
-            failedRecipients.push(`VK ID ${recipientId}: ${error?.message || '������ ��������'}`);
+            failedRecipients.push(`VK ID ${recipientId}: ${error?.message || 'ошибка доставки'}`);
           }
         }
 
         if (!sentCount && failedRecipients.length > 0) {
           return sendJson(response, 502, {
             ok: false,
-            error: `VK �� �������� ��������. ${failedRecipients.join('; ')}`,
+            error: `VK не доставил рассылку. ${failedRecipients.join('; ')}`,
           });
         }
 
@@ -489,9 +489,9 @@ export default async function handler(request, response) {
           ok: true,
           message: sentCount
             ? failedRecipients.length
-              ? `�������� ���������� ${sentCount} �����������. �� ����������: ${failedRecipients.join('; ')}`
-              : `�������� ���������� ${sentCount} �����������.`
-            : '��� �������� ����������� ��� ��������.',
+              ? `Рассылка отправлена ${sentCount} подписчикам. Не доставлено: ${failedRecipients.join('; ')}`
+              : `Рассылка отправлена ${sentCount} подписчикам.`
+            : 'Нет активных подписчиков для рассылки.',
         });
       }
 
@@ -543,13 +543,13 @@ export default async function handler(request, response) {
           Number.isInteger(removedManagerId) && removedManagerId > 0
             ? sendVkMessage(
                 removedManagerId,
-                `Вы больше не являетесь менеджером приложения «${applicationName}».`,
+                `Р’С‹ Р±РѕР»СЊС€Рµ РЅРµ СЏРІР»СЏРµС‚РµСЃСЊ РјРµРЅРµРґР¶РµСЂРѕРј РїСЂРёР»РѕР¶РµРЅРёСЏ В«${applicationName}В».`,
               ).catch(() => undefined)
             : Promise.resolve(),
           Number.isInteger(adminId) && adminId > 0
             ? sendVkMessage(
                 adminId,
-                `Менеджер вашего приложения «${applicationName}» отсутствует. Добавьте его, чтобы обрабатывать заявки.`,
+                `РњРµРЅРµРґР¶РµСЂ РІР°С€РµРіРѕ РїСЂРёР»РѕР¶РµРЅРёСЏ В«${applicationName}В» РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚. Р”РѕР±Р°РІСЊС‚Рµ РµРіРѕ, С‡С‚РѕР±С‹ РѕР±СЂР°Р±Р°С‚С‹РІР°С‚СЊ Р·Р°СЏРІРєРё.`,
               ).catch(() => undefined)
             : Promise.resolve(),
         ]);

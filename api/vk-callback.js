@@ -63,6 +63,22 @@ function normalizeVkUserId(value) {
   return Number.isInteger(numericValue) && numericValue > 0 ? numericValue : 0;
 }
 
+function parseMessagePayload(rawPayload) {
+  if (!rawPayload) {
+    return null;
+  }
+
+  if (typeof rawPayload === 'object') {
+    return rawPayload;
+  }
+
+  try {
+    return JSON.parse(String(rawPayload));
+  } catch {
+    return null;
+  }
+}
+
 export default async function handler(request, response) {
   try {
     const body = request.body || {};
@@ -133,6 +149,21 @@ export default async function handler(request, response) {
       const userId = normalizeVkUserId(message.from_id || message.peer_id);
       const groupId = parseReminderGroupId(message.text);
       const managerLinkRequest = parseManagerLinkRequest(message.text);
+      const messagePayload = parseMessagePayload(message.payload);
+
+      if (messagePayload?.command === 'unsubscribe_updates' && userId > 0) {
+        const targetGroupId = Number(messagePayload.groupId) || 0;
+
+        if (targetGroupId > 0) {
+          await updateServerBroadcastSubscription(targetGroupId, userId, false).catch(
+            () => undefined,
+          );
+          await sendVkMessage(
+            userId,
+            'Вы отписались от рассылки обновлений CalcPro. Напоминания по тарифу при этом сохраняются.',
+          ).catch(() => undefined);
+        }
+      }
 
       if (userId > 0 && groupId > 0) {
         await linkServerBillingReminderRecipient(groupId, userId);
