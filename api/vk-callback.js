@@ -64,11 +64,10 @@ function normalizeVkUserId(value) {
 }
 
 function parseBroadcastUnsubscribeGroupId(text) {
-  const match = String(text || '')
-    .trim()
-    .match(
-      /(?:calcpro[\s:,-]*)?(?:РѕС‚РїРёСЃР°С‚СЊСЃСЏ|СЃС‚РѕРї)(?:\s+РѕС‚\s+РѕР±РЅРѕРІР»РµРЅРёР№)?[\s:#-]*([1-9]\d{3,15})/iu,
-    );
+  const normalizedText = String(text || '').trim().toLowerCase();
+  const match = normalizedText.match(
+    /(?:calcpro[\s:,-]*)?(?:отписаться|стоп)(?:\s+от\s+обновлений)?[\s:#-]*([1-9]\d{3,15})/iu,
+  );
 
   return match ? Number(match[1]) : 0;
 }
@@ -168,7 +167,7 @@ export default async function handler(request, response) {
         );
         await sendVkMessage(
           userId,
-          'Р’С‹ РѕС‚РїРёСЃР°Р»РёСЃСЊ РѕС‚ СЂР°СЃСЃС‹Р»РєРё РѕР±РЅРѕРІР»РµРЅРёР№ CalcPro. РќР°РїРѕРјРёРЅР°РЅРёСЏ РїРѕ С‚Р°СЂРёС„Сѓ РїСЂРё СЌС‚РѕРј СЃРѕС…СЂР°РЅСЏСЋС‚СЃСЏ.',
+          'Вы отписались от рассылки обновлений CalcPro. Напоминания по тарифу при этом сохраняются.',
         ).catch(() => undefined);
       }
 
@@ -227,7 +226,7 @@ export default async function handler(request, response) {
           await sendVkMessage(
             userId,
             [
-              'Менеджер для заявок CalcPro подключен.',
+              'Менеджер для заявок CalcPro подключён.',
               `Сообщество ID: ${managerLinkRequest.groupId}.`,
               'Теперь мы сможем отправлять вам новые заявки из калькуляторов.',
             ].join('\n'),
