@@ -98,13 +98,43 @@ export async function sendVkMessage(userId, message) {
   });
 }
 
+function extractKeyboardTextHints(keyboard) {
+  const buttons = Array.isArray(keyboard?.buttons) ? keyboard.buttons : [];
+
+  return buttons
+    .flat()
+    .map((button) => String(button?.action?.label || '').trim())
+    .filter(Boolean);
+}
+
 export async function sendVkMessageWithOptions(userId, message, options = {}) {
-  return requestVk('messages.send', {
-    user_id: userId,
-    random_id: Math.floor(Math.random() * 2147483647),
-    message,
-    ...options,
-  });
+  try {
+    return await requestVk('messages.send', {
+      user_id: userId,
+      random_id: Math.floor(Math.random() * 2147483647),
+      message,
+      ...options,
+    });
+  } catch (error) {
+    const errorMessage = String(error?.message || '');
+
+    if (!options?.keyboard || !/chat bot feature/i.test(errorMessage)) {
+      throw error;
+    }
+
+    const { keyboard, ...fallbackOptions } = options;
+    const textHints = extractKeyboardTextHints(keyboard);
+    const fallbackMessage = textHints.length
+      ? `${message}\n\nЕсли кнопка не отобразилась, ответьте сообщением: ${textHints.join(' / ')}`
+      : message;
+
+    return requestVk('messages.send', {
+      user_id: userId,
+      random_id: Math.floor(Math.random() * 2147483647),
+      message: fallbackMessage,
+      ...fallbackOptions,
+    });
+  }
 }
 
 export async function sendVkMessageEventAnswer(eventId, userId, peerId, eventData) {

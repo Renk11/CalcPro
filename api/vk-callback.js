@@ -63,6 +63,16 @@ function normalizeVkUserId(value) {
   return Number.isInteger(numericValue) && numericValue > 0 ? numericValue : 0;
 }
 
+function parseBroadcastUnsubscribeGroupId(text) {
+  const match = String(text || '')
+    .trim()
+    .match(
+      /(?:calcpro[\s:,-]*)?(?:РѕС‚РїРёСЃР°С‚СЊСЃСЏ|СЃС‚РѕРї)(?:\s+РѕС‚\s+РѕР±РЅРѕРІР»РµРЅРёР№)?[\s:#-]*([1-9]\d{3,15})/iu,
+    );
+
+  return match ? Number(match[1]) : 0;
+}
+
 function parseMessagePayload(rawPayload) {
   if (!rawPayload) {
     return null;
@@ -149,7 +159,18 @@ export default async function handler(request, response) {
       const userId = normalizeVkUserId(message.from_id || message.peer_id);
       const groupId = parseReminderGroupId(message.text);
       const managerLinkRequest = parseManagerLinkRequest(message.text);
+      const unsubscribeGroupIdFromText = parseBroadcastUnsubscribeGroupId(message.text);
       const messagePayload = parseMessagePayload(message.payload);
+
+      if (unsubscribeGroupIdFromText > 0 && userId > 0) {
+        await updateServerBroadcastSubscription(unsubscribeGroupIdFromText, userId, false).catch(
+          () => undefined,
+        );
+        await sendVkMessage(
+          userId,
+          'Р’С‹ РѕС‚РїРёСЃР°Р»РёСЃСЊ РѕС‚ СЂР°СЃСЃС‹Р»РєРё РѕР±РЅРѕРІР»РµРЅРёР№ CalcPro. РќР°РїРѕРјРёРЅР°РЅРёСЏ РїРѕ С‚Р°СЂРёС„Сѓ РїСЂРё СЌС‚РѕРј СЃРѕС…СЂР°РЅСЏСЋС‚СЃСЏ.',
+        ).catch(() => undefined);
+      }
 
       if (messagePayload?.command === 'unsubscribe_updates' && userId > 0) {
         const targetGroupId = Number(messagePayload.groupId) || 0;

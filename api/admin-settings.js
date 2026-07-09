@@ -151,27 +151,6 @@ function isPaidSubscription(settings) {
   return settings?.subscription?.status === 'active' && settings?.subscription?.plan !== 'free';
 }
 
-function buildBroadcastUnsubscribeKeyboard(groupId) {
-  return {
-    one_time: true,
-    buttons: [
-      [
-        {
-          action: {
-            type: 'text',
-            label: 'РћС‚РїРёСЃР°С‚СЊСЃСЏ',
-            payload: JSON.stringify({
-              command: 'unsubscribe_updates',
-              groupId,
-            }),
-          },
-          color: 'secondary',
-        },
-      ],
-    ],
-  };
-}
-
 export default async function handler(request, response) {
   try {
     const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
