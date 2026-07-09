@@ -125,7 +125,7 @@ export async function sendVkMessageWithOptions(userId, message, options = {}) {
     const { keyboard, ...fallbackOptions } = options;
     const textHints = extractKeyboardTextHints(keyboard);
     const fallbackMessage = textHints.length
-      ? `${message}\n\nЕсли кнопка не отобразилась, ответьте сообщением: ${textHints.join(' / ')}`
+      ? `${message}\n\nДля отписки ответьте: ${textHints.join(' / ')}`
       : message;
 
     return requestVk('messages.send', {
