@@ -4919,98 +4919,6 @@ export const HomePage = ({
                 <Icon20CrownVerified />
               </span>
             </button>
-
-            {isSuperAdminPanelOpen ? (
-              <div className="admin-nav__superadmin-panel">
-                <div className="admin-nav__superadmin-tabs" role="tablist" aria-label="Разделы супер-админки">
-                  <button
-                    className={`admin-nav__superadmin-tab ${activeSuperAdminTab === 'overview' ? 'admin-nav__superadmin-tab_active' : ''}`}
-                    type="button"
-                    onClick={() => setActiveSuperAdminTab('overview')}
-                  >
-                    Обзор
-                  </button>
-                  <button
-                    className={`admin-nav__superadmin-tab ${activeSuperAdminTab === 'plans' ? 'admin-nav__superadmin-tab_active' : ''}`}
-                    type="button"
-                    onClick={() => setActiveSuperAdminTab('plans')}
-                  >
-                    Тарифы
-                  </button>
-                  <button
-                    className={`admin-nav__superadmin-tab ${activeSuperAdminTab === 'broadcast' ? 'admin-nav__superadmin-tab_active' : ''}`}
-                    type="button"
-                    onClick={() => setActiveSuperAdminTab('broadcast')}
-                  >
-                    Рассылка
-                  </button>
-                  <button
-                    className={`admin-nav__superadmin-tab ${activeSuperAdminTab === 'reset' ? 'admin-nav__superadmin-tab_active' : ''}`}
-                    type="button"
-                    onClick={() => setActiveSuperAdminTab('reset')}
-                  >
-                    Сброс
-                  </button>
-                </div>
-
-                {activeSuperAdminTab === 'overview' ? (
-                  <SuperAdminOverviewTab
-                    currentGroupId={currentGroupId}
-                    communities={superAdminCommunities}
-                    isLoading={isSuperAdminCommunitiesLoading}
-                    lastUpdatedAt={superAdminCommunitiesUpdatedAt}
-                  />
-                ) : null}
-
-                {activeSuperAdminTab === 'plans' ? (
-                  <SuperAdminPlansTab
-                    currentGroupId={currentGroupId}
-                    superAdminGroupId={superAdminGroupId}
-                    superAdminPlan={superAdminPlan}
-                    superAdminDays={superAdminDays}
-                    onChangeGroupId={setSuperAdminGroupId}
-                    onChangePlan={setSuperAdminPlan}
-                    onChangeDays={setSuperAdminDays}
-                    onSubmit={handleGrantProSubmit}
-                  />
-                ) : null}
-
-                {activeSuperAdminTab === 'broadcast' ? (
-                  <SuperAdminBroadcastTab
-                    recipients={visibleSuperAdminBroadcastRecipients}
-                    recipientCount={visibleSuperAdminBroadcastRecipients.length}
-                    isLoading={isSuperAdminBroadcastRecipientsLoading}
-                    lastUpdatedAt={superAdminBroadcastRecipientsUpdatedAt}
-                    broadcastMessage={superAdminBroadcastMessage}
-                    broadcastStatus={superAdminBroadcastStatus}
-                    broadcastSearch={superAdminBroadcastSearch}
-                    subscribedOnly={superAdminBroadcastSubscribedOnly}
-                    onChangeMessage={setSuperAdminBroadcastMessage}
-                    onChangeSearch={setSuperAdminBroadcastSearch}
-                    onToggleSubscribedOnly={setSuperAdminBroadcastSubscribedOnly}
-                    onSubmit={handleSuperAdminBroadcastSubmit}
-                    onSubmitTest={handleSuperAdminBroadcastTestSubmit}
-                  />
-                ) : null}
-
-                {activeSuperAdminTab === 'reset' ? (
-                  <SuperAdminResetTab
-                    resetGroupIdValue={resetGroupIdValue}
-                    resetGroupCommandValue={resetGroupCommandValue}
-                    resetCommandValue={resetCommandValue}
-                    onChangeResetGroupId={setResetGroupIdValue}
-                    onChangeResetGroupCommand={setResetGroupCommandValue}
-                    onChangeResetCommand={setResetCommandValue}
-                    onSubmitResetGroup={handleResetGroupSubmit}
-                    onSubmitResetAllGroups={handleResetAllGroupsSubmit}
-                  />
-                ) : null}
-
-                {superAdminStatus ? (
-                  <div className="superadmin-card__status">{superAdminStatus}</div>
-                ) : null}
-              </div>
-            ) : null}
           </div>
         ) : null}
 
@@ -5163,6 +5071,117 @@ export const HomePage = ({
                 }}
               >
                 Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isSuperAdmin && isSuperAdminPanelOpen ? (
+        <div className="admin-modal" role="dialog" aria-modal="true">
+          <div
+            className="admin-modal__backdrop"
+            onClick={() => setIsSuperAdminPanelOpen(false)}
+          />
+          <div className="admin-modal__card admin-modal__card_wide superadmin-modal">
+            <div className="admin-modal__eyebrow">Внутренний доступ</div>
+            <h3 className="admin-modal__title">Супер-админка</h3>
+            <div className="superadmin-modal__body">
+              <div className="admin-nav__superadmin-tabs" role="tablist" aria-label="Разделы супер-админки">
+                <button
+                  className={`admin-nav__superadmin-tab ${activeSuperAdminTab === 'overview' ? 'admin-nav__superadmin-tab_active' : ''}`}
+                  type="button"
+                  onClick={() => setActiveSuperAdminTab('overview')}
+                >
+                  Обзор
+                </button>
+                <button
+                  className={`admin-nav__superadmin-tab ${activeSuperAdminTab === 'plans' ? 'admin-nav__superadmin-tab_active' : ''}`}
+                  type="button"
+                  onClick={() => setActiveSuperAdminTab('plans')}
+                >
+                  Тарифы
+                </button>
+                <button
+                  className={`admin-nav__superadmin-tab ${activeSuperAdminTab === 'broadcast' ? 'admin-nav__superadmin-tab_active' : ''}`}
+                  type="button"
+                  onClick={() => setActiveSuperAdminTab('broadcast')}
+                >
+                  Рассылка
+                </button>
+                <button
+                  className={`admin-nav__superadmin-tab ${activeSuperAdminTab === 'reset' ? 'admin-nav__superadmin-tab_active' : ''}`}
+                  type="button"
+                  onClick={() => setActiveSuperAdminTab('reset')}
+                >
+                  Сброс
+                </button>
+              </div>
+
+              {activeSuperAdminTab === 'overview' ? (
+                <SuperAdminOverviewTab
+                  currentGroupId={currentGroupId}
+                  communities={superAdminCommunities}
+                  isLoading={isSuperAdminCommunitiesLoading}
+                  lastUpdatedAt={superAdminCommunitiesUpdatedAt}
+                />
+              ) : null}
+
+              {activeSuperAdminTab === 'plans' ? (
+                <SuperAdminPlansTab
+                  currentGroupId={currentGroupId}
+                  superAdminGroupId={superAdminGroupId}
+                  superAdminPlan={superAdminPlan}
+                  superAdminDays={superAdminDays}
+                  onChangeGroupId={setSuperAdminGroupId}
+                  onChangePlan={setSuperAdminPlan}
+                  onChangeDays={setSuperAdminDays}
+                  onSubmit={handleGrantProSubmit}
+                />
+              ) : null}
+
+              {activeSuperAdminTab === 'broadcast' ? (
+                <SuperAdminBroadcastTab
+                  recipients={visibleSuperAdminBroadcastRecipients}
+                  recipientCount={visibleSuperAdminBroadcastRecipients.length}
+                  isLoading={isSuperAdminBroadcastRecipientsLoading}
+                  lastUpdatedAt={superAdminBroadcastRecipientsUpdatedAt}
+                  broadcastMessage={superAdminBroadcastMessage}
+                  broadcastStatus={superAdminBroadcastStatus}
+                  broadcastSearch={superAdminBroadcastSearch}
+                  subscribedOnly={superAdminBroadcastSubscribedOnly}
+                  onChangeMessage={setSuperAdminBroadcastMessage}
+                  onChangeSearch={setSuperAdminBroadcastSearch}
+                  onToggleSubscribedOnly={setSuperAdminBroadcastSubscribedOnly}
+                  onSubmit={handleSuperAdminBroadcastSubmit}
+                  onSubmitTest={handleSuperAdminBroadcastTestSubmit}
+                />
+              ) : null}
+
+              {activeSuperAdminTab === 'reset' ? (
+                <SuperAdminResetTab
+                  resetGroupIdValue={resetGroupIdValue}
+                  resetGroupCommandValue={resetGroupCommandValue}
+                  resetCommandValue={resetCommandValue}
+                  onChangeResetGroupId={setResetGroupIdValue}
+                  onChangeResetGroupCommand={setResetGroupCommandValue}
+                  onChangeResetCommand={setResetCommandValue}
+                  onSubmitResetGroup={handleResetGroupSubmit}
+                  onSubmitResetAllGroups={handleResetAllGroupsSubmit}
+                />
+              ) : null}
+
+              {superAdminStatus ? (
+                <div className="superadmin-card__status">{superAdminStatus}</div>
+              ) : null}
+            </div>
+            <div className="admin-modal__actions">
+              <button
+                className="admin-modal__button admin-modal__button_secondary"
+                type="button"
+                onClick={() => setIsSuperAdminPanelOpen(false)}
+              >
+                Закрыть
               </button>
             </div>
           </div>

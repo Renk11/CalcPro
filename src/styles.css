@@ -1130,6 +1130,19 @@ body,
   font-weight: 700;
 }
 
+.superadmin-modal {
+  display: grid;
+  gap: 16px;
+}
+
+.superadmin-modal__body {
+  display: grid;
+  gap: 12px;
+  max-height: min(72vh, 860px);
+  overflow: auto;
+  padding-right: 6px;
+}
+
 .admin-nav__menu {
   display: grid;
   gap: 4px;
