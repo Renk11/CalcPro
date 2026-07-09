@@ -526,6 +526,7 @@ export const getAdminSettings = (): CalculatorAdminSettings => {
         : undefined,
     billingReminderVkId: settings.billingReminderVkId ?? '',
     billingReminderConfirmedAt: settings.billingReminderConfirmedAt ?? '',
+    updatesBroadcastUnsubscribedAt: settings.updatesBroadcastUnsubscribedAt ?? '',
     googleSheetsWebhookUrl: settings.googleSheetsWebhookUrl ?? '',
     googleSheetsLastExportAt: settings.googleSheetsLastExportAt ?? '',
     billingReminderState: {

@@ -48,6 +48,8 @@ import type {
   CalculatorSupportTicket,
   CalculatorSupportTicketStatus,
   CalculatorSupportTicketType,
+  CalculatorSuperAdminBroadcastRecipient,
+  CalculatorSuperAdminCommunity,
   CalculatorTemplate,
 } from '../shared/types/calculator';
 
@@ -67,7 +69,9 @@ interface HomePageProps {
   isAdminNavOpen: boolean;
   currentSection: AdminSection;
   onSectionChange: (section: AdminSection) => void;
-  onSaveAdminSettings: (settings: CalculatorAdminSettings) => void;
+  onSaveAdminSettings: (
+    settings: CalculatorAdminSettings,
+  ) => Promise<{ ok: boolean; message: string }>;
   onUpdateRequestStatus: (
     requestId: string,
     status: CalculatorRequestStatus,
@@ -125,6 +129,10 @@ interface HomePageProps {
     targetGroupId: number,
     plan: CalculatorSubscriptionPlan,
     days?: number,
+  ) => Promise<{ ok: boolean; message: string }>;
+  onSendSuperAdminBroadcast: (
+    message: string,
+    testOnly?: boolean,
   ) => Promise<{ ok: boolean; message: string }>;
   onResetAllGroups: (
     confirmation: string,
@@ -1081,6 +1089,416 @@ const GOOGLE_SHEETS_DEPLOYMENT_CHECKLIST = `Тип развертывания: �
 Выполнять от имени: Me
 Кто имеет доступ: Все, у кого есть ссылка
 Финальный URL: ссылка должна заканчиваться на /exec`;
+type SuperAdminTab = 'overview' | 'plans' | 'broadcast' | 'reset';
+
+type SuperAdminOverviewTabProps = {
+  currentGroupId: number;
+  communities: CalculatorSuperAdminCommunity[];
+  isLoading: boolean;
+  lastUpdatedAt: string;
+};
+
+type SuperAdminPlansTabProps = {
+  currentGroupId: number;
+  superAdminGroupId: string;
+  superAdminPlan: CalculatorSubscriptionPlan;
+  superAdminDays: string;
+  onChangeGroupId: (value: string) => void;
+  onChangePlan: (value: CalculatorSubscriptionPlan) => void;
+  onChangeDays: (value: string) => void;
+  onSubmit: () => void;
+};
+
+type SuperAdminResetTabProps = {
+  resetGroupIdValue: string;
+  resetGroupCommandValue: string;
+  resetCommandValue: string;
+  onChangeResetGroupId: (value: string) => void;
+  onChangeResetGroupCommand: (value: string) => void;
+  onChangeResetCommand: (value: string) => void;
+  onSubmitResetGroup: () => void;
+  onSubmitResetAllGroups: () => void;
+};
+
+type SuperAdminBroadcastTabProps = {
+  recipients: CalculatorSuperAdminBroadcastRecipient[];
+  recipientCount: number;
+  isLoading: boolean;
+  lastUpdatedAt: string;
+  broadcastMessage: string;
+  broadcastStatus: string;
+  broadcastSearch: string;
+  subscribedOnly: boolean;
+  onChangeMessage: (value: string) => void;
+  onChangeSearch: (value: string) => void;
+  onToggleSubscribedOnly: (value: boolean) => void;
+  onSubmit: () => void;
+  onSubmitTest: () => void;
+};
+
+const SuperAdminOverviewTab = ({
+  currentGroupId,
+  communities,
+  isLoading,
+  lastUpdatedAt,
+}: SuperAdminOverviewTabProps) => (
+  <section className="superadmin-panel">
+    <div className="superadmin-panel__head">
+      <div>
+        <div className="superadmin-panel__eyebrow">Панель управления</div>
+        <h3 className="superadmin-panel__title">Быстрый обзор</h3>
+      </div>
+    </div>
+    <div className="superadmin-panel__note">
+      Супер-админка теперь живёт отдельно в боковом блоке. Сюда удобно добавлять новые внутренние
+      инструменты без перегрузки общих настроек.
+    </div>
+    <div className="superadmin-panel__note">
+      Сейчас доступны два раздела: ручная выдача тарифов для групп и аварийный сброс одной группы
+      либо всей серверной базы.
+    </div>
+    <div className="superadmin-panel__note">
+      {currentGroupId > 0
+        ? `Активный контекст: группа ${currentGroupId}. Можно сразу работать с ней или переключиться на другую.`
+        : 'Активная группа не определена. Для точечной работы укажите ID вручную.'}
+    </div>
+    <div className="superadmin-community-card">
+      <div className="superadmin-community-card__head">
+        <div>
+          <div className="superadmin-panel__eyebrow">Установки приложения</div>
+          <h3 className="superadmin-panel__title">Сообщества с CalcPro</h3>
+        </div>
+        <div className="superadmin-community-card__meta">
+          {lastUpdatedAt
+            ? `Обновлено ${new Date(lastUpdatedAt).toLocaleTimeString('ru-RU', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              })}`
+            : isLoading
+              ? 'Обновляем...'
+              : 'Нет данных'}
+        </div>
+      </div>
+
+      {communities.length ? (
+        <div className="superadmin-community-card__list">
+          {communities.map((community) => (
+            <div key={community.groupId} className="superadmin-community-card__item">
+              <div className="superadmin-community-card__title-row">
+                <div className="superadmin-community-card__name">{community.name}</div>
+                <div className="superadmin-community-card__plan">
+                  {String(community.subscriptionPlan || 'free').toUpperCase()}
+                </div>
+              </div>
+              <div className="superadmin-community-card__details">
+                <span>ID {community.groupId}</span>
+                <span>
+                  Добавлено {community.addedAt ? new Date(community.addedAt).toLocaleDateString('ru-RU') : 'недавно'}
+                </span>
+                <span>Статус: {community.subscriptionStatus === 'active' ? 'активен' : 'неактивен'}</span>
+                {community.paidUntil ? (
+                  <span>До {new Date(community.paidUntil).toLocaleDateString('ru-RU')}</span>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="superadmin-panel__note">
+          {isLoading ? 'Загружаем сообщества...' : 'Пока не найдено сообществ, где установлено приложение.'}
+        </div>
+      )}
+    </div>
+  </section>
+);
+
+const SuperAdminPlansTab = ({
+  currentGroupId,
+  superAdminGroupId,
+  superAdminPlan,
+  superAdminDays,
+  onChangeGroupId,
+  onChangePlan,
+  onChangeDays,
+  onSubmit,
+}: SuperAdminPlansTabProps) => (
+  <section className="superadmin-panel">
+    <div className="superadmin-panel__head">
+      <div>
+        <div className="superadmin-panel__eyebrow">Выдача тарифа</div>
+        <h3 className="superadmin-panel__title">Ручное открытие доступа</h3>
+      </div>
+      <div className="superadmin-panel__meta">
+        {currentGroupId > 0 ? `Текущая группа: ${currentGroupId}` : 'Группа не определена'}
+      </div>
+    </div>
+
+    <div className="superadmin-panel__form">
+      <label className="settings-form__field">
+        <span className="settings-form__label">ID группы</span>
+        <input
+          className="settings-form__input"
+          type="text"
+          inputMode="numeric"
+          placeholder="Например: 22702487"
+          value={superAdminGroupId}
+          onChange={(event) => onChangeGroupId(event.target.value.replace(/[^\d]/g, ''))}
+        />
+      </label>
+
+      <div className="superadmin-panel__row">
+        <label className="settings-form__field">
+          <span className="settings-form__label">Тариф</span>
+          <select
+            className="settings-form__input"
+            value={superAdminPlan}
+            onChange={(event) => onChangePlan(event.target.value as CalculatorSubscriptionPlan)}
+          >
+            <option value="free">Free</option>
+            <option value="start">Start</option>
+            <option value="pro">Pro</option>
+          </select>
+        </label>
+
+        <label className="settings-form__field">
+          <span className="settings-form__label">Срок доступа, дней</span>
+          <input
+            className="settings-form__input"
+            type="text"
+            inputMode="numeric"
+            placeholder="30"
+            value={superAdminDays}
+            onChange={(event) => onChangeDays(event.target.value.replace(/[^\d]/g, ''))}
+          />
+        </label>
+      </div>
+
+      <div className="superadmin-panel__note">
+        {currentGroupId > 0
+          ? `Можно выдать тариф ${
+              superAdminPlan === 'pro' ? 'Pro' : superAdminPlan === 'start' ? 'Start' : 'Free'
+            } текущей группе или ввести другой ID вручную.`
+          : 'Откройте приложение внутри сообщества или укажите ID группы вручную.'}
+      </div>
+
+      <button className="settings-form__button" type="button" onClick={onSubmit}>
+        {`Выдать ${
+          superAdminPlan === 'pro' ? 'Pro' : superAdminPlan === 'start' ? 'Start' : 'Free'
+        } группе`}
+      </button>
+    </div>
+  </section>
+);
+
+const SuperAdminResetTab = ({
+  resetGroupIdValue,
+  resetGroupCommandValue,
+  resetCommandValue,
+  onChangeResetGroupId,
+  onChangeResetGroupCommand,
+  onChangeResetCommand,
+  onSubmitResetGroup,
+  onSubmitResetAllGroups,
+}: SuperAdminResetTabProps) => (
+  <section className="superadmin-panel superadmin-panel_danger">
+    <div className="superadmin-panel__head">
+      <div>
+        <div className="superadmin-panel__eyebrow">Опасная зона</div>
+        <h3 className="superadmin-panel__title">Сброс группы или всех групп</h3>
+      </div>
+    </div>
+
+    <p className="superadmin-panel__note superadmin-panel__note_warning">
+      Можно удалить данные одной конкретной группы или выполнить полный сброс всех групп из
+      серверного хранилища. Для текущей открытой группы локальный кэш CalcPro в этом браузере тоже
+      очистится.
+    </p>
+
+    <label className="settings-form__field">
+      <span className="settings-form__label">ID группы для точечного сброса</span>
+      <input
+        className="settings-form__input"
+        type="text"
+        inputMode="numeric"
+        placeholder="Например: 22702487"
+        value={resetGroupIdValue}
+        onChange={(event) => onChangeResetGroupId(event.target.value.replace(/[^\d]/g, ''))}
+      />
+    </label>
+
+    <label className="settings-form__field">
+      <span className="settings-form__label">Команда подтверждения для группы</span>
+      <input
+        className="settings-form__input"
+        type="text"
+        inputMode="text"
+        placeholder={
+          resetGroupIdValue.trim() ? `reset group ${resetGroupIdValue.trim()}` : 'reset group 22702487'
+        }
+        value={resetGroupCommandValue}
+        onChange={(event) => onChangeResetGroupCommand(event.target.value)}
+      />
+    </label>
+
+    <button
+      className="settings-form__button settings-form__button_danger"
+      type="button"
+      onClick={onSubmitResetGroup}
+    >
+      Reset selected group
+    </button>
+
+    <label className="settings-form__field">
+      <span className="settings-form__label">Команда подтверждения для всех групп</span>
+      <input
+        className="settings-form__input"
+        type="text"
+        inputMode="text"
+        placeholder="reset all groups"
+        value={resetCommandValue}
+        onChange={(event) => onChangeResetCommand(event.target.value)}
+      />
+    </label>
+
+    <button
+      className="settings-form__button settings-form__button_danger"
+      type="button"
+      onClick={onSubmitResetAllGroups}
+    >
+      Reset all groups
+    </button>
+  </section>
+);
+
+const SuperAdminBroadcastTab = ({
+  recipients,
+  recipientCount,
+  isLoading,
+  lastUpdatedAt,
+  broadcastMessage,
+  broadcastStatus,
+  broadcastSearch,
+  subscribedOnly,
+  onChangeMessage,
+  onChangeSearch,
+  onToggleSubscribedOnly,
+  onSubmit,
+  onSubmitTest,
+}: SuperAdminBroadcastTabProps) => (
+  <section className="superadmin-panel">
+    <div className="superadmin-panel__head">
+      <div>
+        <div className="superadmin-panel__eyebrow">Рассылка обновлений</div>
+        <h3 className="superadmin-panel__title">Сообщения по администраторам</h3>
+      </div>
+      <div className="superadmin-community-card__meta">
+        {lastUpdatedAt
+          ? `Обновлено ${new Date(lastUpdatedAt).toLocaleTimeString('ru-RU', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            })}`
+          : isLoading
+            ? 'Обновляем...'
+            : 'Нет данных'}
+      </div>
+    </div>
+
+    <div className="superadmin-panel__note">
+      Сообщение уйдёт только администраторам с платным тарифом, которые уже писали в сообщество
+      CalcPro и не отписались от обновлений.
+    </div>
+    <div className="superadmin-panel__note">
+      {recipientCount > 0
+        ? `Сейчас под фильтр попадает ${recipientCount} получател${recipientCount === 1 ? 'ь' : recipientCount < 5 ? 'я' : 'ей'}.`
+        : 'Сейчас нет получателей под выбранные фильтры.'}
+    </div>
+
+    <label className="settings-form__field">
+      <span className="settings-form__label">Текст рассылки</span>
+      <textarea
+        className="settings-support__textarea"
+        placeholder="Например: Вышло обновление CalcPro..."
+        value={broadcastMessage}
+        onChange={(event) => onChangeMessage(event.target.value)}
+      />
+    </label>
+
+    <div className="superadmin-panel__row">
+      <button className="settings-form__button" type="button" onClick={onSubmitTest}>
+        Тест себе
+      </button>
+      <button className="settings-form__button" type="button" onClick={onSubmit}>
+        {recipientCount > 0 ? `Отправить ${recipientCount}` : 'Отправить рассылку'}
+      </button>
+    </div>
+
+    {broadcastStatus ? <div className="superadmin-card__status">{broadcastStatus}</div> : null}
+
+    <div className="superadmin-community-card">
+      <div className="superadmin-community-card__head">
+        <div>
+          <div className="superadmin-panel__eyebrow">Подписчики</div>
+          <h3 className="superadmin-panel__title">Список администраторов</h3>
+        </div>
+      </div>
+
+      <div className="superadmin-broadcast-card__filters">
+        <label className="settings-form__field">
+          <span className="settings-form__label">Поиск</span>
+          <input
+            className="settings-form__input"
+            type="text"
+            placeholder="VK ID или сообщество"
+            value={broadcastSearch}
+            onChange={(event) => onChangeSearch(event.target.value)}
+          />
+        </label>
+        <label className="superadmin-broadcast-card__toggle">
+          <input
+            type="checkbox"
+            checked={subscribedOnly}
+            onChange={(event) => onToggleSubscribedOnly(event.target.checked)}
+          />
+          <span>Только подписанные</span>
+        </label>
+      </div>
+
+      {recipients.length ? (
+        <div className="superadmin-community-card__list">
+          {recipients.map((recipient) => (
+            <div key={recipient.userId} className="superadmin-community-card__item">
+              <div className="superadmin-community-card__title-row">
+                <div className="superadmin-community-card__name">VK ID {recipient.userId}</div>
+                <div className="superadmin-community-card__plan">
+                  {recipient.isSubscribed ? 'ПОДПИСАН' : 'ОТПИСАН'}
+                </div>
+              </div>
+              <div className="superadmin-community-card__details">
+                <span>
+                  Подтвердил ЛС {recipient.confirmedAt ? new Date(recipient.confirmedAt).toLocaleDateString('ru-RU') : 'недавно'}
+                </span>
+                <span>Сообществ: {recipient.communities.length}</span>
+              </div>
+              <div className="superadmin-broadcast-card__communities">
+                {recipient.communities.map((community) => (
+                  <span key={`${recipient.userId}-${community.groupId}`} className="superadmin-broadcast-card__community-chip">
+                    {community.name} · {String(community.subscriptionPlan).toUpperCase()}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="superadmin-panel__note">
+          {isLoading ? 'Загружаем список подписчиков...' : 'Подписчики для рассылки пока не найдены.'}
+        </div>
+      )}
+    </div>
+  </section>
+);
 
 const buildPolylinePath = (
   values: number[],
@@ -1250,6 +1668,7 @@ export const HomePage = ({
   onInstallInCommunity,
   onExportRequestsToGoogleSheets,
   onGrantProAccess,
+  onSendSuperAdminBroadcast,
   onResetAllGroups,
   onResetGroup,
   isProcessingPayment,
@@ -1289,6 +1708,8 @@ export const HomePage = ({
     null,
   );
   const [pendingDeleteRequest, setPendingDeleteRequest] = useState<CalculatorRequest | null>(null);
+  const [isDeleteManagerModalOpen, setIsDeleteManagerModalOpen] = useState(false);
+  const [managerRemovedModalMessage, setManagerRemovedModalMessage] = useState('');
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [expandedRequestIds, setExpandedRequestIds] = useState<string[]>([]);
   const [requestDraft, setRequestDraft] = useState({
@@ -1315,6 +1736,23 @@ export const HomePage = ({
   const [superAdminPlan, setSuperAdminPlan] = useState<CalculatorSubscriptionPlan>('pro');
   const [superAdminDays, setSuperAdminDays] = useState('30');
   const [superAdminStatus, setSuperAdminStatus] = useState('');
+  const [isSuperAdminPanelOpen, setIsSuperAdminPanelOpen] = useState(false);
+  const [activeSuperAdminTab, setActiveSuperAdminTab] = useState<SuperAdminTab>('overview');
+  const [superAdminCommunities, setSuperAdminCommunities] = useState<CalculatorSuperAdminCommunity[]>([]);
+  const [isSuperAdminCommunitiesLoading, setIsSuperAdminCommunitiesLoading] = useState(false);
+  const [superAdminCommunitiesUpdatedAt, setSuperAdminCommunitiesUpdatedAt] = useState('');
+  const [superAdminBroadcastRecipients, setSuperAdminBroadcastRecipients] = useState<
+    CalculatorSuperAdminBroadcastRecipient[]
+  >([]);
+  const [isSuperAdminBroadcastRecipientsLoading, setIsSuperAdminBroadcastRecipientsLoading] =
+    useState(false);
+  const [superAdminBroadcastRecipientsUpdatedAt, setSuperAdminBroadcastRecipientsUpdatedAt] =
+    useState('');
+  const [superAdminBroadcastMessage, setSuperAdminBroadcastMessage] = useState('');
+  const [superAdminBroadcastStatus, setSuperAdminBroadcastStatus] = useState('');
+  const [superAdminBroadcastSearch, setSuperAdminBroadcastSearch] = useState('');
+  const [superAdminBroadcastSubscribedOnly, setSuperAdminBroadcastSubscribedOnly] = useState(true);
+  const [isSuperAdminBroadcastConfirmOpen, setIsSuperAdminBroadcastConfirmOpen] = useState(false);
   const [resetGroupIdValue, setResetGroupIdValue] = useState(
     currentGroupId > 0 ? String(currentGroupId) : '',
   );
@@ -1340,6 +1778,8 @@ export const HomePage = ({
     [adminProfile.firstName, adminProfile.lastName].filter(Boolean).join(' ').trim() ||
     adminProfile.nickname ||
     'Администратор';
+  const currentCommunityName =
+    connectedCommunities.find((community) => community.groupId === currentGroupId)?.name || 'CalcPro';
   const supportTicketsPerPage = 3;
   const supportTicketsPageCount = Math.max(1, Math.ceil(supportTickets.length / supportTicketsPerPage));
   const supportTicketsStart = (supportTicketsPage - 1) * supportTicketsPerPage;
@@ -1347,6 +1787,83 @@ export const HomePage = ({
     supportTicketsStart,
     supportTicketsStart + supportTicketsPerPage,
   );
+  const visibleSuperAdminBroadcastRecipients = useMemo(() => {
+    const query = superAdminBroadcastSearch.trim().toLowerCase();
+
+    return superAdminBroadcastRecipients.filter((recipient) => {
+      if (superAdminBroadcastSubscribedOnly && !recipient.isSubscribed) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      if (String(recipient.userId).includes(query)) {
+        return true;
+      }
+
+      return recipient.communities.some((community) =>
+        `${community.name} ${community.groupId}`.toLowerCase().includes(query),
+      );
+    });
+  }, [
+    superAdminBroadcastRecipients,
+    superAdminBroadcastSearch,
+    superAdminBroadcastSubscribedOnly,
+  ]);
+  const loadSuperAdminCommunities = async () => {
+    if (!isSuperAdmin) {
+      return;
+    }
+
+    setIsSuperAdminCommunitiesLoading(true);
+    try {
+      const response = await fetch('/api/admin-settings?action=superadmin-communities', {
+        headers: vkAuthHeaders,
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; data?: CalculatorSuperAdminCommunity[] }
+        | null;
+
+      if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+        return;
+      }
+
+      setSuperAdminCommunities(payload.data);
+      setSuperAdminCommunitiesUpdatedAt(new Date().toISOString());
+    } catch {
+      // Keep previous snapshot if refresh fails temporarily.
+    } finally {
+      setIsSuperAdminCommunitiesLoading(false);
+    }
+  };
+  const loadSuperAdminBroadcastRecipients = async () => {
+    if (!isSuperAdmin) {
+      return;
+    }
+
+    setIsSuperAdminBroadcastRecipientsLoading(true);
+    try {
+      const response = await fetch('/api/admin-settings?action=superadmin-broadcast-recipients', {
+        headers: vkAuthHeaders,
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; data?: CalculatorSuperAdminBroadcastRecipient[] }
+        | null;
+
+      if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+        return;
+      }
+
+      setSuperAdminBroadcastRecipients(payload.data);
+      setSuperAdminBroadcastRecipientsUpdatedAt(new Date().toISOString());
+    } catch {
+      // Keep previous snapshot if refresh fails temporarily.
+    } finally {
+      setIsSuperAdminBroadcastRecipientsLoading(false);
+    }
+  };
   const loadSupportTicketsFromServer = async (resetPage = false) => {
     try {
       const query = currentGroupId > 0 ? `?groupId=${currentGroupId}` : '';
@@ -1393,6 +1910,23 @@ export const HomePage = ({
   useEffect(() => {
     setBillingReminderActionStatus('');
   }, [adminSettings.billingReminderConfirmedAt, adminSettings.billingReminderVkId, currentGroupId]);
+
+  useEffect(() => {
+    if (!isSuperAdmin || !isSuperAdminPanelOpen) {
+      return;
+    }
+
+    void loadSuperAdminCommunities();
+    void loadSuperAdminBroadcastRecipients();
+    const intervalId = window.setInterval(() => {
+      void loadSuperAdminCommunities();
+      void loadSuperAdminBroadcastRecipients();
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isSuperAdmin, isSuperAdminPanelOpen, vkAuthHeaders]);
 
   useEffect(() => {
     void loadSupportTicketsFromServer(true);
@@ -1787,6 +2321,32 @@ export const HomePage = ({
         );
       }
     }
+  };
+
+  const handleSaveManagerSettings = async (nextManagerVkId: string) => {
+    const result = await onSaveAdminSettings({
+      ...adminSettings,
+      managerVkId: nextManagerVkId,
+      managerVkConfirmedAt:
+        nextManagerVkId === adminSettings.managerVkId ? adminSettings.managerVkConfirmedAt : '',
+    });
+
+    setManagerVkIdStatus(result.message);
+    return result;
+  };
+
+  const handleConfirmManagerDelete = async () => {
+    const result = await handleSaveManagerSettings('');
+
+    if (!result.ok) {
+      return;
+    }
+
+    setManagerVkId('');
+    setIsDeleteManagerModalOpen(false);
+    setManagerRemovedModalMessage(
+      `Менеджер удалён из приложения «${currentCommunityName}».`,
+    );
   };
 
   const filteredCatalog = useMemo(() => {
@@ -3282,6 +3842,46 @@ export const HomePage = ({
 
     const result = await onGrantProAccess(targetGroupId, superAdminPlan, days);
     setSuperAdminStatus(result.message);
+    if (result.ok) {
+      void loadSuperAdminCommunities();
+      void loadSuperAdminBroadcastRecipients();
+    }
+  };
+
+  const handleSuperAdminBroadcastSubmit = async () => {
+    if (visibleSuperAdminBroadcastRecipients.length === 0) {
+      setSuperAdminBroadcastStatus('По текущим фильтрам нет получателей для рассылки.');
+      return;
+    }
+
+    setIsSuperAdminBroadcastConfirmOpen(true);
+  };
+
+  const handleConfirmSuperAdminBroadcastSubmit = async () => {
+    const trimmedMessage = superAdminBroadcastMessage.trim();
+    if (!trimmedMessage) {
+      setSuperAdminBroadcastStatus('Сначала введите текст рассылки.');
+      return;
+    }
+
+    const result = await onSendSuperAdminBroadcast(trimmedMessage);
+    setSuperAdminBroadcastStatus(result.message);
+    if (result.ok) {
+      setSuperAdminBroadcastMessage('');
+      void loadSuperAdminBroadcastRecipients();
+    }
+    setIsSuperAdminBroadcastConfirmOpen(false);
+  };
+
+  const handleSuperAdminBroadcastTestSubmit = async () => {
+    const trimmedMessage = superAdminBroadcastMessage.trim();
+    if (!trimmedMessage) {
+      setSuperAdminBroadcastStatus('Сначала введите текст рассылки.');
+      return;
+    }
+
+    const result = await onSendSuperAdminBroadcast(trimmedMessage, true);
+    setSuperAdminBroadcastStatus(result.message);
   };
 
   const handleResetAllGroupsSubmit = async () => {
@@ -3299,6 +3899,8 @@ export const HomePage = ({
 
     if (result.ok) {
       setResetCommandValue('');
+      void loadSuperAdminCommunities();
+      void loadSuperAdminBroadcastRecipients();
     }
   };
 
@@ -3321,6 +3923,8 @@ export const HomePage = ({
 
     if (result.ok) {
       setResetGroupCommandValue('');
+      void loadSuperAdminCommunities();
+      void loadSuperAdminBroadcastRecipients();
     }
   };
 
@@ -3849,16 +4453,14 @@ export const HomePage = ({
             <button
               className="settings-form__button"
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 const normalizedManagerVkId = normalizedDraftManagerVkId;
-                onSaveAdminSettings({
-                  ...adminSettings,
-                  managerVkId: normalizedManagerVkId,
-                  managerVkConfirmedAt:
-                    normalizedManagerVkId === adminSettings.managerVkId
-                      ? adminSettings.managerVkConfirmedAt
-                      : '',
-                });
+                const result = await handleSaveManagerSettings(normalizedManagerVkId);
+
+                if (!result.ok) {
+                  return;
+                }
+
                 setManagerVkIdStatus(
                   normalizedManagerVkId
                     ? 'ID менеджера сохранён. Теперь попросите его отправить код в диалог CalcPro.'
@@ -3874,12 +4476,12 @@ export const HomePage = ({
               type="button"
               disabled={!managerVkId && !adminSettings.managerVkId}
               onClick={() => {
-                setManagerVkId('');
-                setManagerVkIdStatus(
-                  adminSettings.managerVkId
-                    ? 'Нажмите «Сохранить», чтобы отключить текущего менеджера.'
-                    : 'Менеджер уже не подключён.',
-                );
+                if (!adminSettings.managerVkId) {
+                  setManagerVkIdStatus('Менеджер уже не подключён.');
+                  return;
+                }
+
+                setIsDeleteManagerModalOpen(true);
               }}
             >
               Удалить менеджера
@@ -3957,180 +4559,6 @@ export const HomePage = ({
             <div className="settings-form__status settings-form__status_success">{managerVkIdStatus}</div>
           ) : null}
         </article>
-
-        {isSuperAdmin ? (
-          <article className="settings-card settings-card_superadmin">
-            <div className="settings-card__eyebrow">Супер-админ</div>
-            <div className="superadmin-card__hero">
-              <div>
-                <h2 className="settings-card__title">Управление тарифами и доступом</h2>
-                <p className="settings-card__text">
-                  Здесь можно вручную открыть Start или Pro для любой группы VK по её ID и
-                  выполнить аварийный сброс подключённых групп. Блок виден только вашему аккаунту.
-                </p>
-              </div>
-              <div className="superadmin-card__badge">Только для внутреннего доступа</div>
-            </div>
-
-            <div className="superadmin-card__grid">
-              <section className="superadmin-panel">
-                <div className="superadmin-panel__head">
-                  <div>
-                    <div className="superadmin-panel__eyebrow">Выдача тарифа</div>
-                    <h3 className="superadmin-panel__title">Ручное открытие доступа</h3>
-                  </div>
-                  <div className="superadmin-panel__meta">
-                    {currentGroupId > 0 ? `Текущая группа: ${currentGroupId}` : 'Группа не определена'}
-                  </div>
-                </div>
-
-                <div className="superadmin-panel__form">
-                  <label className="settings-form__field">
-                    <span className="settings-form__label">ID группы</span>
-                    <input
-                      className="settings-form__input"
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="Например: 22702487"
-                      value={superAdminGroupId}
-                      onChange={(event) =>
-                        setSuperAdminGroupId(event.target.value.replace(/[^\d]/g, ''))
-                      }
-                    />
-                  </label>
-
-                  <div className="superadmin-panel__row">
-                    <label className="settings-form__field">
-                      <span className="settings-form__label">Тариф</span>
-                      <select
-                        className="settings-form__input"
-                        value={superAdminPlan}
-                        onChange={(event) =>
-                          setSuperAdminPlan(event.target.value as CalculatorSubscriptionPlan)
-                        }
-                      >
-                        <option value="free">Free</option>
-                        <option value="start">Start</option>
-                        <option value="pro">Pro</option>
-                      </select>
-                    </label>
-
-                    <label className="settings-form__field">
-                      <span className="settings-form__label">Срок доступа, дней</span>
-                      <input
-                        className="settings-form__input"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="30"
-                        value={superAdminDays}
-                        onChange={(event) => setSuperAdminDays(event.target.value.replace(/[^\d]/g, ''))}
-                      />
-                    </label>
-                  </div>
-
-                  <div className="superadmin-panel__note">
-                    {currentGroupId > 0
-                      ? `Можно выдать тариф ${
-                          superAdminPlan === 'pro'
-                            ? 'Pro'
-                            : superAdminPlan === 'start'
-                              ? 'Start'
-                              : 'Free'
-                        } текущей группе или ввести другой ID вручную.`
-                      : 'Откройте приложение внутри сообщества или укажите ID группы вручную.'}
-                  </div>
-
-                  <button
-                    className="settings-form__button"
-                    type="button"
-                    onClick={handleGrantProSubmit}
-                  >
-                    {`Выдать ${
-                      superAdminPlan === 'pro'
-                        ? 'Pro'
-                        : superAdminPlan === 'start'
-                          ? 'Start'
-                          : 'Free'
-                    } группе`}
-                  </button>
-                </div>
-              </section>
-
-              <section className="superadmin-panel superadmin-panel_danger">
-                <div className="superadmin-panel__head">
-                  <div>
-                    <div className="superadmin-panel__eyebrow">Опасная зона</div>
-                    <h3 className="superadmin-panel__title">Сброс группы или всех групп</h3>
-                  </div>
-                </div>
-
-                <p className="superadmin-panel__note superadmin-panel__note_warning">
-                  Можно удалить данные одной конкретной группы или выполнить полный сброс всех
-                  групп из серверного хранилища. Для текущей открытой группы локальный кэш CalcPro
-                  в этом браузере тоже очистится.
-                </p>
-
-                <label className="settings-form__field">
-                  <span className="settings-form__label">ID группы для точечного сброса</span>
-                  <input
-                    className="settings-form__input"
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Например: 22702487"
-                    value={resetGroupIdValue}
-                    onChange={(event) =>
-                      setResetGroupIdValue(event.target.value.replace(/[^\d]/g, ''))
-                    }
-                  />
-                </label>
-
-                <label className="settings-form__field">
-                  <span className="settings-form__label">Команда подтверждения для группы</span>
-                  <input
-                    className="settings-form__input"
-                    type="text"
-                    inputMode="text"
-                    placeholder={
-                      resetGroupIdValue.trim() ? `reset group ${resetGroupIdValue.trim()}` : 'reset group 22702487'
-                    }
-                    value={resetGroupCommandValue}
-                    onChange={(event) => setResetGroupCommandValue(event.target.value)}
-                  />
-                </label>
-
-                <button
-                  className="settings-form__button settings-form__button_danger"
-                  type="button"
-                  onClick={handleResetGroupSubmit}
-                >
-                  Reset selected group
-                </button>
-
-                <label className="settings-form__field">
-                  <span className="settings-form__label">Команда подтверждения для всех групп</span>
-                  <input
-                    className="settings-form__input"
-                    type="text"
-                    inputMode="text"
-                    placeholder="reset all groups"
-                    value={resetCommandValue}
-                    onChange={(event) => setResetCommandValue(event.target.value)}
-                  />
-                </label>
-
-                <button
-                  className="settings-form__button settings-form__button_danger"
-                  type="button"
-                  onClick={handleResetAllGroupsSubmit}
-                >
-                  Reset all groups
-                </button>
-              </section>
-            </div>
-
-            {superAdminStatus ? <div className="superadmin-card__status">{superAdminStatus}</div> : null}
-          </article>
-        ) : null}
 
         <article className="settings-card settings-card_support">
           <div className="settings-card__eyebrow">Саппорт</div>
@@ -4476,6 +4904,116 @@ export const HomePage = ({
           </button>
         </div>
 
+        {isSuperAdmin ? (
+          <div className="admin-nav__superadmin">
+            <button
+              className={`admin-nav__superadmin-toggle ${isSuperAdminPanelOpen ? 'admin-nav__superadmin-toggle_open' : ''}`}
+              type="button"
+              onClick={() => setIsSuperAdminPanelOpen((current) => !current)}
+            >
+              <span className="admin-nav__superadmin-toggle-copy">
+                <span className="admin-nav__superadmin-label">Внутренний доступ</span>
+                <span className="admin-nav__superadmin-title">Супер-админка</span>
+              </span>
+              <span className="admin-nav__superadmin-icon">
+                <Icon20CrownVerified />
+              </span>
+            </button>
+
+            {isSuperAdminPanelOpen ? (
+              <div className="admin-nav__superadmin-panel">
+                <div className="admin-nav__superadmin-tabs" role="tablist" aria-label="Разделы супер-админки">
+                  <button
+                    className={`admin-nav__superadmin-tab ${activeSuperAdminTab === 'overview' ? 'admin-nav__superadmin-tab_active' : ''}`}
+                    type="button"
+                    onClick={() => setActiveSuperAdminTab('overview')}
+                  >
+                    Обзор
+                  </button>
+                  <button
+                    className={`admin-nav__superadmin-tab ${activeSuperAdminTab === 'plans' ? 'admin-nav__superadmin-tab_active' : ''}`}
+                    type="button"
+                    onClick={() => setActiveSuperAdminTab('plans')}
+                  >
+                    Тарифы
+                  </button>
+                  <button
+                    className={`admin-nav__superadmin-tab ${activeSuperAdminTab === 'broadcast' ? 'admin-nav__superadmin-tab_active' : ''}`}
+                    type="button"
+                    onClick={() => setActiveSuperAdminTab('broadcast')}
+                  >
+                    Рассылка
+                  </button>
+                  <button
+                    className={`admin-nav__superadmin-tab ${activeSuperAdminTab === 'reset' ? 'admin-nav__superadmin-tab_active' : ''}`}
+                    type="button"
+                    onClick={() => setActiveSuperAdminTab('reset')}
+                  >
+                    Сброс
+                  </button>
+                </div>
+
+                {activeSuperAdminTab === 'overview' ? (
+                  <SuperAdminOverviewTab
+                    currentGroupId={currentGroupId}
+                    communities={superAdminCommunities}
+                    isLoading={isSuperAdminCommunitiesLoading}
+                    lastUpdatedAt={superAdminCommunitiesUpdatedAt}
+                  />
+                ) : null}
+
+                {activeSuperAdminTab === 'plans' ? (
+                  <SuperAdminPlansTab
+                    currentGroupId={currentGroupId}
+                    superAdminGroupId={superAdminGroupId}
+                    superAdminPlan={superAdminPlan}
+                    superAdminDays={superAdminDays}
+                    onChangeGroupId={setSuperAdminGroupId}
+                    onChangePlan={setSuperAdminPlan}
+                    onChangeDays={setSuperAdminDays}
+                    onSubmit={handleGrantProSubmit}
+                  />
+                ) : null}
+
+                {activeSuperAdminTab === 'broadcast' ? (
+                  <SuperAdminBroadcastTab
+                    recipients={visibleSuperAdminBroadcastRecipients}
+                    recipientCount={visibleSuperAdminBroadcastRecipients.length}
+                    isLoading={isSuperAdminBroadcastRecipientsLoading}
+                    lastUpdatedAt={superAdminBroadcastRecipientsUpdatedAt}
+                    broadcastMessage={superAdminBroadcastMessage}
+                    broadcastStatus={superAdminBroadcastStatus}
+                    broadcastSearch={superAdminBroadcastSearch}
+                    subscribedOnly={superAdminBroadcastSubscribedOnly}
+                    onChangeMessage={setSuperAdminBroadcastMessage}
+                    onChangeSearch={setSuperAdminBroadcastSearch}
+                    onToggleSubscribedOnly={setSuperAdminBroadcastSubscribedOnly}
+                    onSubmit={handleSuperAdminBroadcastSubmit}
+                    onSubmitTest={handleSuperAdminBroadcastTestSubmit}
+                  />
+                ) : null}
+
+                {activeSuperAdminTab === 'reset' ? (
+                  <SuperAdminResetTab
+                    resetGroupIdValue={resetGroupIdValue}
+                    resetGroupCommandValue={resetGroupCommandValue}
+                    resetCommandValue={resetCommandValue}
+                    onChangeResetGroupId={setResetGroupIdValue}
+                    onChangeResetGroupCommand={setResetGroupCommandValue}
+                    onChangeResetCommand={setResetCommandValue}
+                    onSubmitResetGroup={handleResetGroupSubmit}
+                    onSubmitResetAllGroups={handleResetAllGroupsSubmit}
+                  />
+                ) : null}
+
+                {superAdminStatus ? (
+                  <div className="superadmin-card__status">{superAdminStatus}</div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         <nav className="admin-nav__menu" aria-label="Разделы администратора">
           {navItems
             .filter((item) => canManageMonetization || item.key !== 'payments')
@@ -4694,6 +5232,102 @@ export const HomePage = ({
                 }}
               >
                 Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isDeleteManagerModalOpen ? (
+        <div className="admin-modal" role="dialog" aria-modal="true">
+          <div className="admin-modal__backdrop" onClick={() => setIsDeleteManagerModalOpen(false)} />
+          <div className="admin-modal__card">
+            <div className="admin-modal__eyebrow">Подтверждение</div>
+            <h3 className="admin-modal__title">Удалить менеджера?</h3>
+            <p className="admin-modal__text">
+              Менеджер будет отключён от приложения <strong>{currentCommunityName}</strong>, а новые
+              заявки перестанут приходить ему в личные сообщения.
+            </p>
+            <div className="admin-modal__actions">
+              <button
+                className="admin-modal__button admin-modal__button_secondary"
+                type="button"
+                onClick={() => setIsDeleteManagerModalOpen(false)}
+              >
+                Отмена
+              </button>
+              <button
+                className="admin-modal__button admin-modal__button_danger"
+                type="button"
+                onClick={() => {
+                  void handleConfirmManagerDelete();
+                }}
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {managerRemovedModalMessage ? (
+        <div className="admin-modal" role="dialog" aria-modal="true">
+          <div
+            className="admin-modal__backdrop"
+            onClick={() => setManagerRemovedModalMessage('')}
+          />
+          <div className="admin-modal__card">
+            <div className="admin-modal__eyebrow">Готово</div>
+            <h3 className="admin-modal__title">Менеджер удалён из приложения</h3>
+            <p className="admin-modal__text">{managerRemovedModalMessage}</p>
+            <p className="admin-modal__text">
+              Бывшему менеджеру и администратору отправлены уведомления в личные сообщения VK.
+            </p>
+            <div className="admin-modal__actions">
+              <button
+                className="admin-modal__button"
+                type="button"
+                onClick={() => setManagerRemovedModalMessage('')}
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isSuperAdminBroadcastConfirmOpen ? (
+        <div className="admin-modal" role="dialog" aria-modal="true">
+          <div
+            className="admin-modal__backdrop"
+            onClick={() => setIsSuperAdminBroadcastConfirmOpen(false)}
+          />
+          <div className="admin-modal__card">
+            <div className="admin-modal__eyebrow">Подтверждение</div>
+            <h3 className="admin-modal__title">Отправить массовую рассылку?</h3>
+            <p className="admin-modal__text">
+              Сообщение уйдёт <strong>{visibleSuperAdminBroadcastRecipients.length}</strong>{' '}
+              получателям по текущим фильтрам.
+            </p>
+            <p className="admin-modal__text">
+              В сообщение будет добавлена кнопка VK <strong>Отписаться</strong>.
+            </p>
+            <div className="admin-modal__actions">
+              <button
+                className="admin-modal__button admin-modal__button_secondary"
+                type="button"
+                onClick={() => setIsSuperAdminBroadcastConfirmOpen(false)}
+              >
+                Отмена
+              </button>
+              <button
+                className="admin-modal__button"
+                type="button"
+                onClick={() => {
+                  void handleConfirmSuperAdminBroadcastSubmit();
+                }}
+              >
+                Отправить
               </button>
             </div>
           </div>

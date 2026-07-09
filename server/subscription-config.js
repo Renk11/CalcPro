@@ -67,6 +67,7 @@ export function createDefaultAdminSettings() {
     managerVkConfirmedAt: '',
     billingReminderVkId: '',
     billingReminderConfirmedAt: '',
+    updatesBroadcastUnsubscribedAt: '',
     googleSheetsWebhookUrl: '',
     googleSheetsLastExportAt: '',
     billingReminderState: {

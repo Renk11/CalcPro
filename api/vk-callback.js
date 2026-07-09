@@ -2,6 +2,7 @@ import {
   getServerAdminSettings,
   linkServerBillingReminderRecipient,
   linkServerManagerRecipient,
+  updateServerBroadcastSubscription,
 } from '../server/settings-store.js';
 import { updateServerSupportTicketStatus } from '../server/support-store.js';
 import { sendVkMessage, sendVkMessageEventAnswer } from '../server/vk.js';
@@ -97,6 +98,31 @@ export default async function handler(request, response) {
           {
             type: 'show_snackbar',
             text: `Статус обновлён: ${STATUS_LABELS[status]}`,
+          },
+        ).catch(() => undefined);
+      }
+
+      if (payload.command === 'unsubscribe_updates') {
+        const targetGroupId = Number(payload.groupId) || 0;
+        const targetUserId = normalizeVkUserId(body.object?.user_id);
+
+        if (targetGroupId > 0 && targetUserId > 0) {
+          await updateServerBroadcastSubscription(targetGroupId, targetUserId, false).catch(
+            () => undefined,
+          );
+          await sendVkMessage(
+            targetUserId,
+            'Вы отписались от рассылки обновлений CalcPro. Напоминания по тарифу при этом сохраняются.',
+          ).catch(() => undefined);
+        }
+
+        await sendVkMessageEventAnswer(
+          body.object?.event_id,
+          body.object?.user_id,
+          body.object?.peer_id,
+          {
+            type: 'show_snackbar',
+            text: 'Вы отписались от обновлений CalcPro',
           },
         ).catch(() => undefined);
       }

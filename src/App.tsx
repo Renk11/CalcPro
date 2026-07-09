@@ -1209,18 +1209,46 @@ const App = () => {
     setActiveView('home');
   };
 
-  const handleSaveAdminSettings = (settings: CalculatorAdminSettings) => {
+  const handleSaveAdminSettings = async (settings: CalculatorAdminSettings) => {
     persistAdminSettings(settings);
 
     const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
 
-    fetch(createApiUrl(`/api/admin-settings${query}`), {
-      method: 'POST',
-      headers: createJsonHeaders(),
-      body: JSON.stringify(settings),
-    }).catch(() => {
-      // Local settings remain saved even if the API request fails.
-    });
+    try {
+      const response = await fetch(createApiUrl(`/api/admin-settings${query}`), {
+        method: 'POST',
+        headers: createJsonHeaders(),
+        body: JSON.stringify(settings),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; data?: CalculatorAdminSettings; error?: string; message?: string }
+        | null;
+
+      if (isProtectedApiUnavailable(payload, response.status)) {
+        return {
+          ok: false,
+          message: getVkLaunchParamsErrorMessage(payload, response.status),
+        };
+      }
+
+      if (!response.ok || !payload?.ok || !payload.data) {
+        return {
+          ok: false,
+          message: payload?.error || payload?.message || 'Не удалось сохранить настройки.',
+        };
+      }
+
+      persistAdminSettings(payload.data);
+      return {
+        ok: true,
+        message: payload.message || 'Настройки сохранены.',
+      };
+    } catch {
+      return {
+        ok: false,
+        message: 'Не удалось сохранить настройки.',
+      };
+    }
   };
 
   const handleExportRequestsToGoogleSheets = async () => {
@@ -1323,6 +1351,50 @@ const App = () => {
       return {
         ok: false,
         message: error instanceof Error ? error.message : 'Не удалось выдать доступ к тарифу.',
+      };
+    }
+  };
+
+  const handleSendSuperAdminBroadcast = async (message: string, testOnly = false) => {
+    if (!isSuperAdmin || !adminProfile.id) {
+      return {
+        ok: false,
+        message: 'Недостаточно прав для рассылки.',
+      };
+    }
+
+    try {
+      const response = await fetch(createApiUrl('/api/admin-settings?action=send-updates-broadcast'), {
+        method: 'POST',
+        headers: createJsonHeaders(),
+        body: JSON.stringify({
+          message,
+          testOnly,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; error?: string; message?: string }
+        | null;
+
+      if (isProtectedApiUnavailable(payload, response.status)) {
+        return {
+          ok: false,
+          message: getVkLaunchParamsErrorMessage(payload, response.status),
+        };
+      }
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || payload?.message || 'Не удалось отправить рассылку.');
+      }
+
+      return {
+        ok: true,
+        message: payload.message || 'Рассылка отправлена.',
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : 'Не удалось отправить рассылку.',
       };
     }
   };
@@ -2426,6 +2498,7 @@ const App = () => {
                     canUseRequestStatuses={canUseRequestStatuses}
                     canUseFolders={canUseFolders}
                     onGrantProAccess={handleGrantProAccess}
+                    onSendSuperAdminBroadcast={handleSendSuperAdminBroadcast}
                     onResetAllGroups={handleResetAllGroups}
                     onResetGroup={handleResetGroup}
                     isProcessingPayment={isProcessingPayment}

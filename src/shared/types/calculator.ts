@@ -218,6 +218,7 @@ export interface CalculatorAdminSettings {
   };
   billingReminderVkId: string;
   billingReminderConfirmedAt?: string;
+  updatesBroadcastUnsubscribedAt?: string;
   googleSheetsWebhookUrl?: string;
   googleSheetsLastExportAt?: string;
   billingReminderState?: {
@@ -246,6 +247,25 @@ export interface CalculatorConnectedCommunity {
   role?: string;
   addedAt: string;
   lastUsedAt: string;
+}
+
+export interface CalculatorSuperAdminCommunity extends CalculatorConnectedCommunity {
+  subscriptionPlan: CalculatorSubscriptionPlan;
+  subscriptionStatus: CalculatorSubscriptionStatus;
+  paidUntil?: string;
+}
+
+export interface CalculatorSuperAdminBroadcastRecipient {
+  userId: number;
+  confirmedAt: string;
+  unsubscribedAt?: string;
+  isSubscribed: boolean;
+  communities: Array<{
+    groupId: number;
+    name: string;
+    subscriptionPlan: CalculatorSubscriptionPlan;
+    paidUntil?: string;
+  }>;
 }
 
 export interface CalculatorAnalyticsEvent {

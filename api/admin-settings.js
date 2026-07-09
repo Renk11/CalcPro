@@ -4,15 +4,20 @@ import {
   requireTrustedViewerContext,
   sendTrustedViewerContextError,
 } from '../server/request-auth.js';
-import { getServerAdminSettings, saveServerAdminSettings } from '../server/settings-store.js';
+import {
+  getServerAdminSettings,
+  listServerAdminSettings,
+  saveServerAdminSettings,
+  updateServerBroadcastSubscription,
+} from '../server/settings-store.js';
 import {
   buildNextPaidUntil,
   createDefaultSubscriptionSettings,
   getSubscriptionPlanConfig,
 } from '../server/subscription-config.js';
-import { getViewerCommunities } from '../server/community-store.js';
+import { getViewerCommunities, listAllConnectedCommunities } from '../server/community-store.js';
 import { resetAllGroupsData, resetSingleGroupData } from '../server/group-reset.js';
-import { getVkUserInfo, hasVkGroupToken } from '../server/vk.js';
+import { getVkUserInfo, hasVkGroupToken, sendVkMessage, sendVkMessageWithOptions } from '../server/vk.js';
 
 const DEFAULT_SUPER_ADMIN_IDS = ['139346496'];
 const MOSCOW_UTC_OFFSET = '+03:00';
@@ -130,11 +135,153 @@ async function enrichAdminSettingsResponse(settings) {
   };
 }
 
+async function resolveApplicationName(viewerId, groupId) {
+  if (!viewerId || !groupId) {
+    return 'CalcPro';
+  }
+
+  try {
+    const communities = await getViewerCommunities(viewerId);
+    const matchedCommunity = communities.find((community) => community.groupId === groupId);
+    return matchedCommunity?.name || 'CalcPro';
+  } catch {
+    return 'CalcPro';
+  }
+}
+
+function isPaidSubscription(settings) {
+  return settings?.subscription?.status === 'active' && settings?.subscription?.plan !== 'free';
+}
+
+function buildBroadcastUnsubscribeKeyboard(groupId) {
+  return {
+    inline: true,
+    buttons: [
+      [
+        {
+          action: {
+            type: 'callback',
+            label: 'Отписаться',
+            payload: JSON.stringify({
+              command: 'unsubscribe_updates',
+              groupId,
+            }),
+          },
+          color: 'secondary',
+        },
+      ],
+    ],
+  };
+}
+
 export default async function handler(request, response) {
   try {
     const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
 
     if (request.method === 'GET') {
+      const action = String(request.query?.action || request.body?.action || '').toLowerCase();
+
+      if (action === 'superadmin-communities') {
+        const auth = requireTrustedViewerContext(request, response);
+        if (!auth) {
+          return undefined;
+        }
+
+        const viewerId = String(auth.viewerId || '').trim();
+        if (!isSuperAdmin(viewerId)) {
+          return sendJson(response, 403, { ok: false, error: 'Super admin access required' });
+        }
+
+        const [communities, settingsList] = await Promise.all([
+          listAllConnectedCommunities(),
+          listServerAdminSettings(),
+        ]);
+        const settingsByGroupId = new Map(
+          settingsList.map((item) => [item.groupId, item.settings]),
+        );
+        const data = communities.map((community) => {
+          const settings = settingsByGroupId.get(community.groupId);
+          return {
+            ...community,
+            subscriptionPlan: settings?.subscription?.plan || 'free',
+            subscriptionStatus: settings?.subscription?.status || 'inactive',
+            paidUntil: settings?.subscription?.paidUntil || '',
+          };
+        });
+
+        return sendJson(response, 200, { ok: true, data });
+      }
+
+      if (action === 'superadmin-broadcast-recipients') {
+        const auth = requireTrustedViewerContext(request, response);
+        if (!auth) {
+          return undefined;
+        }
+
+        const viewerId = String(auth.viewerId || '').trim();
+        if (!isSuperAdmin(viewerId)) {
+          return sendJson(response, 403, { ok: false, error: 'Super admin access required' });
+        }
+
+        const [communities, settingsList] = await Promise.all([
+          listAllConnectedCommunities(),
+          listServerAdminSettings(),
+        ]);
+        const communityMap = new Map(communities.map((community) => [community.groupId, community]));
+        const recipientsMap = new Map();
+
+        settingsList.forEach(({ groupId: currentGroupId, settings }) => {
+          if (!isPaidSubscription(settings)) {
+            return;
+          }
+
+          const userId = Number(settings.billingReminderVkId || 0);
+          if (!userId || !settings.billingReminderConfirmedAt) {
+            return;
+          }
+
+          const existingRecipient = recipientsMap.get(userId);
+          const community = communityMap.get(currentGroupId);
+          const communityEntry = {
+            groupId: currentGroupId,
+            name: community?.name || `Сообщество ${currentGroupId}`,
+            subscriptionPlan: settings.subscription.plan,
+            paidUntil: settings.subscription.paidUntil || '',
+          };
+
+          if (!existingRecipient) {
+            recipientsMap.set(userId, {
+              userId,
+              confirmedAt: settings.billingReminderConfirmedAt,
+              unsubscribedAt: settings.updatesBroadcastUnsubscribedAt || '',
+              isSubscribed: !settings.updatesBroadcastUnsubscribedAt,
+              communities: [communityEntry],
+            });
+            return;
+          }
+
+          recipientsMap.set(userId, {
+            ...existingRecipient,
+            confirmedAt:
+              Date.parse(existingRecipient.confirmedAt || '') <=
+              Date.parse(settings.billingReminderConfirmedAt || '')
+                ? existingRecipient.confirmedAt
+                : settings.billingReminderConfirmedAt,
+            unsubscribedAt:
+              existingRecipient.unsubscribedAt || settings.updatesBroadcastUnsubscribedAt || '',
+            isSubscribed:
+              existingRecipient.isSubscribed && !settings.updatesBroadcastUnsubscribedAt,
+            communities: [...existingRecipient.communities, communityEntry],
+          });
+        });
+
+        const data = [...recipientsMap.values()].sort(
+          (left, right) => right.communities.length - left.communities.length || left.userId - right.userId,
+        );
+
+        return sendJson(response, 200, { ok: true, data });
+      }
+
       const auth = await requireWorkspaceCommunityAdmin(request, response, groupId);
       if (!auth) {
         return undefined;
@@ -257,6 +404,85 @@ export default async function handler(request, response) {
         return sendJson(response, 200, { ok: true, data: result });
       }
 
+      if (action === 'send-updates-broadcast') {
+        const auth = requireTrustedViewerContext(request, response);
+        if (!auth) {
+          return undefined;
+        }
+
+        const viewerId = String(auth.viewerId || '').trim();
+        if (!isSuperAdmin(viewerId)) {
+          return sendJson(response, 403, { ok: false, error: 'Super admin access required' });
+        }
+
+        const messageText = String(incomingSettings.message || '').trim();
+        const isTestOnly = incomingSettings.testOnly === true;
+        if (!messageText) {
+          return sendJson(response, 400, { ok: false, error: 'message is required' });
+        }
+
+        if (isTestOnly) {
+          await sendVkMessageWithOptions(Number(auth.viewerId), `Тест обновления CalcPro\n\n${messageText}`, {
+            keyboard: {
+              inline: true,
+              buttons: [],
+            },
+          }).catch(() => undefined);
+
+          return sendJson(response, 200, {
+            ok: true,
+            message: `Тестовое сообщение отправлено на VK ID ${auth.viewerId}.`,
+          });
+        }
+
+        const settingsList = await listServerAdminSettings();
+        const recipientsMap = new Map();
+        let sentCount = 0;
+
+        for (const { groupId: currentGroupId, settings } of settingsList) {
+          if (!isPaidSubscription(settings)) {
+            continue;
+          }
+
+          const recipientId = Number(settings.billingReminderVkId || 0);
+          if (!recipientId || !settings.billingReminderConfirmedAt) {
+            continue;
+          }
+
+          const existing = recipientsMap.get(recipientId);
+          if (!existing) {
+            recipientsMap.set(recipientId, {
+              groupId: currentGroupId,
+              isSubscribed: !settings.updatesBroadcastUnsubscribedAt,
+            });
+            continue;
+          }
+
+          recipientsMap.set(recipientId, {
+            groupId: existing.groupId,
+            isSubscribed: existing.isSubscribed && !settings.updatesBroadcastUnsubscribedAt,
+          });
+        }
+
+        for (const [recipientId, recipient] of recipientsMap.entries()) {
+          if (!recipient.isSubscribed) {
+            continue;
+          }
+
+          await sendVkMessageWithOptions(recipientId, `Обновление CalcPro\n\n${messageText}`, {
+            keyboard: buildBroadcastUnsubscribeKeyboard(recipient.groupId),
+          }).catch(() => undefined);
+          sentCount += 1;
+        }
+
+        return sendJson(response, 200, {
+          ok: true,
+          message: sentCount
+            ? `Рассылка отправлена ${sentCount} подписчикам.`
+            : 'Нет активных подписчиков для рассылки.',
+        });
+      }
+
       const auth = await requireWorkspaceCommunityAdmin(request, response, groupId);
       if (!auth) {
         return undefined;
@@ -291,6 +517,32 @@ export default async function handler(request, response) {
         },
         groupId,
       );
+
+      if (
+        incomingManagerVkId !== undefined &&
+        !incomingManagerVkId &&
+        currentSettings.managerVkId
+      ) {
+        const applicationName = await resolveApplicationName(auth.viewerId, groupId);
+        const removedManagerId = Number(currentSettings.managerVkId);
+        const adminId = Number(auth.viewerId);
+
+        await Promise.all([
+          Number.isInteger(removedManagerId) && removedManagerId > 0
+            ? sendVkMessage(
+                removedManagerId,
+                `Вы больше не являетесь менеджером приложения «${applicationName}».`,
+              ).catch(() => undefined)
+            : Promise.resolve(),
+          Number.isInteger(adminId) && adminId > 0
+            ? sendVkMessage(
+                adminId,
+                `Менеджер вашего приложения «${applicationName}» отсутствует. Добавьте его, чтобы обрабатывать заявки.`,
+              ).catch(() => undefined)
+            : Promise.resolve(),
+        ]);
+      }
+
       return sendJson(response, 200, { ok: true, data: await enrichAdminSettingsResponse(settings) });
     }
 

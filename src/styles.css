@@ -930,6 +930,206 @@ body,
   cursor: pointer;
 }
 
+.admin-nav__superadmin {
+  display: grid;
+  gap: 10px;
+  margin: 0 8px 14px;
+}
+
+.admin-nav__superadmin-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 184, 77, 0.18) 0%, rgba(255, 184, 77, 0) 44%),
+    rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 184, 77, 0.12);
+  color: #f4efe7;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-nav__superadmin-toggle_open {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 184, 77, 0.18),
+    0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+.admin-nav__superadmin-toggle-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-nav__superadmin-label {
+  color: #c6b8a8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-nav__superadmin-title {
+  color: #ffdfbc;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.admin-nav__superadmin-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffb84d;
+  flex-shrink: 0;
+}
+
+.admin-nav__superadmin-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-nav__superadmin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-nav__superadmin-tab {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #cebda9;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.admin-nav__superadmin-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4efe7;
+}
+
+.admin-nav__superadmin-tab_active {
+  background: linear-gradient(135deg, rgba(255, 153, 80, 0.2) 0%, rgba(255, 184, 109, 0.12) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 166, 102, 0.18);
+  color: #fff1df;
+}
+
+.admin-nav__superadmin-panel .superadmin-panel {
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.superadmin-community-card {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.superadmin-community-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.superadmin-community-card__meta {
+  color: #9ea497;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.superadmin-community-card__list {
+  display: grid;
+  gap: 8px;
+  max-height: 240px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.superadmin-community-card__item {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(14, 18, 24, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.superadmin-community-card__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.superadmin-community-card__name {
+  color: #f4efe7;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.superadmin-community-card__plan {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 179, 107, 0.14);
+  color: #ffd3a5;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.superadmin-community-card__details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  color: #b7ab9f;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.superadmin-broadcast-card__communities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.superadmin-broadcast-card__filters {
+  display: grid;
+  gap: 10px;
+}
+
+.superadmin-broadcast-card__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #d8c7b2;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.superadmin-broadcast-card__community-chip {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #d8c7b2;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .admin-nav__menu {
   display: grid;
   gap: 4px;

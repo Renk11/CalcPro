@@ -117,6 +117,9 @@ export function normalizeAdminSettings(settings = {}) {
     billingReminderConfirmedAt: String(
       settings.billingReminderConfirmedAt || defaults.billingReminderConfirmedAt,
     ),
+    updatesBroadcastUnsubscribedAt: String(
+      settings.updatesBroadcastUnsubscribedAt || defaults.updatesBroadcastUnsubscribedAt,
+    ).trim(),
     googleSheetsWebhookUrl: normalizeWebhookUrl(
       settings.googleSheetsWebhookUrl || defaults.googleSheetsWebhookUrl,
     ),
@@ -240,6 +243,27 @@ export async function linkServerBillingReminderRecipient(groupId, userId) {
     ...settings,
     billingReminderVkId: normalizedUserId,
     billingReminderConfirmedAt: new Date().toISOString(),
+    updatesBroadcastUnsubscribedAt: '',
+  });
+
+  await writeSettingRow(getAdminSettingsKey(groupId), nextSettings);
+  return nextSettings;
+}
+
+export async function updateServerBroadcastSubscription(groupId, userId, isSubscribed) {
+  const settings = await getServerAdminSettings(groupId);
+  const normalizedUserId = normalizeVkUserId(userId);
+  if (!normalizedUserId) {
+    throw new Error('Valid VK user id is required');
+  }
+
+  if (settings.billingReminderVkId && settings.billingReminderVkId !== normalizedUserId) {
+    throw new Error('Broadcast recipient does not match the configured reminder recipient');
+  }
+
+  const nextSettings = normalizeAdminSettings({
+    ...settings,
+    updatesBroadcastUnsubscribedAt: isSubscribed ? '' : new Date().toISOString(),
   });
 
   await writeSettingRow(getAdminSettingsKey(groupId), nextSettings);

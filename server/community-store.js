@@ -98,6 +98,65 @@ export async function getViewerCommunities(viewerId) {
   return normalizeCommunitiesList((await readSettingRow(key)) || []);
 }
 
+export async function listAllConnectedCommunities() {
+  try {
+    const rows = await supabaseSelect('app_settings', {
+      select: 'key,value',
+      filter: { key: 'key', value: `like.${COMMUNITIES_KEY_PREFIX}%` },
+      limit: 5000,
+    });
+
+    const aggregated = new Map();
+
+    rows.forEach((row) => {
+      normalizeCommunitiesList(row?.value || []).forEach((community) => {
+        const existing = aggregated.get(community.groupId);
+
+        if (!existing) {
+          aggregated.set(community.groupId, community);
+          return;
+        }
+
+        const existingAddedAt = Date.parse(existing.addedAt || '');
+        const nextAddedAt = Date.parse(community.addedAt || '');
+        const existingLastUsedAt = Date.parse(existing.lastUsedAt || '');
+        const nextLastUsedAt = Date.parse(community.lastUsedAt || '');
+
+        aggregated.set(community.groupId, {
+          ...existing,
+          ...community,
+          name: existing.name || community.name,
+          screenName: existing.screenName || community.screenName,
+          photoUrl: existing.photoUrl || community.photoUrl,
+          role: existing.role || community.role,
+          addedAt:
+            Number.isFinite(existingAddedAt) &&
+            Number.isFinite(nextAddedAt) &&
+            existingAddedAt <= nextAddedAt
+              ? existing.addedAt
+              : community.addedAt,
+          lastUsedAt:
+            Number.isFinite(existingLastUsedAt) &&
+            Number.isFinite(nextLastUsedAt) &&
+            existingLastUsedAt >= nextLastUsedAt
+              ? existing.lastUsedAt
+              : community.lastUsedAt,
+        });
+      });
+    });
+
+    return [...aggregated.values()].sort(
+      (left, right) => Date.parse(right.addedAt) - Date.parse(left.addedAt),
+    );
+  } catch (error) {
+    if (String(error?.message || '').includes('schema cache')) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
 export async function saveViewerCommunities(viewerId, communities) {
   const key = getCommunitiesKey(viewerId);
 
