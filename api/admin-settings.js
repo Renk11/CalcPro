@@ -29,11 +29,9 @@ const MOSCOW_YMD_FORMATTER = new Intl.DateTimeFormat('en-CA', {
 });
 
 function buildIssuedPaidUntil(days) {
-  const nextDate = new Date();
-  nextDate.setDate(nextDate.getDate() + Math.max(1, Number(days) || 30));
-  const [year, month, day] = MOSCOW_YMD_FORMATTER.format(nextDate).split('-').map(Number);
-  const isoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  return new Date(`${isoDate}T23:59:59.999${MOSCOW_UTC_OFFSET}`).toISOString();
+  const issuedAt = new Date();
+  issuedAt.setDate(issuedAt.getDate() + Math.max(1, Number(days) || 30));
+  return issuedAt.toISOString();
 }
 
 function parseGroupId(rawValue) {
@@ -422,23 +420,24 @@ export default async function handler(request, response) {
         }
 
         if (isTestOnly) {
-          await sendVkMessageWithOptions(Number(auth.viewerId), `РўРµСЃС‚ РѕР±РЅРѕРІР»РµРЅРёСЏ CalcPro\n\n${messageText}`, {
-            keyboard: {
-              inline: true,
-              buttons: [],
-            },
-          }).catch(() => undefined);
-
-          return sendJson(response, 200, {
-            ok: true,
-            message: `РўРµСЃС‚РѕРІРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ РѕС‚РїСЂР°РІР»РµРЅРѕ РЅР° VK ID ${auth.viewerId}.`,
-          });
+          try {
+            await sendVkMessage(Number(auth.viewerId), `Тест обновления CalcPro\n\n${messageText}`);
+            return sendJson(response, 200, {
+              ok: true,
+              message: `Тестовое сообщение отправлено на VK ID ${auth.viewerId}.`,
+            });
+          } catch (error) {
+            return sendJson(response, 502, {
+              ok: false,
+              error: error?.message || 'Не удалось отправить тестовое сообщение в VK.',
+            });
+          }
         }
 
         const settingsList = await listServerAdminSettings();
         const recipientsMap = new Map();
         let sentCount = 0;
-
+        const failedRecipients = [];
         for (const { groupId: currentGroupId, settings } of settingsList) {
           if (!isPaidSubscription(settings)) {
             continue;
@@ -469,17 +468,30 @@ export default async function handler(request, response) {
             continue;
           }
 
-          await sendVkMessageWithOptions(recipientId, `РћР±РЅРѕРІР»РµРЅРёРµ CalcPro\n\n${messageText}`, {
-            keyboard: buildBroadcastUnsubscribeKeyboard(recipient.groupId),
-          }).catch(() => undefined);
-          sentCount += 1;
+          try {
+            await sendVkMessageWithOptions(recipientId, `Обновление CalcPro\n\n${messageText}`, {
+              keyboard: buildBroadcastUnsubscribeKeyboard(recipient.groupId),
+            });
+            sentCount += 1;
+          } catch (error) {
+            failedRecipients.push(`VK ID ${recipientId}: ${error?.message || 'ошибка доставки'}`);
+          }
+        }
+
+        if (!sentCount && failedRecipients.length > 0) {
+          return sendJson(response, 502, {
+            ok: false,
+            error: `VK не доставил рассылку. ${failedRecipients.join('; ')}`,
+          });
         }
 
         return sendJson(response, 200, {
           ok: true,
           message: sentCount
-            ? `Р Р°СЃСЃС‹Р»РєР° РѕС‚РїСЂР°РІР»РµРЅР° ${sentCount} РїРѕРґРїРёСЃС‡РёРєР°Рј.`
-            : 'РќРµС‚ Р°РєС‚РёРІРЅС‹С… РїРѕРґРїРёСЃС‡РёРєРѕРІ РґР»СЏ СЂР°СЃСЃС‹Р»РєРё.',
+            ? failedRecipients.length
+              ? `Рассылка отправлена ${sentCount} подписчикам. Не доставлено: ${failedRecipients.join('; ')}`
+              : `Рассылка отправлена ${sentCount} подписчикам.`
+            : 'Нет активных подписчиков для рассылки.',
         });
       }
 
