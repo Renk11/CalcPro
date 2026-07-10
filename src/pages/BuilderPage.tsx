@@ -623,7 +623,7 @@ const createVisualFormulaToken = (
   label,
 });
 
-const buildVisualFormulaString = (tokens: VisualFormulaToken[]) =>
+const buildVisualFormulaSequence = (tokens: VisualFormulaToken[]) =>
   tokens
     .map((token, index) => {
       const prev = tokens[index - 1];
@@ -664,6 +664,41 @@ const buildVisualFormulaString = (tokens: VisualFormulaToken[]) =>
     .replace(/\(\s+/g, '(')
     .replace(/\s+\)/g, ')')
     .trim();
+
+const buildVisualFormulaString = (tokens: VisualFormulaToken[]) => {
+  let equalityTokenIndex = -1;
+  for (let index = tokens.length - 1; index >= 0; index -= 1) {
+    const token = tokens[index];
+    if (token.type === 'comparator' && token.value === '==') {
+      equalityTokenIndex = index;
+      break;
+    }
+  }
+  const hasConditionComparatorBeforeEquality = tokens
+    .slice(0, equalityTokenIndex)
+    .some(
+      (token) =>
+        token.type === 'comparator' &&
+        (token.value === '>' || token.value === '<' || token.value === '>=' || token.value === '<=' || token.value === '!='),
+    );
+  const hasFunctionSyntax = tokens.some((token) => token.type === 'function' || token.type === 'comma');
+
+  if (
+    equalityTokenIndex > 0 &&
+    equalityTokenIndex < tokens.length - 1 &&
+    hasConditionComparatorBeforeEquality &&
+    !hasFunctionSyntax
+  ) {
+    const conditionExpression = buildVisualFormulaSequence(tokens.slice(0, equalityTokenIndex));
+    const truthyExpression = buildVisualFormulaSequence(tokens.slice(equalityTokenIndex + 1));
+
+    if (conditionExpression && truthyExpression) {
+      return `ifElse(${conditionExpression}, ${truthyExpression}, 0)`;
+    }
+  }
+
+  return buildVisualFormulaSequence(tokens);
+};
 
 const parseVisualFormulaTokens = (
   formula: string,
