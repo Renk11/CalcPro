@@ -611,6 +611,28 @@ const formulaVariableTokens = [
   { value: 'basePrice', label: 'Базовая цена' },
   { value: 'globalCoefficient', label: 'Общий коэффициент' },
 ] as const;
+const visualFormulaExamples = [
+  {
+    title: 'Фиксированная цена по условию',
+    formula: 'Если(Ползунок > 20, 1000, 0)',
+    description: 'Если значение ползунка больше 20, вернётся 1000, иначе 0.',
+  },
+  {
+    title: 'Обычный расчёт',
+    formula: 'Ползунок * Базовая цена',
+    description: 'Подходит для простого умножения количества на стоимость.',
+  },
+  {
+    title: 'Цена с доплатой',
+    formula: 'Ползунок * Базовая цена + 500',
+    description: 'К итоговому расчёту добавляется фиксированная сумма.',
+  },
+  {
+    title: 'Минимальный порог',
+    formula: 'Макс(Ползунок * Базовая цена, 3000)',
+    description: 'Если расчёт меньше 3000, будет показано 3000.',
+  },
+] as const;
 
 const createVisualFormulaToken = (
   type: VisualFormulaTokenType,
@@ -1841,6 +1863,11 @@ export const BuilderPage = ({
     syncVisualFormulaTokens([]);
   };
 
+  const applyVisualFormulaExample = (formula: string) => {
+    const nextTokens = parseVisualFormulaTokens(formula, template.fields);
+    syncVisualFormulaTokens(nextTokens);
+  };
+
   const addVisualNumberToken = () => {
     const trimmedValue = formulaNumberDraft.trim();
     if (!trimmedValue) {
@@ -3016,6 +3043,31 @@ export const BuilderPage = ({
                             {previewFormulaState.error ? (
                               <div className="builder-formula__preview-error">{previewFormulaState.error}</div>
                             ) : null}
+                          </div>
+                          <div className="builder-formula__examples">
+                            <div className="builder-formula__examples-head">
+                              <div>
+                                <div className="builder-formula__variables-title">Примеры формул</div>
+                                <div className="builder-formula__builder-caption">
+                                  Нажмите на пример, чтобы подставить его в конструктор и затем изменить под свой сценарий.
+                                </div>
+                              </div>
+                            </div>
+                            <div className="builder-formula__examples-list">
+                              {visualFormulaExamples.map((example) => (
+                                <button
+                                  key={example.title}
+                                  className="builder-formula__example"
+                                  type="button"
+                                  disabled={!canUseProFeatures}
+                                  onClick={() => applyVisualFormulaExample(example.formula)}
+                                >
+                                  <span className="builder-formula__example-title">{example.title}</span>
+                                  <strong className="builder-formula__example-formula">{example.formula}</strong>
+                                  <span className="builder-formula__example-text">{example.description}</span>
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>

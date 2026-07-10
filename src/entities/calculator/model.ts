@@ -87,6 +87,7 @@ const isFormulaField = (field: CalculatorField) =>
   field.type === 'booking';
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const createFormulaAliasPattern = (alias: string) => new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegExp(alias)}(?![\\p{L}\\p{N}_])`, 'giu');
 
 const BASE_PRICE_FORMULA_LABEL = 'Базовая цена';
 const GLOBAL_COEFFICIENT_FORMULA_LABEL = 'Общий коэффициент';
@@ -138,7 +139,7 @@ const normalizeFormula = (formula: string, fields: CalculatorField[]) => {
 
   FORMULA_FUNCTION_ALIASES.forEach(({ aliases, target }) => {
     aliases.forEach((alias) => {
-      nextFormula = nextFormula.replace(new RegExp(escapeRegExp(alias), 'gi'), target);
+      nextFormula = nextFormula.replace(createFormulaAliasPattern(alias), target);
     });
   });
 
