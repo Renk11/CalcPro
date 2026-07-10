@@ -310,6 +310,30 @@ const migrateTemplateRecord = (template: CalculatorTemplate): CalculatorTemplate
     },
     publicationStatus: template.publicationStatus ?? 'draft',
     publicId: template.publicId ?? createTemplatePublicId(template.id.slice(0, 8)),
+    formulaEditorMode:
+      template.formulaEditorMode === 'manual' || template.formulaEditorMode === 'visual'
+        ? template.formulaEditorMode
+        : defaults.formulaEditorMode,
+    visualFormulaTokens: Array.isArray(template.visualFormulaTokens)
+      ? template.visualFormulaTokens
+          .map((token) => ({
+            id: String(token?.id || createRandomId()),
+            type: token?.type,
+            value: String(token?.value || ''),
+            label: String(token?.label || token?.value || ''),
+          }))
+          .filter(
+            (token) =>
+              token.type === 'field' ||
+              token.type === 'variable' ||
+              token.type === 'number' ||
+              token.type === 'operator' ||
+              token.type === 'comparator' ||
+              token.type === 'paren' ||
+              token.type === 'comma' ||
+              token.type === 'function',
+          )
+      : defaults.visualFormulaTokens,
     publishedAt:
       (template.publicationStatus ?? 'draft') === 'published'
         ? template.publishedAt ?? template.updatedAt ?? defaults.updatedAt

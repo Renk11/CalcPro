@@ -40,6 +40,16 @@ export type InputFieldSubtype =
   | 'file';
 
 export type FormulaMode = 'simple' | 'custom';
+export type FormulaEditorMode = 'manual' | 'visual';
+export type VisualFormulaTokenType =
+  | 'field'
+  | 'variable'
+  | 'number'
+  | 'operator'
+  | 'comparator'
+  | 'paren'
+  | 'comma'
+  | 'function';
 export type ResultFieldFormat = 'plain' | 'space';
 export type ResultDisplayMode = 'auto' | 'after_button';
 export type CalculatorPublicationStatus = 'draft' | 'published' | 'hidden' | 'archived';
@@ -163,6 +173,13 @@ export interface CalculatorField {
   marginRight?: number;
 }
 
+export interface VisualFormulaToken {
+  id: string;
+  type: VisualFormulaTokenType;
+  value: string;
+  label: string;
+}
+
 export interface CalculatorTemplate {
   schemaVersion?: number;
   id: string;
@@ -181,7 +198,9 @@ export interface CalculatorTemplate {
   minPrice: number;
   globalCoefficient: number;
   formulaMode: FormulaMode;
+  formulaEditorMode?: FormulaEditorMode;
   customFormula: string;
+  visualFormulaTokens?: VisualFormulaToken[];
   resultCardShow?: boolean;
   resultCardTitle?: string;
   resultCardShowTitle?: boolean;

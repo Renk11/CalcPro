@@ -31,10 +31,13 @@ import type {
   ButtonActionType,
   CalculatorField,
   CalculatorFieldOption,
+  FormulaEditorMode,
   CalculatorTemplate,
   CalculatorValues,
   FieldType,
   InputFieldSubtype,
+  VisualFormulaToken,
+  VisualFormulaTokenType,
 } from '../shared/types/calculator';
 import { MAX_BUTTON_TEXT_LENGTH } from '../shared/types/calculator';
 import { legalDocs, type LegalDocKey } from '../shared/legal';
@@ -596,6 +599,155 @@ const getCheckboxPriceLabel = (field: CalculatorField) => {
 
 const getFormulaReference = (field: CalculatorField) => field.label.trim() || '\u0411\u0435\u0437 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f';
 const formulaOperatorChips = ['+', '-', '*', '/', '(', ')'] as const;
+const formulaComparatorChips = ['>', '<', '>=', '<=', '==', '!='] as const;
+const formulaFunctionChips = [
+  { value: 'ifElse', label: 'Если' },
+  { value: 'min', label: 'Мин' },
+  { value: 'max', label: 'Макс' },
+  { value: 'round', label: 'Округл' },
+  { value: 'abs', label: 'Модуль' },
+] as const;
+const formulaVariableTokens = [
+  { value: 'basePrice', label: 'Базовая цена' },
+  { value: 'globalCoefficient', label: 'Общий коэффициент' },
+] as const;
+
+const createVisualFormulaToken = (
+  type: VisualFormulaTokenType,
+  value: string,
+  label = value,
+): VisualFormulaToken => ({
+  id: createRandomId(),
+  type,
+  value,
+  label,
+});
+
+const buildVisualFormulaString = (tokens: VisualFormulaToken[]) =>
+  tokens
+    .map((token, index) => {
+      const prev = tokens[index - 1];
+      const next = tokens[index + 1];
+
+      if (token.type === 'function') {
+        return `${token.value}(`;
+      }
+
+      if (token.type === 'comma') {
+        return ', ';
+      }
+
+      if (token.type === 'paren') {
+        if (token.value === '(') {
+          return prev && prev.type === 'function' ? '' : '(';
+        }
+
+        return ')';
+      }
+
+      if (token.type === 'operator' || token.type === 'comparator') {
+        return ` ${token.value} `;
+      }
+
+      const rawValue = token.value;
+      const needsTrailingSpace =
+        next &&
+        next.type !== 'operator' &&
+        next.type !== 'comparator' &&
+        next.type !== 'comma' &&
+        !(next.type === 'paren' && next.value === ')');
+
+      return `${rawValue}${needsTrailingSpace ? ' ' : ''}`;
+    })
+    .join('')
+    .replace(/\s+/g, ' ')
+    .replace(/\(\s+/g, '(')
+    .replace(/\s+\)/g, ')')
+    .trim();
+
+const parseVisualFormulaTokens = (
+  formula: string,
+  fields: CalculatorField[],
+): VisualFormulaToken[] => {
+  const source = String(formula || '').trim();
+  if (!source) {
+    return [];
+  }
+
+  const fieldEntries = fields
+    .map((field) => ({
+      label: getFormulaReference(field),
+      value: getFormulaReference(field),
+      type: 'field' as const,
+    }))
+    .sort((left, right) => right.label.length - left.label.length);
+  const keywordEntries = [
+    ...formulaVariableTokens.map((token) => ({
+      label: token.label,
+      value: token.value,
+      type: 'variable' as const,
+    })),
+    ...formulaFunctionChips.flatMap((token) => [
+      { label: token.label, value: token.value, type: 'function' as const },
+      { label: token.value, value: token.value, type: 'function' as const },
+    ]),
+  ].sort((left, right) => right.label.length - left.label.length);
+  const entries = [...fieldEntries, ...keywordEntries];
+  const nextTokens: VisualFormulaToken[] = [];
+
+  let cursor = 0;
+  while (cursor < source.length) {
+    const char = source[cursor];
+
+    if (/\s/.test(char)) {
+      cursor += 1;
+      continue;
+    }
+
+    const matchedEntry = entries.find((entry) => source.startsWith(entry.label, cursor));
+    if (matchedEntry) {
+      nextTokens.push(createVisualFormulaToken(matchedEntry.type, matchedEntry.value, matchedEntry.label));
+      cursor += matchedEntry.label.length;
+      continue;
+    }
+
+    const comparator = formulaComparatorChips.find((item) => source.startsWith(item, cursor));
+    if (comparator) {
+      nextTokens.push(createVisualFormulaToken('comparator', comparator, comparator));
+      cursor += comparator.length;
+      continue;
+    }
+
+    if (/[+\-*/]/.test(char)) {
+      nextTokens.push(createVisualFormulaToken('operator', char, char));
+      cursor += 1;
+      continue;
+    }
+
+    if (char === '(' || char === ')') {
+      nextTokens.push(createVisualFormulaToken('paren', char, char));
+      cursor += 1;
+      continue;
+    }
+
+    if (char === ',') {
+      nextTokens.push(createVisualFormulaToken('comma', char, char));
+      cursor += 1;
+      continue;
+    }
+
+    const numberMatch = source.slice(cursor).match(/^\d+(?:[.,]\d+)?/);
+    if (numberMatch) {
+      nextTokens.push(createVisualFormulaToken('number', numberMatch[0], numberMatch[0]));
+      cursor += numberMatch[0].length;
+      continue;
+    }
+
+    cursor += 1;
+  }
+
+  return nextTokens;
+};
 
 const getFieldSpacingStyle = (field: CalculatorField) => ({
   marginTop: `${Math.max(0, field.marginTop ?? 0)}px`,
@@ -965,6 +1117,7 @@ export const BuilderPage = ({
     minPrice: String((initialTemplate ?? createEmptyTemplate()).minPrice),
     globalCoefficient: String((initialTemplate ?? createEmptyTemplate()).globalCoefficient),
   }));
+  const [formulaNumberDraft, setFormulaNumberDraft] = useState('');
   const canvasRef = useRef<HTMLElement | null>(null);
   const libraryPanelRef = useRef<HTMLDivElement | null>(null);
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null);
@@ -978,15 +1131,27 @@ export const BuilderPage = ({
   const isRequestFormSelected = selectedFieldId === REQUEST_FORM_SELECTION_ID;
   const isResultCardSelected = selectedFieldId === RESULT_CARD_SELECTION_ID;
   const isLivePreview = isPreview || isTestMode;
+  const visualFormulaTokens = template.visualFormulaTokens ?? [];
+  const visualFormulaExpression = useMemo(
+    () => buildVisualFormulaString(visualFormulaTokens),
+    [visualFormulaTokens],
+  );
   const previewResultCardTitle = template.resultCardTitle ?? 'Итог расчета';
   const previewCalculation = useMemo(() => calculateTemplate(template, previewValues), [previewValues, template]);
   const previewFormulaState = useMemo(() => {
-    if (template.formulaMode !== 'custom' || !template.customFormula.trim()) {
+    const activeFormulaExpression =
+      template.formulaEditorMode === 'visual' ? visualFormulaExpression : template.customFormula;
+    if (template.formulaMode !== 'custom' || !activeFormulaExpression.trim()) {
       return { value: previewCalculation.subtotal, error: '' };
     }
 
-    return evaluateFormulaExpression(template.customFormula, template, previewValues);
-  }, [previewCalculation.subtotal, previewValues, template]);
+    return evaluateFormulaExpression(activeFormulaExpression, template, previewValues);
+  }, [
+    previewCalculation.subtotal,
+    previewValues,
+    template,
+    visualFormulaExpression,
+  ]);
   const previewFormulaContext = useMemo(() => buildFormulaContext(template, previewValues), [previewValues, template]);
   const previewValueEntries = useMemo(
     () =>
@@ -1023,6 +1188,22 @@ export const BuilderPage = ({
       globalCoefficient: String(template.globalCoefficient),
     });
   }, [template.basePrice, template.discount, template.globalCoefficient, template.minPrice]);
+
+  useEffect(() => {
+    if (
+      template.formulaEditorMode === 'visual' &&
+      (template.visualFormulaTokens?.length ?? 0) === 0 &&
+      template.customFormula.trim()
+    ) {
+      const parsedTokens = parseVisualFormulaTokens(template.customFormula, template.fields);
+      if (parsedTokens.length > 0) {
+        setTemplate((current) => ({
+          ...current,
+          visualFormulaTokens: parsedTokens,
+        }));
+      }
+    }
+  }, [template.customFormula, template.fields, template.formulaEditorMode, template.visualFormulaTokens]);
 
   useEffect(() => {
     if (selectedFieldId) {
@@ -1587,6 +1768,95 @@ export const BuilderPage = ({
         setIsInspectorOpen(false);
       }
       return next;
+    });
+  };
+
+  const syncVisualFormulaTokens = (tokens: VisualFormulaToken[]) => {
+    const nextFormula = buildVisualFormulaString(tokens);
+    updateTemplate({
+      formulaMode: nextFormula ? 'custom' : template.formulaMode,
+      customFormula: nextFormula,
+      visualFormulaTokens: tokens,
+    });
+  };
+
+  const addVisualFormulaToken = (token: VisualFormulaToken) => {
+    const currentTokens = template.visualFormulaTokens ?? [];
+    syncVisualFormulaTokens([...currentTokens, token]);
+  };
+
+  const removeVisualFormulaToken = (tokenId: string) => {
+    syncVisualFormulaTokens((template.visualFormulaTokens ?? []).filter((token) => token.id !== tokenId));
+  };
+
+  const moveVisualFormulaToken = (tokenId: string, direction: -1 | 1) => {
+    const currentTokens = [...(template.visualFormulaTokens ?? [])];
+    const currentIndex = currentTokens.findIndex((token) => token.id === tokenId);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= currentTokens.length) {
+      return;
+    }
+
+    const [token] = currentTokens.splice(currentIndex, 1);
+    currentTokens.splice(nextIndex, 0, token);
+    syncVisualFormulaTokens(currentTokens);
+  };
+
+  const clearVisualFormula = () => {
+    syncVisualFormulaTokens([]);
+  };
+
+  const addVisualNumberToken = () => {
+    const trimmedValue = formulaNumberDraft.trim();
+    if (!trimmedValue) {
+      return;
+    }
+
+    addVisualFormulaToken(createVisualFormulaToken('number', trimmedValue, trimmedValue));
+    setFormulaNumberDraft('');
+  };
+
+  const setFormulaEditorMode = (nextMode: FormulaEditorMode) => {
+    if (nextMode === template.formulaEditorMode) {
+      return;
+    }
+
+    if (nextMode === 'visual') {
+      const currentTokens =
+        template.visualFormulaTokens && template.visualFormulaTokens.length > 0
+          ? template.visualFormulaTokens
+          : parseVisualFormulaTokens(template.customFormula, template.fields);
+      updateTemplate({
+        formulaEditorMode: 'visual',
+        visualFormulaTokens: currentTokens,
+        customFormula: currentTokens.length > 0 ? buildVisualFormulaString(currentTokens) : template.customFormula,
+      });
+      return;
+    }
+
+    updateTemplate({ formulaEditorMode: 'manual' });
+  };
+
+  const setFormulaMode = (nextMode: 'simple' | 'custom') => {
+    if (nextMode === template.formulaMode) {
+      return;
+    }
+
+    if (nextMode === 'simple') {
+      updateTemplate({ formulaMode: 'simple' });
+      return;
+    }
+
+    const nextTokens =
+      template.visualFormulaTokens && template.visualFormulaTokens.length > 0
+        ? template.visualFormulaTokens
+        : parseVisualFormulaTokens(template.customFormula, template.fields);
+    updateTemplate({
+      formulaMode: 'custom',
+      formulaEditorMode: template.formulaEditorMode ?? 'visual',
+      visualFormulaTokens: nextTokens,
+      customFormula:
+        template.customFormula.trim() || (nextTokens.length > 0 ? buildVisualFormulaString(nextTokens) : ''),
     });
   };
 
@@ -2439,58 +2709,47 @@ export const BuilderPage = ({
                       <div className='builder-formula__eyebrow'>{'\u041b\u043e\u0433\u0438\u043a\u0430 \u0440\u0430\u0441\u0447\u0435\u0442\u0430'}</div>
                       <h2 className='builder-formula__title'>{'\u0424\u043e\u0440\u043c\u0443\u043b\u0430 \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u0438'}</h2>
                       <p className="builder-formula__text">
-                        {'\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439\u0442\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u0431\u043b\u043e\u043a\u043e\u0432 \u0438 \u0431\u0430\u0437\u043e\u0432\u044b\u0435 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f \u0434\u043b\u044f \u0438\u0442\u043e\u0433\u043e\u0432\u043e\u0433\u043e \u0440\u0430\u0441\u0447\u0435\u0442\u0430.'}
+                        {'Собирайте расчёт визуально из полей, операторов и условий или переключайтесь в ручной режим для точечной правки.'}
                       </p>
                     </div>
-                    <div className="builder-formula__variables">
-                      <span className='builder-formula__variables-title'>{'\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u043f\u0435\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0435'}</span>
-                      <div className="builder-formula__chips">
+                    <div className="builder-formula__controls">
+                      <div className="builder-editor__mode-switch builder-formula__switch">
                         <button
-                          className="builder-formula__chip"
+                          className={`builder-editor__mode-button ${template.formulaMode === 'simple' ? 'builder-editor__mode-button_active' : ''}`}
                           type="button"
-                          disabled={!canUseProFeatures}
-                          onClick={() => insertIntoCustomFormula('Базовая цена')}
+                          onClick={() => setFormulaMode('simple')}
                         >
-                          {'Базовая цена'}
+                          Простой расчет
                         </button>
                         <button
-                          className="builder-formula__chip"
+                          className={`builder-editor__mode-button ${template.formulaMode === 'custom' ? 'builder-editor__mode-button_active' : ''}`}
                           type="button"
                           disabled={!canUseProFeatures}
-                          onClick={() => insertIntoCustomFormula('Общий коэффициент')}
+                          onClick={() => setFormulaMode('custom')}
                         >
-                          {'Общий коэффициент'}
+                          Своя формула
                         </button>
-                        {template.fields.map((field) => (
+                      </div>
+                      {template.formulaMode === 'custom' ? (
+                        <div className="builder-editor__mode-switch builder-formula__switch">
                           <button
-                            key={field.id}
-                            className="builder-formula__chip"
+                            className={`builder-editor__mode-button ${(template.formulaEditorMode ?? 'visual') === 'visual' ? 'builder-editor__mode-button_active' : ''}`}
                             type="button"
                             disabled={!canUseProFeatures}
-                            onClick={() => insertIntoCustomFormula(getFormulaReference(field))}
+                            onClick={() => setFormulaEditorMode('visual')}
                           >
-                            {getFormulaReference(field)}
+                            Визуально
                           </button>
-                        ))}
-                      </div>
-                      <span className='builder-formula__variables-title'>Знаки</span>
-                      <div className="builder-formula__chips builder-formula__chips_symbols">
-                        {formulaOperatorChips.map((operator) => (
                           <button
-                            key={operator}
-                            className="builder-formula__chip builder-formula__chip_symbol"
+                            className={`builder-editor__mode-button ${template.formulaEditorMode === 'manual' ? 'builder-editor__mode-button_active' : ''}`}
                             type="button"
                             disabled={!canUseProFeatures}
-                            onClick={() =>
-                              insertIntoCustomFormula(
-                                operator === '(' || operator === ')' ? operator : ` ${operator} `,
-                              )
-                            }
+                            onClick={() => setFormulaEditorMode('manual')}
                           >
-                            {operator}
+                            Кодом
                           </button>
-                        ))}
-                      </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
@@ -2539,27 +2798,283 @@ export const BuilderPage = ({
                     </label>
                   </div>
 
-                  <label className="builder-formula__field builder-formula__field_full">
-                    <span>{'Общая формула калькулятора'}</span>
-                    <textarea
-                      ref={customFormulaRef}
-                      value={template.customFormula}
-                      onChange={(event) =>
-                        canUseProFeatures
-                          ? updateTemplate({ customFormula: event.target.value })
-                          : undefined
-                      }
-                      disabled={!canUseProFeatures}
-                      placeholder={'\u041d\u0430\u043f\u0440\u0438\u043c\u0435\u0440: (\u0411\u0430\u0437\u043e\u0432\u0430\u044f \u0446\u0435\u043d\u0430 + \u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e) * \u041e\u0431\u0449\u0438\u0439 \u043a\u043e\u044d\u0444\u0444\u0438\u0446\u0438\u0435\u043d\u0442'}
-                    />
-                    {!canUseProFeatures ? (
-                      <span className="builder-inspector__field-hint">
-                        {proFeatureHint(
-                          'Кастомная формула доступна на тарифе Про. В Базовом тарифе работает простой расчет.',
-                        )}
-                      </span>
+                  {template.formulaMode === 'custom' ? (
+                    (template.formulaEditorMode ?? 'visual') === 'visual' ? (
+                      <div className="builder-formula__visual">
+                        <div className="builder-formula__variables">
+                          <span className='builder-formula__variables-title'>Поля и переменные</span>
+                          <div className="builder-formula__chips">
+                            {formulaVariableTokens.map((token) => (
+                              <button
+                                key={token.value}
+                                className="builder-formula__chip"
+                                type="button"
+                                disabled={!canUseProFeatures}
+                                onClick={() => addVisualFormulaToken(createVisualFormulaToken('variable', token.value, token.label))}
+                              >
+                                {token.label}
+                              </button>
+                            ))}
+                            {template.fields
+                              .filter((field) => field.type !== 'button' && field.type !== 'html')
+                              .map((field) => (
+                                <button
+                                  key={field.id}
+                                  className="builder-formula__chip"
+                                  type="button"
+                                  disabled={!canUseProFeatures}
+                                  onClick={() =>
+                                    addVisualFormulaToken(
+                                      createVisualFormulaToken('field', getFormulaReference(field), getFormulaReference(field)),
+                                    )
+                                  }
+                                >
+                                  {getFormulaReference(field)}
+                                </button>
+                              ))}
+                          </div>
+                          <span className='builder-formula__variables-title'>Операторы</span>
+                          <div className="builder-formula__chips builder-formula__chips_symbols">
+                            {formulaOperatorChips.map((operator) => (
+                              <button
+                                key={operator}
+                                className="builder-formula__chip builder-formula__chip_symbol"
+                                type="button"
+                                disabled={!canUseProFeatures}
+                                onClick={() =>
+                                  addVisualFormulaToken(
+                                    createVisualFormulaToken(
+                                      operator === '(' || operator === ')' ? 'paren' : 'operator',
+                                      operator,
+                                      operator,
+                                    ),
+                                  )
+                                }
+                              >
+                                {operator}
+                              </button>
+                            ))}
+                            {formulaComparatorChips.map((operator) => (
+                              <button
+                                key={operator}
+                                className="builder-formula__chip builder-formula__chip_symbol"
+                                type="button"
+                                disabled={!canUseProFeatures}
+                                onClick={() =>
+                                  addVisualFormulaToken(createVisualFormulaToken('comparator', operator, operator))
+                                }
+                              >
+                                {operator}
+                              </button>
+                            ))}
+                            <button
+                              className="builder-formula__chip builder-formula__chip_symbol"
+                              type="button"
+                              disabled={!canUseProFeatures}
+                              onClick={() => addVisualFormulaToken(createVisualFormulaToken('comma', ',', ','))}
+                            >
+                              ,
+                            </button>
+                          </div>
+                          <span className='builder-formula__variables-title'>Функции и условия</span>
+                          <div className="builder-formula__chips">
+                            {formulaFunctionChips.map((token) => (
+                              <button
+                                key={token.value}
+                                className="builder-formula__chip"
+                                type="button"
+                                disabled={!canUseProFeatures}
+                                onClick={() => addVisualFormulaToken(createVisualFormulaToken('function', token.value, token.label))}
+                              >
+                                {token.label}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="builder-formula__number-row">
+                            <label className="builder-formula__field">
+                              <span>Число</span>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={formulaNumberDraft}
+                                disabled={!canUseProFeatures}
+                                onChange={(event) => setFormulaNumberDraft(event.target.value)}
+                                placeholder="1000"
+                              />
+                            </label>
+                            <button
+                              className="builder-editor__ghost-button builder-formula__add-number"
+                              type="button"
+                              disabled={!canUseProFeatures || !formulaNumberDraft.trim()}
+                              onClick={addVisualNumberToken}
+                            >
+                              Добавить число
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="builder-formula__builder">
+                          <div className="builder-formula__builder-head">
+                            <div>
+                              <div className="builder-formula__variables-title">Конструктор выражения</div>
+                              <div className="builder-formula__builder-caption">
+                                Добавляйте элементы по порядку. Для условий используйте `Если( условие , значение , значение )`.
+                              </div>
+                            </div>
+                            <button
+                              className="builder-editor__ghost-button builder-formula__clear"
+                              type="button"
+                              disabled={!canUseProFeatures || visualFormulaTokens.length === 0}
+                              onClick={clearVisualFormula}
+                            >
+                              Очистить
+                            </button>
+                          </div>
+                          <div className="builder-formula__token-list">
+                            {visualFormulaTokens.length > 0 ? (
+                              visualFormulaTokens.map((token, index) => (
+                                <div key={token.id} className="builder-formula__token">
+                                  <span className="builder-formula__token-index">{index + 1}</span>
+                                  <span className="builder-formula__token-label">{token.label}</span>
+                                  <div className="builder-formula__token-actions">
+                                    <button
+                                      className="builder-formula__token-action"
+                                      type="button"
+                                      disabled={index === 0}
+                                      onClick={() => moveVisualFormulaToken(token.id, -1)}
+                                    >
+                                      ←
+                                    </button>
+                                    <button
+                                      className="builder-formula__token-action"
+                                      type="button"
+                                      disabled={index === visualFormulaTokens.length - 1}
+                                      onClick={() => moveVisualFormulaToken(token.id, 1)}
+                                    >
+                                      →
+                                    </button>
+                                    <button
+                                      className="builder-formula__token-action builder-formula__token-action_danger"
+                                      type="button"
+                                      onClick={() => removeVisualFormulaToken(token.id)}
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="builder-formula__empty">
+                                Формула пока пустая. Добавьте поля, операторы и функции сверху.
+                              </div>
+                            )}
+                          </div>
+                          <div className="builder-formula__preview-panel">
+                            <div className="builder-formula__preview-row">
+                              <span>Выражение</span>
+                              <strong>{visualFormulaExpression || '—'}</strong>
+                            </div>
+                            <div className="builder-formula__preview-row">
+                              <span>Результат</span>
+                              <strong>{formatResultNumber(previewFormulaState.value)} ₽</strong>
+                            </div>
+                            {previewFormulaState.error ? (
+                              <div className="builder-formula__preview-error">{previewFormulaState.error}</div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="builder-formula__variables">
+                          <span className='builder-formula__variables-title'>Доступные переменные</span>
+                          <div className="builder-formula__chips">
+                            <button
+                              className="builder-formula__chip"
+                              type="button"
+                              disabled={!canUseProFeatures}
+                              onClick={() => insertIntoCustomFormula('Базовая цена')}
+                            >
+                              Базовая цена
+                            </button>
+                            <button
+                              className="builder-formula__chip"
+                              type="button"
+                              disabled={!canUseProFeatures}
+                              onClick={() => insertIntoCustomFormula('Общий коэффициент')}
+                            >
+                              Общий коэффициент
+                            </button>
+                            {template.fields.map((field) => (
+                              <button
+                                key={field.id}
+                                className="builder-formula__chip"
+                                type="button"
+                                disabled={!canUseProFeatures}
+                                onClick={() => insertIntoCustomFormula(getFormulaReference(field))}
+                              >
+                                {getFormulaReference(field)}
+                              </button>
+                            ))}
+                          </div>
+                          <span className='builder-formula__variables-title'>Знаки</span>
+                          <div className="builder-formula__chips builder-formula__chips_symbols">
+                            {formulaOperatorChips.map((operator) => (
+                              <button
+                                key={operator}
+                                className="builder-formula__chip builder-formula__chip_symbol"
+                                type="button"
+                                disabled={!canUseProFeatures}
+                                onClick={() =>
+                                  insertIntoCustomFormula(
+                                    operator === '(' || operator === ')' ? operator : ` ${operator} `,
+                                  )
+                                }
+                              >
+                                {operator}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <label className="builder-formula__field builder-formula__field_full">
+                          <span>Общая формула калькулятора</span>
+                          <textarea
+                            ref={customFormulaRef}
+                            value={template.customFormula}
+                            onChange={(event) =>
+                              canUseProFeatures
+                                ? updateTemplate({ customFormula: event.target.value })
+                                : undefined
+                            }
+                            disabled={!canUseProFeatures}
+                            placeholder={'Например: (Базовая цена + Количество) * Общий коэффициент'}
+                          />
+                        </label>
+                        <div className="builder-formula__preview-panel">
+                          <div className="builder-formula__preview-row">
+                            <span>Результат</span>
+                            <strong>{formatResultNumber(previewFormulaState.value)} ₽</strong>
+                          </div>
+                          {previewFormulaState.error ? (
+                            <div className="builder-formula__preview-error">{previewFormulaState.error}</div>
+                          ) : null}
+                        </div>
+                      </>
+                    )
+                  ) : (
+                    <div className="builder-formula__simple-note">
+                      Используется простой расчет: `(Базовая цена + сумма полей) × коэффициент`, затем применяется скидка и минимальная цена.
+                    </div>
+                  )}
+
+                  {!canUseProFeatures ? (
+                    <span className="builder-inspector__field-hint">
+                      {proFeatureHint(
+                        'Кастомная формула и визуальный редактор доступны на тарифе Про. В Базовом тарифе работает простой расчет.',
+                      )}
+                    </span>
                   ) : null}
-                </label>
 
                   {template.fields.filter((field) => field.type === 'result').map((field) => (
                     <div key={field.id} className="builder-formula__result-card">

@@ -88,11 +88,17 @@ const isFormulaField = (field: CalculatorField) =>
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const SAFE_FORMULA_CHARS_PATTERN = /^[\d\s+\-*/().,_a-zA-Z]+$/;
-const SAFE_FORMULA_TOKEN_PATTERN =
-  /(basePrice|globalCoefficient|field_\d+|\d+(?:[.,]\d+)?|[()+\-*/])/g;
 const BASE_PRICE_FORMULA_LABEL = 'Базовая цена';
 const GLOBAL_COEFFICIENT_FORMULA_LABEL = 'Общий коэффициент';
+const FORMULA_FUNCTION_ALIASES = [
+  { aliases: ['ifElse', 'IF', 'ЕСЛИ'], target: 'ifElse' },
+  { aliases: ['min', 'MIN', 'МИН'], target: 'min' },
+  { aliases: ['max', 'MAX', 'МАКС'], target: 'max' },
+  { aliases: ['round', 'ROUND', 'ОКРУГЛ'], target: 'round' },
+  { aliases: ['abs', 'ABS', 'МОДУЛЬ'], target: 'abs' },
+] as const;
+const SAFE_FORMULA_TOKEN_PATTERN =
+  /(>=|<=|==|!=|&&|\|\||[()+\-*/<>,]|basePrice|globalCoefficient|field_\d+|ifElse|min|max|round|abs|\d+(?:[.,]\d+)?|[a-zA-Z_][a-zA-Z0-9_]*)/g;
 
 const normalizeFormula = (formula: string, fields: CalculatorField[]) => {
   let nextFormula = formula;
@@ -115,18 +121,48 @@ const normalizeFormula = (formula: string, fields: CalculatorField[]) => {
       'globalCoefficient',
     );
 
+  FORMULA_FUNCTION_ALIASES.forEach(({ aliases, target }) => {
+    aliases.forEach((alias) => {
+      nextFormula = nextFormula.replace(new RegExp(escapeRegExp(alias), 'g'), target);
+    });
+  });
+
   return nextFormula;
 };
 
 const isSafeFormulaExpression = (formula: string) => {
   const normalizedFormula = formula.replace(/,/g, '.').trim();
-  if (!normalizedFormula || !SAFE_FORMULA_CHARS_PATTERN.test(normalizedFormula)) {
+  if (!normalizedFormula) {
     return false;
   }
 
   const compactFormula = normalizedFormula.replace(/\s+/g, '');
-  const matchedFormula = (normalizedFormula.match(SAFE_FORMULA_TOKEN_PATTERN) || []).join('');
-  return compactFormula === matchedFormula.replace(/\s+/g, '');
+  const tokens = normalizedFormula.match(SAFE_FORMULA_TOKEN_PATTERN) || [];
+  const matchedFormula = tokens.join('');
+  if (compactFormula !== matchedFormula.replace(/\s+/g, '')) {
+    return false;
+  }
+
+  return tokens.every((token) => {
+    if (/^(>=|<=|==|!=|&&|\|\||[()+\-*/<>,])$/.test(token)) {
+      return true;
+    }
+
+    if (/^\d+(?:[.]\d+)?$/.test(token)) {
+      return true;
+    }
+
+    return (
+      token === 'basePrice' ||
+      token === 'globalCoefficient' ||
+      /^field_\d+$/.test(token) ||
+      token === 'ifElse' ||
+      token === 'min' ||
+      token === 'max' ||
+      token === 'round' ||
+      token === 'abs'
+    );
+  });
 };
 
 const getCheckboxSelectedIds = (value: CalculatorFieldValue) =>
@@ -213,8 +249,21 @@ const getFieldAmount = (field: CalculatorField, value: CalculatorFieldValue) => 
 };
 
 const compileCustomFormula = (formula: string, context: Record<string, number>) => {
-  const keys = Object.keys(context);
-  const values = Object.values(context);
+  const runtime = {
+    ...context,
+    ifElse: (condition: unknown, truthy: number, falsy: number) =>
+      condition ? Number(truthy || 0) : Number(falsy || 0),
+    min: (...values: number[]) => Math.min(...values.map((value) => Number(value || 0))),
+    max: (...values: number[]) => Math.max(...values.map((value) => Number(value || 0))),
+    round: (value: number, precision = 0) => {
+      const digits = Math.max(0, Math.min(6, Number(precision) || 0));
+      const multiplier = 10 ** digits;
+      return Math.round(Number(value || 0) * multiplier) / multiplier;
+    },
+    abs: (value: number) => Math.abs(Number(value || 0)),
+  };
+  const keys = Object.keys(runtime);
+  const values = Object.values(runtime);
   const normalizedFormula = formula.replace(/,/g, '.');
 
   if (!isSafeFormulaExpression(normalizedFormula)) {
@@ -278,8 +327,21 @@ export const evaluateFormulaExpression = (
 
   const normalizedExpression = normalizeFormula(trimmedExpression, template.fields);
   const context = buildFormulaContext(template, values);
-  const keys = Object.keys(context);
-  const args = Object.values(context);
+  const runtime = {
+    ...context,
+    ifElse: (condition: unknown, truthy: number, falsy: number) =>
+      condition ? Number(truthy || 0) : Number(falsy || 0),
+    min: (...items: number[]) => Math.min(...items.map((item) => Number(item || 0))),
+    max: (...items: number[]) => Math.max(...items.map((item) => Number(item || 0))),
+    round: (value: number, precision = 0) => {
+      const digits = Math.max(0, Math.min(6, Number(precision) || 0));
+      const multiplier = 10 ** digits;
+      return Math.round(Number(value || 0) * multiplier) / multiplier;
+    },
+    abs: (value: number) => Math.abs(Number(value || 0)),
+  };
+  const keys = Object.keys(runtime);
+  const args = Object.values(runtime);
 
   if (!isSafeFormulaExpression(normalizedExpression)) {
     return { value: 0, error: 'Формула содержит недопустимые символы' };
@@ -375,7 +437,9 @@ export const createEmptyTemplate = (folderId?: string): CalculatorTemplate => {
     minPrice: 0,
     globalCoefficient: 1,
     formulaMode: 'simple',
+    formulaEditorMode: 'visual',
     customFormula: '',
+    visualFormulaTokens: [],
     createdAt: now,
     updatedAt: now,
     fields: [],
