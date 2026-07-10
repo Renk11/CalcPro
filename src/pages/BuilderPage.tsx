@@ -1175,6 +1175,7 @@ export const BuilderPage = ({
     globalCoefficient: String((initialTemplate ?? createEmptyTemplate()).globalCoefficient),
   }));
   const [formulaNumberDraft, setFormulaNumberDraft] = useState('');
+  const [isFormulaExamplesOpen, setIsFormulaExamplesOpen] = useState(false);
   const canvasRef = useRef<HTMLElement | null>(null);
   const libraryPanelRef = useRef<HTMLDivElement | null>(null);
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null);
@@ -2767,11 +2768,11 @@ export const BuilderPage = ({
               ) : mode === 'formula' ? (
                 <div className="builder-formula">
                   <div className="builder-formula__hero">
-                    <div>
+                    <div className="builder-formula__hero-copy">
                       <div className='builder-formula__eyebrow'>{'\u041b\u043e\u0433\u0438\u043a\u0430 \u0440\u0430\u0441\u0447\u0435\u0442\u0430'}</div>
                       <h2 className='builder-formula__title'>{'\u0424\u043e\u0440\u043c\u0443\u043b\u0430 \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u0438'}</h2>
                       <p className="builder-formula__text">
-                        {'Собирайте расчёт визуально из полей, операторов и условий или переключайтесь в ручной режим для точечной правки.'}
+                        {'Сначала задайте базовые параметры, затем соберите выражение визуально или переключитесь в код для точечной правки.'}
                       </p>
                     </div>
                     <div className="builder-formula__controls">
@@ -2812,10 +2813,31 @@ export const BuilderPage = ({
                           </button>
                         </div>
                       ) : null}
+                      <div className="builder-formula__summary">
+                        <span className="builder-formula__summary-chip">
+                          {template.formulaMode === 'custom'
+                            ? (template.formulaEditorMode ?? 'visual') === 'visual'
+                              ? 'Своя формула: визуально'
+                              : 'Своя формула: кодом'
+                            : 'Простой расчет'}
+                        </span>
+                        <span className="builder-formula__summary-text">
+                          Примеры формул скрыты по умолчанию и открываются только при необходимости.
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="builder-formula__grid">
+                  <section className="builder-formula__panel builder-formula__panel_compact">
+                    <div className="builder-formula__panel-head">
+                      <div>
+                        <div className="builder-formula__variables-title">Параметры расчёта</div>
+                        <div className="builder-formula__builder-caption">
+                          Эти значения влияют на итог независимо от того, строите вы формулу визуально или вручную.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="builder-formula__grid">
                     <label className="builder-formula__field">
                       <span>{'\u0411\u0430\u0437\u043e\u0432\u0430\u044f \u0446\u0435\u043d\u0430'}</span>
                       <input
@@ -2858,13 +2880,15 @@ export const BuilderPage = ({
                         onBlur={() => commitFormulaDraft('globalCoefficient', 1)}
                       />
                     </label>
-                  </div>
+                    </div>
+                  </section>
 
                   {template.formulaMode === 'custom' ? (
                     (template.formulaEditorMode ?? 'visual') === 'visual' ? (
                       <div className="builder-formula__visual">
-                        <div className="builder-formula__variables">
-                          <span className='builder-formula__variables-title'>Поля и переменные</span>
+                        <div className="builder-formula__variables builder-formula__stack">
+                          <div className="builder-formula__panel">
+                          <span className='builder-formula__variables-title'>Переменные</span>
                           <div className="builder-formula__chips">
                             {formulaVariableTokens.map((token) => (
                               <button
@@ -2895,6 +2919,8 @@ export const BuilderPage = ({
                                 </button>
                               ))}
                           </div>
+                          </div>
+                          <div className="builder-formula__panel">
                           <span className='builder-formula__variables-title'>Операторы</span>
                           <div className="builder-formula__chips builder-formula__chips_symbols">
                             {formulaOperatorChips.map((operator) => (
@@ -2916,6 +2942,11 @@ export const BuilderPage = ({
                                 {operator}
                               </button>
                             ))}
+                          </div>
+                          </div>
+                          <div className="builder-formula__panel">
+                          <span className='builder-formula__variables-title'>Сравнения и условия</span>
+                          <div className="builder-formula__chips builder-formula__chips_symbols">
                             {formulaComparatorChips.map((operator) => (
                               <button
                                 key={operator}
@@ -2938,12 +2969,11 @@ export const BuilderPage = ({
                               ,
                             </button>
                           </div>
-                          <span className='builder-formula__variables-title'>Функции и условия</span>
                           <div className="builder-formula__chips">
                             {formulaFunctionChips.map((token) => (
                               <button
                                 key={token.value}
-                                className="builder-formula__chip"
+                                className="builder-formula__chip builder-formula__chip_compact"
                                 type="button"
                                 disabled={!canUseProFeatures}
                                 onClick={() => addVisualFormulaToken(createVisualFormulaToken('function', token.value, token.label))}
@@ -2952,9 +2982,11 @@ export const BuilderPage = ({
                               </button>
                             ))}
                           </div>
+                          </div>
+                          <div className="builder-formula__panel">
+                          <span className='builder-formula__variables-title'>Число</span>
                           <div className="builder-formula__number-row">
                             <label className="builder-formula__field">
-                              <span>Число</span>
                               <input
                                 type="text"
                                 inputMode="decimal"
@@ -2973,9 +3005,23 @@ export const BuilderPage = ({
                               Добавить число
                             </button>
                           </div>
+                          </div>
                         </div>
 
-                        <div className="builder-formula__builder">
+                        <div className="builder-formula__builder builder-formula__stack">
+                          <div className="builder-formula__preview-panel builder-formula__preview-panel_sticky">
+                            <div className="builder-formula__preview-row">
+                              <span>Выражение</span>
+                              <strong>{visualFormulaExpression || '—'}</strong>
+                            </div>
+                            <div className="builder-formula__preview-row">
+                              <span>Результат</span>
+                              <strong>{formatResultNumber(previewFormulaState.value)} ₽</strong>
+                            </div>
+                            {previewFormulaState.error ? (
+                              <div className="builder-formula__preview-error">{previewFormulaState.error}</div>
+                            ) : null}
+                          </div>
                           <div className="builder-formula__builder-head">
                             <div>
                               <div className="builder-formula__variables-title">Конструктор выражения</div>
@@ -3031,43 +3077,39 @@ export const BuilderPage = ({
                               </div>
                             )}
                           </div>
-                          <div className="builder-formula__preview-panel">
-                            <div className="builder-formula__preview-row">
-                              <span>Выражение</span>
-                              <strong>{visualFormulaExpression || '—'}</strong>
-                            </div>
-                            <div className="builder-formula__preview-row">
-                              <span>Результат</span>
-                              <strong>{formatResultNumber(previewFormulaState.value)} ₽</strong>
-                            </div>
-                            {previewFormulaState.error ? (
-                              <div className="builder-formula__preview-error">{previewFormulaState.error}</div>
-                            ) : null}
-                          </div>
                           <div className="builder-formula__examples">
                             <div className="builder-formula__examples-head">
                               <div>
                                 <div className="builder-formula__variables-title">Примеры формул</div>
                                 <div className="builder-formula__builder-caption">
-                                  Нажмите на пример, чтобы подставить его в конструктор и затем изменить под свой сценарий.
+                                  Быстрые заготовки для типовых сценариев. Открывайте блок только когда нужен ориентир.
                                 </div>
                               </div>
+                              <button
+                                className="builder-editor__ghost-button builder-formula__examples-toggle"
+                                type="button"
+                                onClick={() => setIsFormulaExamplesOpen((current) => !current)}
+                              >
+                                {isFormulaExamplesOpen ? 'Скрыть примеры' : 'Показать примеры'}
+                              </button>
                             </div>
-                            <div className="builder-formula__examples-list">
-                              {visualFormulaExamples.map((example) => (
-                                <button
-                                  key={example.title}
-                                  className="builder-formula__example"
-                                  type="button"
-                                  disabled={!canUseProFeatures}
-                                  onClick={() => applyVisualFormulaExample(example.formula)}
-                                >
-                                  <span className="builder-formula__example-title">{example.title}</span>
-                                  <strong className="builder-formula__example-formula">{example.formula}</strong>
-                                  <span className="builder-formula__example-text">{example.description}</span>
-                                </button>
-                              ))}
-                            </div>
+                            {isFormulaExamplesOpen ? (
+                              <div className="builder-formula__examples-list">
+                                {visualFormulaExamples.map((example) => (
+                                  <button
+                                    key={example.title}
+                                    className="builder-formula__example"
+                                    type="button"
+                                    disabled={!canUseProFeatures}
+                                    onClick={() => applyVisualFormulaExample(example.formula)}
+                                  >
+                                    <span className="builder-formula__example-title">{example.title}</span>
+                                    <strong className="builder-formula__example-formula">{example.formula}</strong>
+                                    <span className="builder-formula__example-text">{example.description}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       </div>
