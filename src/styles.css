@@ -5703,6 +5703,14 @@ body,
   box-shadow: inset 0 0 0 1px rgba(255, 166, 102, 0.35);
 }
 
+.builder-editor__ghost-button_active {
+  background: linear-gradient(135deg, rgba(255, 153, 80, 0.2) 0%, rgba(255, 184, 109, 0.14) 100%);
+  color: #fff3e2;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 179, 107, 0.48),
+    0 10px 22px rgba(255, 153, 80, 0.12);
+}
+
 .builder-editor__save-button {
   padding: 12px 24px;
   border-radius: 999px;
@@ -6642,6 +6650,18 @@ body,
   box-sizing: border-box;
 }
 
+.builder-preview-workspace {
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  gap: 20px;
+}
+
+.builder-preview-workspace_test {
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+}
+
 .builder-preview-frame {
   width: min(100%, var(--builder-preview-width, 100%));
   max-width: 100%;
@@ -6652,6 +6672,10 @@ body,
 
 .builder-preview-frame_desktop {
   max-width: 100%;
+}
+
+.builder-preview-workspace_test .builder-preview-frame_desktop {
+  width: 100%;
 }
 
 .builder-preview-frame_tablet,
@@ -6786,6 +6810,145 @@ body,
 .builder-preview_embedded-scroll {
   box-sizing: border-box;
   padding-bottom: 84px;
+}
+
+.builder-test-panel {
+  position: sticky;
+  top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(188, 154, 129, 0.2);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 253, 249, 0.96), rgba(247, 241, 233, 0.98));
+  box-shadow: 0 18px 36px rgba(61, 42, 24, 0.1);
+}
+
+.builder-test-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(188, 154, 129, 0.16);
+}
+
+.builder-test-panel__section:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.builder-test-panel__eyebrow,
+.builder-test-panel__label {
+  color: #8f7b69;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.builder-test-panel__title {
+  margin: 0;
+  color: #2f261f;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.builder-test-panel__text {
+  margin: 0;
+  color: #6e5f51;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.builder-test-panel__summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.builder-test-panel__amount {
+  display: block;
+  margin-top: 6px;
+  color: #1f1f22;
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.builder-test-panel__chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 179, 107, 0.18);
+  color: #8f5d31;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.builder-test-panel__metrics,
+.builder-test-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.builder-test-panel__metric,
+.builder-test-panel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(188, 154, 129, 0.12);
+}
+
+.builder-test-panel__metric span,
+.builder-test-panel__row span {
+  color: #756555;
+  font-size: 13px;
+}
+
+.builder-test-panel__metric strong,
+.builder-test-panel__row strong {
+  color: #2f261f;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.builder-test-panel__section-title {
+  color: #5f5043;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.builder-test-panel__error {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 99, 99, 0.12);
+  color: #a93e3e;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (max-width: 1280px) {
+  .builder-preview-workspace_test {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-test-panel {
+    position: static;
+  }
 }
 
 .builder-preview-devices {
@@ -10124,6 +10287,19 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 @media (max-width: 900px) {
+  .builder-preview-workspace_test {
+    gap: 16px;
+  }
+
+  .builder-test-panel {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .builder-test-panel__amount {
+    font-size: 28px;
+  }
+
   .builder-shell_editor {
     height: auto;
     min-height: 100dvh;

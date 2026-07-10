@@ -16,10 +16,14 @@ import {
 } from '@vkontakte/icons';
 import { CalculatorFieldInput } from '../components/CalculatorFieldInput';
 import {
+  buildFormulaContext,
+  calculateTemplate,
   clampTemplateDescription,
   clampTemplateTitle,
   createDefaultRequestFormSettings,
   createEmptyTemplate,
+  evaluateFormulaExpression,
+  formatResultNumber,
   MAX_TEMPLATE_DESCRIPTION_LENGTH,
   MAX_TEMPLATE_TITLE_LENGTH,
 } from '../entities/calculator/model';
@@ -600,6 +604,35 @@ const getFieldSpacingStyle = (field: CalculatorField) => ({
   marginRight: `${Math.max(0, field.marginRight ?? 0)}px`,
 });
 
+const formatTestValue = (field: CalculatorField, value: unknown) => {
+  if (value === undefined || value === null || value === '') {
+    return '—';
+  }
+
+  if (field.type === 'checkbox') {
+    if (Array.isArray(value)) {
+      return value.length > 0 ? 'Выбрано' : 'Не выбрано';
+    }
+
+    return value ? 'Да' : 'Нет';
+  }
+
+  if (field.type === 'select' || field.type === 'radio') {
+    const option = field.options?.find((item) => String(item.value) === String(value));
+    return option?.label || String(value);
+  }
+
+  if (field.type === 'booking' && typeof value === 'object') {
+    return 'Слот выбран';
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value.map((item) => String(item)).join(', ') : '—';
+  }
+
+  return String(value);
+};
+
 const normalizeFieldLayouts = (fields: CalculatorField[]) =>
   fields.map((field, index, items) => {
     if (field.layout !== 'half') {
@@ -857,6 +890,7 @@ export const BuilderPage = ({
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
+  const [isTestMode, setIsTestMode] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<PreviewDevice>('desktop');
   const [isSpacingOpen, setIsSpacingOpen] = useState(false);
   const [mode, setMode] = useState<'design' | 'formula'>('design');
@@ -943,9 +977,30 @@ export const BuilderPage = ({
   );
   const isRequestFormSelected = selectedFieldId === REQUEST_FORM_SELECTION_ID;
   const isResultCardSelected = selectedFieldId === RESULT_CARD_SELECTION_ID;
+  const isLivePreview = isPreview || isTestMode;
   const previewResultCardTitle = template.resultCardTitle ?? 'Итог расчета';
+  const previewCalculation = useMemo(() => calculateTemplate(template, previewValues), [previewValues, template]);
+  const previewFormulaState = useMemo(() => {
+    if (template.formulaMode !== 'custom' || !template.customFormula.trim()) {
+      return { value: previewCalculation.subtotal, error: '' };
+    }
+
+    return evaluateFormulaExpression(template.customFormula, template, previewValues);
+  }, [previewCalculation.subtotal, previewValues, template]);
+  const previewFormulaContext = useMemo(() => buildFormulaContext(template, previewValues), [previewValues, template]);
+  const previewValueEntries = useMemo(
+    () =>
+      template.fields
+        .filter((field) => !['button', 'html', 'result'].includes(field.type))
+        .map((field) => ({
+          id: field.id,
+          label: field.label || field.key,
+          value: formatTestValue(field, previewValues[field.key] ?? getPreviewFieldValue(field)),
+        })),
+    [previewValues, template.fields],
+  );
   const previewResultCardDescription = template.requestForm.enabled
-    ? 'Нужно заполнить: имя, телефон, согласие'
+    ? `Подытог: ${formatResultNumber(previewCalculation.subtotal)} ₽ · Скидка: ${formatResultNumber(previewCalculation.discountAmount)} ₽`
     : 'Результат и кнопка действия будут показаны здесь.';
   const autoSaveTimeoutRef = useRef<number | null>(null);
   const hasMountedRef = useRef(false);
@@ -980,7 +1035,7 @@ export const BuilderPage = ({
       return;
     }
 
-    if (isPreview && previewDevice !== 'desktop') {
+    if (isLivePreview && previewDevice !== 'desktop') {
       const previewScrollElement = previewScrollRef.current;
       if (!previewScrollElement) {
         return;
@@ -1028,7 +1083,7 @@ export const BuilderPage = ({
     };
   }, [
     isInspectorOpen,
-    isPreview,
+    isLivePreview,
     mode,
     previewDevice,
     template.fields.length,
@@ -1161,7 +1216,9 @@ export const BuilderPage = ({
                 <div className="result-card__eyebrow">{previewResultCardTitle}</div>
               ) : null}
               {template.resultCardShowTotal !== false ? (
-                <div className="result-card__amount result-card__amount_compact">0 ₽</div>
+                <div className="result-card__amount result-card__amount_compact">
+                  {formatResultNumber(previewCalculation.total)} ₽
+                </div>
               ) : null}
               <div className="result-card__description">{previewResultCardDescription}</div>
             </div>
@@ -1859,12 +1916,13 @@ export const BuilderPage = ({
   const openFormulaMode = () => {
     setMode('formula');
     setIsPreview(false);
+    setIsTestMode(false);
     setIsLibraryOpen(false);
     setIsInspectorOpen(true);
   };
 
   const scrollCanvasToEdge = () => {
-    if (isPreview && previewDevice !== 'desktop') {
+    if (isLivePreview && previewDevice !== 'desktop') {
       const previewScrollElement = previewScrollRef.current;
       if (!previewScrollElement) {
         return;
@@ -1924,11 +1982,36 @@ export const BuilderPage = ({
             {'JSON проекта'}
           </button>
           <button
-            className="builder-editor__ghost-button"
+            className={`builder-editor__ghost-button ${isPreview ? 'builder-editor__ghost-button_active' : ''}`}
             type="button"
-            onClick={() => setIsPreview((value) => !value)}
+            onClick={() => {
+              setIsPreview((value) => {
+                const nextValue = !value;
+                if (nextValue) {
+                  setIsTestMode(false);
+                  setMode('design');
+                }
+                return nextValue;
+              });
+            }}
           >
             {isPreview ? '\u0420\u0435\u0436\u0438\u043c \u0434\u0438\u0437\u0430\u0439\u043d\u0430' : '\u041f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440'}
+          </button>
+          <button
+            className={`builder-editor__ghost-button ${isTestMode ? 'builder-editor__ghost-button_active' : ''}`}
+            type="button"
+            onClick={() => {
+              setIsTestMode((value) => {
+                const nextValue = !value;
+                if (nextValue) {
+                  setIsPreview(false);
+                  setMode('design');
+                }
+                return nextValue;
+              });
+            }}
+          >
+            {isTestMode ? 'Выйти из теста' : 'Протестировать'}
           </button>
           <button className="builder-editor__save-button" type="button" onClick={handleSave}>
             {'\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c'}
@@ -2002,7 +2085,7 @@ export const BuilderPage = ({
           </div>
         </aside>
 
-        {mode !== 'formula' && !isPreview ? (
+        {mode !== 'formula' && !isLivePreview ? (
         <button
           className={`builder-library__toggle builder-floating-toggle_legacy ${isLibraryOpen ? 'builder-library__toggle_open' : ''}`}
           type="button"
@@ -2039,7 +2122,7 @@ export const BuilderPage = ({
               </button>
             ) : null}
             <div className={`builder-canvas__toolbar ${isInspectorOpen ? 'builder-canvas__toolbar_compact' : 'builder-canvas__toolbar_expanded'}`}>
-              {!isPreview && mode !== 'formula' ? (
+              {!isLivePreview && mode !== 'formula' ? (
                 <>
               <div className="builder-canvas__field-group">
               <input
@@ -2073,7 +2156,7 @@ export const BuilderPage = ({
               </div>
                 </>
               ) : null}
-              {!isPreview && mode === 'design' && template.fields.length > 0 ? (
+              {!isLivePreview && mode === 'design' && template.fields.length > 0 ? (
                 <div className='builder-canvas__drag-hint'>{'\u0417\u0430\u0436\u043c\u0438\u0442\u0435 \u0438 \u043f\u0435\u0440\u0435\u0442\u0430\u0449\u0438\u0442\u0435 \u0431\u043b\u043e\u043a'}</div>
               ) : null}
               <div className="builder-canvas__status-row">
@@ -2082,7 +2165,13 @@ export const BuilderPage = ({
                   {template.requestForm.enabled ? 'Заявка включена' : 'Заявка выключена'}
                 </span>
                 <span className="builder-canvas__pill builder-canvas__pill_soft">
-                  {mode === 'formula' ? '\u0420\u0435\u0436\u0438\u043c \u0444\u043e\u0440\u043c\u0443\u043b\u044b' : isPreview ? '\u041f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440' : '\u0420\u0435\u0436\u0438\u043c \u0434\u0438\u0437\u0430\u0439\u043d\u0430'}
+                  {mode === 'formula'
+                    ? '\u0420\u0435\u0436\u0438\u043c \u0444\u043e\u0440\u043c\u0443\u043b\u044b'
+                    : isTestMode
+                      ? 'Тестовый режим'
+                      : isPreview
+                        ? '\u041f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440'
+                        : '\u0420\u0435\u0436\u0438\u043c \u0434\u0438\u0437\u0430\u0439\u043d\u0430'}
                 </span>
                 <label className="builder-canvas__autosave">
                   <input
@@ -2101,8 +2190,8 @@ export const BuilderPage = ({
             </div>
 
             <div className={`builder-canvas__scene ${isInspectorOpen ? 'builder-canvas__scene_compact' : 'builder-canvas__scene_expanded'}`}>
-              {isPreview ? (
-                <div className="builder-preview-shell">
+              {isLivePreview ? (
+                <div className={`builder-preview-shell ${isTestMode ? 'builder-preview-shell_test' : ''}`}>
                   <div className="builder-preview-devices" role="tablist" aria-label="Размер предпросмотра">
                     {(Object.entries(PREVIEW_DEVICE_CONFIG) as Array<[PreviewDevice, (typeof PREVIEW_DEVICE_CONFIG)[PreviewDevice]]>).map(
                       ([device, config]) => (
@@ -2123,159 +2212,224 @@ export const BuilderPage = ({
                       ),
                     )}
                   </div>
-                <div
-                  className={`builder-preview-frame builder-preview-frame_${previewDevice}`}
-                  style={
-                    {
-                      '--builder-preview-width':
-                        typeof PREVIEW_DEVICE_CONFIG[previewDevice].width === 'number'
-                          ? `${PREVIEW_DEVICE_CONFIG[previewDevice].width}px`
-                          : PREVIEW_DEVICE_CONFIG[previewDevice].width,
-                      '--builder-preview-height':
-                        typeof PREVIEW_DEVICE_CONFIG[previewDevice].height === 'number'
-                          ? `${PREVIEW_DEVICE_CONFIG[previewDevice].height}px`
-                          : 'auto',
-                    } as React.CSSProperties
-                  }
-                >
-                  <div className="builder-preview-frame__screen">
-                    <div
-                      ref={previewDevice !== 'desktop' ? previewScrollRef : null}
-                      className={`builder-preview builder-preview_device_${previewDevice} ${previewDevice !== 'desktop' ? 'builder-preview_embedded-scroll' : ''}`}
-                    >
-                      <div className="builder-preview__header">
-                        {previewDevice !== 'desktop' ? (
-                          <button className="builder-preview__back" type="button" onClick={onBack}>
-                            <Icon20ArrowLeftOutline />
-                            <span>Назад</span>
-                          </button>
-                        ) : null}
-                        <h3 className='builder-preview__title'>{template.title || '\u0411\u0435\u0437 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f'}</h3>
-                        <p className="builder-preview__description">
-                          {template.description || '\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u0437\u0434\u0435\u0441\u044c'}
-                        </p>
-                      </div>
-                      <div className="builder-preview__fields">
-                        {template.fields.length > 0 ? (
-                          template.fields.map((field) => (
-                            <div
-                              key={field.id}
-                              className={`builder-preview__field builder-preview__field_${field.layout === 'half' ? 'half' : 'full'} ${fieldEntranceDelays[field.id] != null ? 'builder-preview__field_entering' : ''}`}
-                              style={
-                                {
-                                  ...getFieldSpacingStyle(field),
-                                  '--builder-field-enter-delay': `${fieldEntranceDelays[field.id] ?? 0}ms`,
-                                } as React.CSSProperties
-                              }
-                            >
-                              <CalculatorFieldInput
-                                field={field}
-                                value={previewValues[field.key] ?? getPreviewFieldValue(field)}
-                                template={template}
-                                allValues={previewValues}
-                                isCalculationTriggered
-                                onChange={(value) =>
-                                  setPreviewValues((current) => ({
-                                    ...current,
-                                    [field.key]: value,
-                                  }))
+                <div className={`builder-preview-workspace ${isTestMode ? 'builder-preview-workspace_test' : ''}`}>
+                  <div
+                    className={`builder-preview-frame builder-preview-frame_${previewDevice}`}
+                    style={
+                      {
+                        '--builder-preview-width':
+                          typeof PREVIEW_DEVICE_CONFIG[previewDevice].width === 'number'
+                            ? `${PREVIEW_DEVICE_CONFIG[previewDevice].width}px`
+                            : PREVIEW_DEVICE_CONFIG[previewDevice].width,
+                        '--builder-preview-height':
+                          typeof PREVIEW_DEVICE_CONFIG[previewDevice].height === 'number'
+                            ? `${PREVIEW_DEVICE_CONFIG[previewDevice].height}px`
+                            : 'auto',
+                      } as React.CSSProperties
+                    }
+                  >
+                    <div className="builder-preview-frame__screen">
+                      <div
+                        ref={previewDevice !== 'desktop' ? previewScrollRef : null}
+                        className={`builder-preview builder-preview_device_${previewDevice} ${previewDevice !== 'desktop' ? 'builder-preview_embedded-scroll' : ''}`}
+                      >
+                        <div className="builder-preview__header">
+                          {previewDevice !== 'desktop' ? (
+                            <button className="builder-preview__back" type="button" onClick={onBack}>
+                              <Icon20ArrowLeftOutline />
+                              <span>Назад</span>
+                            </button>
+                          ) : null}
+                          <h3 className='builder-preview__title'>{template.title || '\u0411\u0435\u0437 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f'}</h3>
+                          <p className="builder-preview__description">
+                            {template.description || '\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u0437\u0434\u0435\u0441\u044c'}
+                          </p>
+                        </div>
+                        <div className="builder-preview__fields">
+                          {template.fields.length > 0 ? (
+                            template.fields.map((field) => (
+                              <div
+                                key={field.id}
+                                className={`builder-preview__field builder-preview__field_${field.layout === 'half' ? 'half' : 'full'} ${fieldEntranceDelays[field.id] != null ? 'builder-preview__field_entering' : ''}`}
+                                style={
+                                  {
+                                    ...getFieldSpacingStyle(field),
+                                    '--builder-field-enter-delay': `${fieldEntranceDelays[field.id] ?? 0}ms`,
+                                  } as React.CSSProperties
                                 }
-                              />
+                              >
+                                <CalculatorFieldInput
+                                  field={field}
+                                  value={previewValues[field.key] ?? getPreviewFieldValue(field)}
+                                  template={template}
+                                  allValues={previewValues}
+                                  isCalculationTriggered
+                                  onChange={(value) =>
+                                    setPreviewValues((current) => ({
+                                      ...current,
+                                      [field.key]: value,
+                                    }))
+                                  }
+                                />
+                              </div>
+                            ))
+                          ) : (
+                            <div className="builder-empty-state">
+                              {'\u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u044d\u043b\u0435\u043c\u0435\u043d\u0442\u044b \u0438\u0437 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438, \u0447\u0442\u043e\u0431\u044b \u0443\u0432\u0438\u0434\u0435\u0442\u044c \u043f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440.'}
                             </div>
-                          ))
-                        ) : (
-                          <div className="builder-empty-state">
-                            {'\u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u044d\u043b\u0435\u043c\u0435\u043d\u0442\u044b \u0438\u0437 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438, \u0447\u0442\u043e\u0431\u044b \u0443\u0432\u0438\u0434\u0435\u0442\u044c \u043f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440.'}
-                          </div>
-                        )}
-                        {template.requestForm.enabled ? (
-                          <div className="builder-preview__request-block">
-                            <div className="calculator-panel__head">
-                              <h2 className="calculator-panel__title">{template.requestForm.title}</h2>
-                              <div className="calculator-panel__caption">
-                                {template.requestForm.description}
+                          )}
+                          {template.requestForm.enabled ? (
+                            <div className="builder-preview__request-block">
+                              <div className="calculator-panel__head">
+                                <h2 className="calculator-panel__title">{template.requestForm.title}</h2>
+                                <div className="calculator-panel__caption">
+                                  {template.requestForm.description}
+                                </div>
+                              </div>
+                              <div className="calculator-request">
+                                <label className="calc-field">
+                                  <span className="calc-field__label">{template.requestForm.nameLabel}</span>
+                                  <input
+                                    className="calc-field__control"
+                                    value=""
+                                    placeholder={template.requestForm.namePlaceholder}
+                                    readOnly
+                                  />
+                                </label>
+                                <label className="calc-field">
+                                  <span className="calc-field__label">{template.requestForm.phoneLabel}</span>
+                                  <input
+                                    className="calc-field__control"
+                                    value=""
+                                    placeholder={template.requestForm.phonePlaceholder}
+                                    readOnly
+                                  />
+                                </label>
+                              <label className="calc-field">
+                                <span className="calc-field__label">{template.requestForm.commentLabel}</span>
+                                <textarea
+                                  className="calc-field__control calc-field__control_textarea"
+                                  value=""
+                                  maxLength={250}
+                                  placeholder={template.requestForm.commentPlaceholder}
+                                  readOnly
+                                />
+                                <span className="calc-field__hint">
+                                  0 / 250
+                                </span>
+                              </label>
+                              <label className="calculator-request__consent">
+                                <span className="calculator-request__consent-row">
+                                  <input
+                                    className="calculator-request__consent-checkbox"
+                                    type="checkbox"
+                                    checked={previewConsentChecked}
+                                    onChange={(event) => setPreviewConsentChecked(event.target.checked)}
+                                  />
+                                  <span className="calculator-request__consent-text">
+                                    Я принимаю{' '}
+                                    <button
+                                      className="calculator-request__consent-link"
+                                      type="button"
+                                      onClick={() => setActiveLegalDoc('agreement')}
+                                    >
+                                      пользовательское соглашение
+                                    </button>{' '}
+                                    и{' '}
+                                    <button
+                                      className="calculator-request__consent-link"
+                                      type="button"
+                                      onClick={() => setActiveLegalDoc('privacy')}
+                                    >
+                                      политику конфиденциальности
+                                    </button>
+                                  </span>
+                                </span>
+                              </label>
                               </div>
                             </div>
-                            <div className="calculator-request">
-                              <label className="calc-field">
-                                <span className="calc-field__label">{template.requestForm.nameLabel}</span>
-                                <input
-                                  className="calc-field__control"
-                                  value=""
-                                  placeholder={template.requestForm.namePlaceholder}
-                                  readOnly
-                                />
-                              </label>
-                              <label className="calc-field">
-                                <span className="calc-field__label">{template.requestForm.phoneLabel}</span>
-                                <input
-                                  className="calc-field__control"
-                                  value=""
-                                  placeholder={template.requestForm.phonePlaceholder}
-                                  readOnly
-                                />
-                              </label>
-                            <label className="calc-field">
-                              <span className="calc-field__label">{template.requestForm.commentLabel}</span>
-                              <textarea
-                                className="calc-field__control calc-field__control_textarea"
-                                value=""
-                                maxLength={250}
-                                placeholder={template.requestForm.commentPlaceholder}
-                                readOnly
-                              />
-                              <span className="calc-field__hint">
-                                0 / 250
-                              </span>
-                            </label>
-                            <label className="calculator-request__consent">
-                              <span className="calculator-request__consent-row">
-                                <input
-                                  className="calculator-request__consent-checkbox"
-                                  type="checkbox"
-                                  checked={previewConsentChecked}
-                                  onChange={(event) => setPreviewConsentChecked(event.target.checked)}
-                                />
-                                <span className="calculator-request__consent-text">
-                                  Я принимаю{' '}
-                                  <button
-                                    className="calculator-request__consent-link"
-                                    type="button"
-                                    onClick={() => setActiveLegalDoc('agreement')}
-                                  >
-                                    пользовательское соглашение
-                                  </button>{' '}
-                                  и{' '}
-                                  <button
-                                    className="calculator-request__consent-link"
-                                    type="button"
-                                    onClick={() => setActiveLegalDoc('privacy')}
-                                  >
-                                    политику конфиденциальности
-                                  </button>
-                                </span>
-                              </span>
-                            </label>
-                            </div>
-                          </div>
-                        ) : null}
-                        {renderPreviewResultCard()}
+                          ) : null}
+                          {renderPreviewResultCard()}
+                        </div>
                       </div>
+                      {isScrollJumpVisible && previewDevice !== 'desktop' ? (
+                        <div className="builder-scroll-jump builder-scroll-jump_embedded">
+                          <button
+                            className={`builder-scroll-jump__button ${isScrollJumpUp ? 'builder-scroll-jump__button_up' : 'builder-scroll-jump__button_down'}`}
+                            type="button"
+                            title={isScrollJumpUp ? 'Вверх' : 'Вниз'}
+                            aria-label={isScrollJumpUp ? 'Прокрутить вверх' : 'Прокрутить вниз'}
+                            onClick={scrollCanvasToEdge}
+                          >
+                            <span aria-hidden="true">{isScrollJumpUp ? '↑' : '↓'}</span>
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
-                    {isScrollJumpVisible && previewDevice !== 'desktop' ? (
-                      <div className="builder-scroll-jump builder-scroll-jump_embedded">
-                        <button
-                          className={`builder-scroll-jump__button ${isScrollJumpUp ? 'builder-scroll-jump__button_up' : 'builder-scroll-jump__button_down'}`}
-                          type="button"
-                          title={isScrollJumpUp ? 'Вверх' : 'Вниз'}
-                          aria-label={isScrollJumpUp ? 'Прокрутить вверх' : 'Прокрутить вниз'}
-                          onClick={scrollCanvasToEdge}
-                        >
-                          <span aria-hidden="true">{isScrollJumpUp ? '↑' : '↓'}</span>
-                        </button>
-                      </div>
-                    ) : null}
                   </div>
+                  {isTestMode ? (
+                    <aside className="builder-test-panel">
+                      <div className="builder-test-panel__section">
+                        <div className="builder-test-panel__eyebrow">Тестовый режим</div>
+                        <h3 className="builder-test-panel__title">Живой расчет</h3>
+                        <p className="builder-test-panel__text">
+                          Меняйте поля слева и сразу смотрите итог, значения и контекст формулы.
+                        </p>
+                      </div>
+                      <div className="builder-test-panel__section">
+                        <div className="builder-test-panel__summary">
+                          <div>
+                            <span className="builder-test-panel__label">Итог</span>
+                            <strong className="builder-test-panel__amount">
+                              {formatResultNumber(previewCalculation.total)} ₽
+                            </strong>
+                          </div>
+                          <span className="builder-test-panel__chip">
+                            {template.formulaMode === 'custom' ? 'Своя формула' : 'Базовый расчет'}
+                          </span>
+                        </div>
+                        <div className="builder-test-panel__metrics">
+                          <div className="builder-test-panel__metric">
+                            <span>Подытог</span>
+                            <strong>{formatResultNumber(previewCalculation.subtotal)} ₽</strong>
+                          </div>
+                          <div className="builder-test-panel__metric">
+                            <span>Скидка</span>
+                            <strong>{formatResultNumber(previewCalculation.discountAmount)} ₽</strong>
+                          </div>
+                          <div className="builder-test-panel__metric">
+                            <span>Мин. цена</span>
+                            <strong>{formatResultNumber(template.minPrice)} ₽</strong>
+                          </div>
+                        </div>
+                        {previewFormulaState.error ? (
+                          <div className="builder-test-panel__error">{previewFormulaState.error}</div>
+                        ) : null}
+                      </div>
+                      <div className="builder-test-panel__section">
+                        <div className="builder-test-panel__section-title">Текущие значения</div>
+                        <div className="builder-test-panel__list">
+                          {previewValueEntries.map((entry) => (
+                            <div key={entry.id} className="builder-test-panel__row">
+                              <span>{entry.label}</span>
+                              <strong>{entry.value}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="builder-test-panel__section">
+                        <div className="builder-test-panel__section-title">Контекст формулы</div>
+                        <div className="builder-test-panel__list">
+                          {Object.entries(previewFormulaContext).map(([key, value]) => (
+                            <div key={key} className="builder-test-panel__row">
+                              <span>{key}</span>
+                              <strong>{formatResultNumber(value, 2, 'plain')}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </aside>
+                  ) : null}
                 </div>
                 </div>
               ) : mode === 'formula' ? (
@@ -2771,9 +2925,9 @@ export const BuilderPage = ({
           </div>
         </main>
 
-        {isScrollJumpVisible && (!isPreview || previewDevice === 'desktop') ? (
+        {isScrollJumpVisible && (!isLivePreview || previewDevice === 'desktop') ? (
           <div
-            className={`builder-scroll-jump ${isInspectorOpen && mode !== 'formula' && !isPreview ? 'builder-scroll-jump_with-inspector' : ''} ${isPreview ? 'builder-scroll-jump_preview' : ''}`}
+            className={`builder-scroll-jump ${isInspectorOpen && mode !== 'formula' && !isLivePreview ? 'builder-scroll-jump_with-inspector' : ''} ${isLivePreview ? 'builder-scroll-jump_preview' : ''}`}
           >
             <button
               className={`builder-scroll-jump__button ${isScrollJumpUp ? 'builder-scroll-jump__button_up' : 'builder-scroll-jump__button_down'}`}
@@ -2787,7 +2941,7 @@ export const BuilderPage = ({
           </div>
         ) : null}
 
-        {mode !== 'formula' && !isPreview ? (
+        {mode !== 'formula' && !isLivePreview ? (
           <button
             className={`builder-inspector__toggle builder-floating-toggle_legacy ${isInspectorOpen ? 'builder-inspector__toggle_open' : ''} ${!selectedField && !isRequestFormSelected && !isResultCardSelected ? 'builder-inspector__toggle_muted' : ''}`}
             type="button"
