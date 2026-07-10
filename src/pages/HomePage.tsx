@@ -1761,9 +1761,35 @@ export const HomePage = ({
     }
   };
 
+  const sectionHistoryRef = useRef<AdminSection[]>([]);
+  const [canGoBackSection, setCanGoBackSection] = useState(false);
+
+  const navigateToSection = (section: AdminSection) => {
+    const nextSection = isSectionLocked(section) && canManageMonetization ? 'payments' : section;
+    if (nextSection === currentSection) {
+      return;
+    }
+
+    sectionHistoryRef.current = [...sectionHistoryRef.current, currentSection];
+    setCanGoBackSection(sectionHistoryRef.current.length > 0);
+    onSectionChange(nextSection);
+  };
+
   const handleSectionSelect = (section: AdminSection) => {
-    onSectionChange(isSectionLocked(section) && canManageMonetization ? 'payments' : section);
+    navigateToSection(section);
     closeAdminNav();
+  };
+
+  const handleSectionBack = () => {
+    const history = [...sectionHistoryRef.current];
+    const previousSection = history.pop();
+    if (!previousSection) {
+      return;
+    }
+
+    sectionHistoryRef.current = history;
+    setCanGoBackSection(history.length > 0);
+    onSectionChange(previousSection);
   };
 
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
@@ -4876,7 +4902,7 @@ export const HomePage = ({
                   </button>
                 </div>
               ) : null}
-              <button className="settings-support__button settings-support__button_secondary" type="button" onClick={() => onSectionChange('faq')}>
+              <button className="settings-support__button settings-support__button_secondary" type="button" onClick={() => navigateToSection('faq')}>
                 Открыть FAQ
               </button>
             </div>
@@ -4988,7 +5014,7 @@ export const HomePage = ({
           <button
             className="admin-nav__plan-button"
             type="button"
-            onClick={() => onSectionChange('payments')}
+            onClick={() => navigateToSection('payments')}
           >
             Перейти к оплате
           </button>
@@ -5007,6 +5033,15 @@ export const HomePage = ({
       >
         <Icon20MenuOutline />
       </button>
+      {canGoBackSection ? (
+        <button
+          className={`admin-nav__backtrack ${isAdminNavOpen ? 'admin-nav__backtrack_open' : ''}`}
+          type="button"
+          onClick={handleSectionBack}
+        >
+          Назад
+        </button>
+      ) : null}
 
       {isAdminNavOpen ? <button className="admin-nav__overlay" type="button" aria-label="Скрыть панель управления" onClick={closeAdminNav} /> : null}
 
@@ -5629,7 +5664,7 @@ export const HomePage = ({
                 type="button"
                 onClick={() => {
                   setIsGoogleSheetsHelpOpen(false);
-                  onSectionChange('faq');
+                  navigateToSection('faq');
                 }}
               >
                 Открыть FAQ
