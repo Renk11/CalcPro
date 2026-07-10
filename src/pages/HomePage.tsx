@@ -1763,18 +1763,41 @@ export const HomePage = ({
     }
   };
 
+  const sectionHistoryRef = useRef<AdminSection[]>([]);
+  const [canGoBackSection, setCanGoBackSection] = useState(false);
+
   const navigateToSection = (section: AdminSection) => {
     const nextSection = isSectionLocked(section) && canManageMonetization ? 'payments' : section;
     if (nextSection === currentSection) {
       return;
     }
 
+    sectionHistoryRef.current = [...sectionHistoryRef.current, currentSection];
+    setCanGoBackSection(sectionHistoryRef.current.length > 0);
     onSectionChange(nextSection);
   };
 
   const handleSectionSelect = (section: AdminSection) => {
     navigateToSection(section);
     closeAdminNav();
+  };
+
+  const handleSectionBack = () => {
+    if (isAdminNavOpen) {
+      onOpenPublicationScreen();
+      return;
+    }
+
+    const history = [...sectionHistoryRef.current];
+    const previousSection = history.pop();
+    if (!previousSection) {
+      onOpenPublicationScreen();
+      return;
+    }
+
+    sectionHistoryRef.current = history;
+    setCanGoBackSection(history.length > 0);
+    onSectionChange(previousSection);
   };
 
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
@@ -5021,7 +5044,14 @@ export const HomePage = ({
       <button
         className={`admin-nav__backtrack ${isAdminNavOpen ? 'admin-nav__backtrack_open' : ''}`}
         type="button"
-        onClick={onOpenPublicationScreen}
+        aria-label={
+          isAdminNavOpen
+            ? 'Перейти к экрану публикации калькулятора'
+            : canGoBackSection
+              ? 'Вернуться к предыдущему разделу'
+              : 'Перейти к экрану публикации калькулятора'
+        }
+        onClick={handleSectionBack}
       >
         Назад
       </button>

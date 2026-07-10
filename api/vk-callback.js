@@ -101,12 +101,12 @@ function parseMessagePayload(rawPayload) {
 
 function buildBroadcastResubscribeKeyboard() {
   return {
-    inline: true,
+    one_time: false,
     buttons: [
       [
         {
           action: {
-            type: 'callback',
+            type: 'text',
             label: 'Подписаться на рассылку',
             payload: {
               command: 'subscribe_updates',
@@ -121,12 +121,12 @@ function buildBroadcastResubscribeKeyboard() {
 
 function buildBroadcastSubscribedKeyboard() {
   return {
-    inline: true,
+    one_time: false,
     buttons: [
       [
         {
           action: {
-            type: 'callback',
+            type: 'text',
             label: 'Отписаться от рассылки',
             payload: {
               command: 'unsubscribe_updates',
