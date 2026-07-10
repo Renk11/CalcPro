@@ -9576,6 +9576,12 @@ body::-webkit-scrollbar-thumb:hover,
 
 }
 
+@media (max-width: 1280px) {
+  .analytics-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
   .admin-home {
     flex-direction: column;
