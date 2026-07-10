@@ -90,6 +90,7 @@ interface HomePageProps {
   ) => void;
   onDeleteRequest: (requestId: string) => void;
   onToggleAdminNav: () => void;
+  onOpenPublicationScreen: () => void;
   onCreateFolder: () => void;
   onDeleteFolder: (folderId: string) => void;
   onRenameFolder: (folderId: string, name: string) => void;
@@ -1700,6 +1701,7 @@ export const HomePage = ({
   onUpdateRequest,
   onDeleteRequest,
   onToggleAdminNav,
+  onOpenPublicationScreen,
   onCreateFolder,
   onDeleteFolder,
   onRenameFolder,
@@ -1761,35 +1763,18 @@ export const HomePage = ({
     }
   };
 
-  const sectionHistoryRef = useRef<AdminSection[]>([]);
-  const [canGoBackSection, setCanGoBackSection] = useState(false);
-
   const navigateToSection = (section: AdminSection) => {
     const nextSection = isSectionLocked(section) && canManageMonetization ? 'payments' : section;
     if (nextSection === currentSection) {
       return;
     }
 
-    sectionHistoryRef.current = [...sectionHistoryRef.current, currentSection];
-    setCanGoBackSection(sectionHistoryRef.current.length > 0);
     onSectionChange(nextSection);
   };
 
   const handleSectionSelect = (section: AdminSection) => {
     navigateToSection(section);
     closeAdminNav();
-  };
-
-  const handleSectionBack = () => {
-    const history = [...sectionHistoryRef.current];
-    const previousSection = history.pop();
-    if (!previousSection) {
-      return;
-    }
-
-    sectionHistoryRef.current = history;
-    setCanGoBackSection(history.length > 0);
-    onSectionChange(previousSection);
   };
 
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
@@ -5033,15 +5018,13 @@ export const HomePage = ({
       >
         <Icon20MenuOutline />
       </button>
-      {canGoBackSection ? (
-        <button
-          className={`admin-nav__backtrack ${isAdminNavOpen ? 'admin-nav__backtrack_open' : ''}`}
-          type="button"
-          onClick={handleSectionBack}
-        >
-          Назад
-        </button>
-      ) : null}
+      <button
+        className={`admin-nav__backtrack ${isAdminNavOpen ? 'admin-nav__backtrack_open' : ''}`}
+        type="button"
+        onClick={onOpenPublicationScreen}
+      >
+        Назад
+      </button>
 
       {isAdminNavOpen ? <button className="admin-nav__overlay" type="button" aria-label="Скрыть панель управления" onClick={closeAdminNav} /> : null}
 

@@ -8226,7 +8226,13 @@ body::-webkit-scrollbar-thumb:hover,
 .calculator-page__actions {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
   width: 100%;
+}
+
+.calculator-page__actions_left {
+  justify-content: flex-start;
+  flex-wrap: wrap;
 }
 
 .calculator-page__back {

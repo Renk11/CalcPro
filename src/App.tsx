@@ -1209,6 +1209,17 @@ const App = () => {
     setActiveView('home');
   };
 
+  const handleCalculatorFallbackBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    if (isViewerGroupAdmin) {
+      openAdminHome();
+    }
+  };
+
   const handleSaveAdminSettings = async (settings: CalculatorAdminSettings) => {
     persistAdminSettings(settings);
 
@@ -2470,6 +2481,7 @@ const App = () => {
                     onUpdateRequest={handleUpdateRequest}
                     onDeleteRequest={handleDeleteRequest}
                     onToggleAdminNav={() => setIsAdminNavOpen((current) => !current)}
+                    onOpenPublicationScreen={() => setActiveView('calculator')}
                     onCreateFolder={createFolder}
                     onDeleteFolder={deleteFolder}
                     onRenameFolder={renameFolder}
@@ -2579,13 +2591,22 @@ const App = () => {
                           {'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u0432 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e'}
                         </button>
                       ) : isViewerGroupAdmin ? (
-                        <button
-                          className="calculator-page__back"
-                          type="button"
-                          onClick={openAdminHome}
-                        >
-                          {'\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0430\u0434\u043c\u0438\u043d\u043a\u0443'}
-                        </button>
+                        <div className="calculator-page__actions calculator-page__actions_left">
+                          <button
+                            className="calculator-page__back"
+                            type="button"
+                            onClick={handleCalculatorFallbackBack}
+                          >
+                            {'\u041d\u0430\u0437\u0430\u0434'}
+                          </button>
+                          <button
+                            className="calculator-page__back"
+                            type="button"
+                            onClick={openAdminHome}
+                          >
+                            {'\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0430\u0434\u043c\u0438\u043d\u043a\u0443'}
+                          </button>
+                        </div>
                       ) : null}
                     </div>
                   </div>
