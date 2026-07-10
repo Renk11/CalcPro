@@ -270,6 +270,37 @@ export async function updateServerBroadcastSubscription(groupId, userId, isSubsc
   return nextSettings;
 }
 
+export async function updateServerBroadcastSubscriptionForUser(userId, isSubscribed) {
+  const normalizedUserId = normalizeVkUserId(userId);
+  if (!normalizedUserId) {
+    throw new Error('Valid VK user id is required');
+  }
+
+  const settingsList = await listServerAdminSettings();
+  const matchedSettings = settingsList.filter(
+    ({ settings }) => settings.billingReminderVkId === normalizedUserId,
+  );
+
+  if (matchedSettings.length === 0) {
+    throw new Error('Broadcast recipient is not configured for this user');
+  }
+
+  const nextUnsubscribedAt = isSubscribed ? '' : new Date().toISOString();
+  await Promise.all(
+    matchedSettings.map(({ groupId, settings }) =>
+      writeSettingRow(
+        getAdminSettingsKey(groupId),
+        normalizeAdminSettings({
+          ...settings,
+          updatesBroadcastUnsubscribedAt: nextUnsubscribedAt,
+        }),
+      ),
+    ),
+  );
+
+  return matchedSettings.length;
+}
+
 export async function linkServerManagerRecipient(groupId, userId) {
   const settings = await getServerAdminSettings(groupId);
   const normalizedUserId = normalizeVkUserId(userId);

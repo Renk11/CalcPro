@@ -168,6 +168,48 @@ function buildBroadcastUnsubscribeKeyboard(groupId) {
   };
 }
 
+function buildBroadcastUnsubscribeKeyboardWithPayload(groupId) {
+  return {
+    one_time: true,
+    buttons: [
+      [
+        {
+          action: {
+            type: 'text',
+            label: `Стоп обновления ${groupId}`,
+            payload: {
+              command: 'unsubscribe_updates',
+              groupId,
+            },
+          },
+          color: 'secondary',
+        },
+      ],
+    ],
+  };
+}
+
+function buildBroadcastActionKeyboard(groupId) {
+  return {
+    one_time: true,
+    buttons: [
+      [
+        {
+          action: {
+            type: 'text',
+            label: 'Отписаться от рассылки',
+            payload: {
+              command: 'unsubscribe_updates',
+              groupId,
+            },
+          },
+          color: 'secondary',
+        },
+      ],
+    ],
+  };
+}
+
 export default async function handler(request, response) {
   try {
     const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
@@ -466,7 +508,7 @@ export default async function handler(request, response) {
 
           try {
             await sendVkMessageWithOptions(recipientId, `Обновление CalcPro\n\n${messageText}`, {
-              keyboard: buildBroadcastUnsubscribeKeyboard(recipient.groupId),
+              keyboard: buildBroadcastActionKeyboard(recipient.groupId),
             });
             sentCount += 1;
           } catch (error) {

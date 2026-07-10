@@ -3,9 +3,10 @@ import {
   linkServerBillingReminderRecipient,
   linkServerManagerRecipient,
   updateServerBroadcastSubscription,
+  updateServerBroadcastSubscriptionForUser,
 } from '../server/settings-store.js';
 import { updateServerSupportTicketStatus } from '../server/support-store.js';
-import { sendVkMessage, sendVkMessageEventAnswer } from '../server/vk.js';
+import { sendVkMessage, sendVkMessageEventAnswer, sendVkMessageWithOptions } from '../server/vk.js';
 
 const STATUS_LABELS = {
   pending: 'На рассмотрении',
@@ -72,6 +73,16 @@ function parseBroadcastUnsubscribeGroupId(text) {
   return match ? Number(match[1]) : 0;
 }
 
+function hasBroadcastUnsubscribeIntent(text) {
+  return /(?:отписать(?:ся)?|стоп)(?:\s+от)?\s+рассыл/i.test(String(text || '').trim());
+}
+
+function hasBroadcastSubscribeIntent(text) {
+  return /(?:подписать(?:ся)?|включить|вернуть)(?:\s+на)?\s+рассыл/i.test(
+    String(text || '').trim(),
+  );
+}
+
 function parseMessagePayload(rawPayload) {
   if (!rawPayload) {
     return null;
@@ -86,6 +97,51 @@ function parseMessagePayload(rawPayload) {
   } catch {
     return null;
   }
+}
+
+function buildBroadcastResubscribeKeyboard() {
+  return {
+    inline: true,
+    buttons: [
+      [
+        {
+          action: {
+            type: 'callback',
+            label: 'Подписаться на рассылку',
+            payload: {
+              command: 'subscribe_updates',
+            },
+          },
+          color: 'positive',
+        },
+      ],
+    ],
+  };
+}
+
+async function sendBroadcastUnsubscribeConfirmation(userId) {
+  await sendVkMessageWithOptions(
+    userId,
+    'Вы успешно отписались от рассылки обновлений CalcPro. Если захотите снова получать новости об обновлениях, нажмите кнопку ниже.',
+    {
+      keyboard: buildBroadcastResubscribeKeyboard(),
+    },
+  ).catch(() => undefined);
+}
+
+async function sendBroadcastSubscribeConfirmation(userId) {
+  await sendVkMessage(
+    userId,
+    'Вы снова подписаны на рассылку обновлений CalcPro. Будем присылать только важные новости и обновления.',
+  ).catch(() => undefined);
+}
+
+async function unsubscribeUserFromBroadcasts(userId, fallbackGroupId = 0) {
+  await updateServerBroadcastSubscriptionForUser(userId, false).catch(() =>
+    fallbackGroupId > 0
+      ? updateServerBroadcastSubscription(fallbackGroupId, userId, false).catch(() => undefined)
+      : undefined,
+  );
 }
 
 export default async function handler(request, response) {
@@ -131,14 +187,9 @@ export default async function handler(request, response) {
         const targetGroupId = Number(payload.groupId) || 0;
         const targetUserId = normalizeVkUserId(body.object?.user_id);
 
-        if (targetGroupId > 0 && targetUserId > 0) {
-          await updateServerBroadcastSubscription(targetGroupId, targetUserId, false).catch(
-            () => undefined,
-          );
-          await sendVkMessage(
-            targetUserId,
-            'Вы отписались от рассылки обновлений CalcPro. Напоминания по тарифу при этом сохраняются.',
-          ).catch(() => undefined);
+        if (targetUserId > 0) {
+          await unsubscribeUserFromBroadcasts(targetUserId, targetGroupId);
+          await sendBroadcastUnsubscribeConfirmation(targetUserId);
         }
 
         await sendVkMessageEventAnswer(
@@ -147,7 +198,26 @@ export default async function handler(request, response) {
           body.object?.peer_id,
           {
             type: 'show_snackbar',
-            text: 'Вы отписались от обновлений CalcPro',
+            text: 'Вы отписались от рассылки',
+          },
+        ).catch(() => undefined);
+      }
+
+      if (payload.command === 'subscribe_updates') {
+        const targetUserId = normalizeVkUserId(body.object?.user_id);
+
+        if (targetUserId > 0) {
+          await updateServerBroadcastSubscriptionForUser(targetUserId, true).catch(() => undefined);
+          await sendBroadcastSubscribeConfirmation(targetUserId);
+        }
+
+        await sendVkMessageEventAnswer(
+          body.object?.event_id,
+          body.object?.user_id,
+          body.object?.peer_id,
+          {
+            type: 'show_snackbar',
+            text: 'Вы снова подписаны на рассылку',
           },
         ).catch(() => undefined);
       }
@@ -159,30 +229,27 @@ export default async function handler(request, response) {
       const groupId = parseReminderGroupId(message.text);
       const managerLinkRequest = parseManagerLinkRequest(message.text);
       const unsubscribeGroupIdFromText = parseBroadcastUnsubscribeGroupId(message.text);
+      const hasUnsubscribeIntent = hasBroadcastUnsubscribeIntent(message.text);
+      const hasSubscribeIntent = hasBroadcastSubscribeIntent(message.text);
       const messagePayload = parseMessagePayload(message.payload);
+      const isUnsubscribePayload = messagePayload?.command === 'unsubscribe_updates';
+      const isSubscribePayload = messagePayload?.command === 'subscribe_updates';
 
-      if (unsubscribeGroupIdFromText > 0 && userId > 0) {
-        await updateServerBroadcastSubscription(unsubscribeGroupIdFromText, userId, false).catch(
-          () => undefined,
-        );
-        await sendVkMessage(
-          userId,
-          'Вы отписались от рассылки обновлений CalcPro. Напоминания по тарифу при этом сохраняются.',
-        ).catch(() => undefined);
+      if ((unsubscribeGroupIdFromText > 0 || hasUnsubscribeIntent) && !isUnsubscribePayload && userId > 0) {
+        await unsubscribeUserFromBroadcasts(userId, unsubscribeGroupIdFromText);
+        await sendBroadcastUnsubscribeConfirmation(userId);
       }
 
-      if (messagePayload?.command === 'unsubscribe_updates' && userId > 0) {
+      if (isUnsubscribePayload && userId > 0) {
         const targetGroupId = Number(messagePayload.groupId) || 0;
 
-        if (targetGroupId > 0) {
-          await updateServerBroadcastSubscription(targetGroupId, userId, false).catch(
-            () => undefined,
-          );
-          await sendVkMessage(
-            userId,
-            'Вы отписались от рассылки обновлений CalcPro. Напоминания по тарифу при этом сохраняются.',
-          ).catch(() => undefined);
-        }
+        await unsubscribeUserFromBroadcasts(userId, targetGroupId);
+        await sendBroadcastUnsubscribeConfirmation(userId);
+      }
+
+      if ((isSubscribePayload || hasSubscribeIntent) && userId > 0) {
+        await updateServerBroadcastSubscriptionForUser(userId, true).catch(() => undefined);
+        await sendBroadcastSubscribeConfirmation(userId);
       }
 
       if (userId > 0 && groupId > 0) {
