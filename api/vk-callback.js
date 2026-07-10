@@ -119,6 +119,26 @@ function buildBroadcastResubscribeKeyboard() {
   };
 }
 
+function buildBroadcastSubscribedKeyboard() {
+  return {
+    inline: true,
+    buttons: [
+      [
+        {
+          action: {
+            type: 'callback',
+            label: 'Отписаться от рассылки',
+            payload: {
+              command: 'unsubscribe_updates',
+            },
+          },
+          color: 'negative',
+        },
+      ],
+    ],
+  };
+}
+
 async function sendBroadcastUnsubscribeConfirmation(userId) {
   await sendVkMessageWithOptions(
     userId,
@@ -130,9 +150,12 @@ async function sendBroadcastUnsubscribeConfirmation(userId) {
 }
 
 async function sendBroadcastSubscribeConfirmation(userId) {
-  await sendVkMessage(
+  await sendVkMessageWithOptions(
     userId,
     'Вы снова подписаны на рассылку обновлений CalcPro. Будем присылать только важные новости и обновления.',
+    {
+      keyboard: buildBroadcastSubscribedKeyboard(),
+    },
   ).catch(() => undefined);
 }
 

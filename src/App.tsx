@@ -1355,7 +1355,11 @@ const App = () => {
     }
   };
 
-  const handleSendSuperAdminBroadcast = async (message: string, testOnly = false) => {
+  const handleSendSuperAdminBroadcast = async (
+    message: string,
+    testOnly = false,
+    recipientIds?: number[],
+  ) => {
     if (!isSuperAdmin || !adminProfile.id) {
       return {
         ok: false,
@@ -1370,6 +1374,7 @@ const App = () => {
         body: JSON.stringify({
           message,
           testOnly,
+          recipientIds,
         }),
       });
       const payload = (await response.json().catch(() => null)) as

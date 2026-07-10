@@ -133,6 +133,7 @@ interface HomePageProps {
   onSendSuperAdminBroadcast: (
     message: string,
     testOnly?: boolean,
+    recipientIds?: number[],
   ) => Promise<{ ok: boolean; message: string }>;
   onResetAllGroups: (
     confirmation: string,
@@ -1103,6 +1104,7 @@ type SuperAdminPlansTabProps = {
   superAdminGroupId: string;
   superAdminPlan: CalculatorSubscriptionPlan;
   superAdminDays: string;
+  status: string;
   onChangeGroupId: (value: string) => void;
   onChangePlan: (value: CalculatorSubscriptionPlan) => void;
   onChangeDays: (value: string) => void;
@@ -1123,15 +1125,22 @@ type SuperAdminResetTabProps = {
 type SuperAdminBroadcastTabProps = {
   recipients: CalculatorSuperAdminBroadcastRecipient[];
   recipientCount: number;
+  selectedCount: number;
   isLoading: boolean;
   lastUpdatedAt: string;
   broadcastMessage: string;
   broadcastStatus: string;
   broadcastSearch: string;
   subscribedOnly: boolean;
+  selectionMode: 'all' | 'selected';
+  selectedUserIds: number[];
   onChangeMessage: (value: string) => void;
   onChangeSearch: (value: string) => void;
   onToggleSubscribedOnly: (value: boolean) => void;
+  onChangeSelectionMode: (value: 'all' | 'selected') => void;
+  onToggleRecipient: (userId: number) => void;
+  onSelectVisibleRecipients: () => void;
+  onClearVisibleRecipients: () => void;
   onSubmit: () => void;
   onSubmitTest: () => void;
 };
@@ -1218,6 +1227,7 @@ const SuperAdminPlansTab = ({
   superAdminGroupId,
   superAdminPlan,
   superAdminDays,
+  status,
   onChangeGroupId,
   onChangePlan,
   onChangeDays,
@@ -1287,6 +1297,8 @@ const SuperAdminPlansTab = ({
           superAdminPlan === 'pro' ? 'Pro' : superAdminPlan === 'start' ? 'Start' : 'Free'
         } группе`}
       </button>
+
+      {status ? <div className="superadmin-card__status superadmin-card__status_toast">{status}</div> : null}
     </div>
   </section>
 );
@@ -1374,15 +1386,22 @@ const SuperAdminResetTab = ({
 const SuperAdminBroadcastTab = ({
   recipients,
   recipientCount,
+  selectedCount,
   isLoading,
   lastUpdatedAt,
   broadcastMessage,
   broadcastStatus,
   broadcastSearch,
   subscribedOnly,
+  selectionMode,
+  selectedUserIds,
   onChangeMessage,
   onChangeSearch,
   onToggleSubscribedOnly,
+  onChangeSelectionMode,
+  onToggleRecipient,
+  onSelectVisibleRecipients,
+  onClearVisibleRecipients,
   onSubmit,
   onSubmitTest,
 }: SuperAdminBroadcastTabProps) => (
@@ -1411,7 +1430,9 @@ const SuperAdminBroadcastTab = ({
     </div>
     <div className="superadmin-panel__note">
       {recipientCount > 0
-        ? `Сейчас под фильтр попадает ${recipientCount} получател${recipientCount === 1 ? 'ь' : recipientCount < 5 ? 'я' : 'ей'}.`
+        ? selectionMode === 'selected'
+          ? `Выбрано ${selectedCount} из ${recipientCount} получател${recipientCount === 1 ? 'я' : 'ей'} под текущими фильтрами.`
+          : `Сейчас под фильтр попадает ${recipientCount} получател${recipientCount === 1 ? 'ь' : recipientCount < 5 ? 'я' : 'ей'}.`
         : 'Сейчас нет получателей под выбранные фильтры.'}
     </div>
 
@@ -1430,7 +1451,13 @@ const SuperAdminBroadcastTab = ({
         Тест себе
       </button>
       <button className="settings-form__button" type="button" onClick={onSubmit}>
-        {recipientCount > 0 ? `Отправить ${recipientCount}` : 'Отправить рассылку'}
+        {selectionMode === 'selected'
+          ? selectedCount > 0
+            ? `Отправить ${selectedCount}`
+            : 'Отправить выбранным'
+          : recipientCount > 0
+            ? `Отправить ${recipientCount}`
+            : 'Отправить рассылку'}
       </button>
     </div>
 
@@ -1445,6 +1472,26 @@ const SuperAdminBroadcastTab = ({
       </div>
 
       <div className="superadmin-broadcast-card__filters">
+        <div className="superadmin-broadcast-card__selection-mode">
+          <button
+            className={`superadmin-broadcast-card__mode-button ${
+              selectionMode === 'all' ? 'superadmin-broadcast-card__mode-button_active' : ''
+            }`}
+            type="button"
+            onClick={() => onChangeSelectionMode('all')}
+          >
+            Всем под фильтром
+          </button>
+          <button
+            className={`superadmin-broadcast-card__mode-button ${
+              selectionMode === 'selected' ? 'superadmin-broadcast-card__mode-button_active' : ''
+            }`}
+            type="button"
+            onClick={() => onChangeSelectionMode('selected')}
+          >
+            Только выбранным
+          </button>
+        </div>
         <label className="settings-form__field">
           <span className="settings-form__label">Поиск</span>
           <input
@@ -1463,6 +1510,16 @@ const SuperAdminBroadcastTab = ({
           />
           <span>Только подписанные</span>
         </label>
+        {selectionMode === 'selected' ? (
+          <div className="superadmin-broadcast-card__selection-actions">
+            <button className="superadmin-broadcast-card__link" type="button" onClick={onSelectVisibleRecipients}>
+              Выбрать всех видимых
+            </button>
+            <button className="superadmin-broadcast-card__link" type="button" onClick={onClearVisibleRecipients}>
+              Снять выбор
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {recipients.length ? (
@@ -1470,7 +1527,15 @@ const SuperAdminBroadcastTab = ({
           {recipients.map((recipient) => (
             <div key={recipient.userId} className="superadmin-community-card__item">
               <div className="superadmin-community-card__title-row">
-                <div className="superadmin-community-card__name">VK ID {recipient.userId}</div>
+                <label className="superadmin-broadcast-card__recipient-toggle">
+                  <input
+                    type="checkbox"
+                    checked={selectedUserIds.includes(recipient.userId)}
+                    onChange={() => onToggleRecipient(recipient.userId)}
+                    disabled={!recipient.isSubscribed}
+                  />
+                  <span className="superadmin-community-card__name">VK ID {recipient.userId}</span>
+                </label>
                 <div className="superadmin-community-card__plan">
                   {recipient.isSubscribed ? 'ПОДПИСАН' : 'ОТПИСАН'}
                 </div>
@@ -1752,6 +1817,12 @@ export const HomePage = ({
   const [superAdminBroadcastStatus, setSuperAdminBroadcastStatus] = useState('');
   const [superAdminBroadcastSearch, setSuperAdminBroadcastSearch] = useState('');
   const [superAdminBroadcastSubscribedOnly, setSuperAdminBroadcastSubscribedOnly] = useState(true);
+  const [superAdminBroadcastSelectionMode, setSuperAdminBroadcastSelectionMode] = useState<
+    'all' | 'selected'
+  >('all');
+  const [superAdminBroadcastSelectedUserIds, setSuperAdminBroadcastSelectedUserIds] = useState<
+    number[]
+  >([]);
   const [isSuperAdminBroadcastConfirmOpen, setIsSuperAdminBroadcastConfirmOpen] = useState(false);
   const [resetGroupIdValue, setResetGroupIdValue] = useState(
     currentGroupId > 0 ? String(currentGroupId) : '',
@@ -1812,6 +1883,17 @@ export const HomePage = ({
     superAdminBroadcastSearch,
     superAdminBroadcastSubscribedOnly,
   ]);
+  const selectableSuperAdminBroadcastRecipients = useMemo(
+    () => visibleSuperAdminBroadcastRecipients.filter((recipient) => recipient.isSubscribed),
+    [visibleSuperAdminBroadcastRecipients],
+  );
+  const selectedVisibleSuperAdminBroadcastRecipients = useMemo(
+    () =>
+      selectableSuperAdminBroadcastRecipients.filter((recipient) =>
+        superAdminBroadcastSelectedUserIds.includes(recipient.userId),
+      ),
+    [selectableSuperAdminBroadcastRecipients, superAdminBroadcastSelectedUserIds],
+  );
   const loadSuperAdminCommunities = async () => {
     if (!isSuperAdmin) {
       return;
@@ -1910,6 +1992,32 @@ export const HomePage = ({
   useEffect(() => {
     setBillingReminderActionStatus('');
   }, [adminSettings.billingReminderConfirmedAt, adminSettings.billingReminderVkId, currentGroupId]);
+
+  useEffect(() => {
+    if (!superAdminStatus) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSuperAdminStatus('');
+    }, 3500);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [superAdminStatus]);
+
+  useEffect(() => {
+    setSuperAdminBroadcastSelectedUserIds((current) => {
+      const subscribedIds = new Set(
+        superAdminBroadcastRecipients
+          .filter((recipient) => recipient.isSubscribed)
+          .map((recipient) => recipient.userId),
+      );
+      const next = current.filter((userId) => subscribedIds.has(userId));
+      return next.length === current.length ? current : next;
+    });
+  }, [superAdminBroadcastRecipients]);
 
   useEffect(() => {
     if (!isSuperAdmin || !isSuperAdminPanelOpen) {
@@ -3849,7 +3957,12 @@ export const HomePage = ({
   };
 
   const handleSuperAdminBroadcastSubmit = async () => {
-    if (visibleSuperAdminBroadcastRecipients.length === 0) {
+    if (superAdminBroadcastSelectionMode === 'selected') {
+      if (selectedVisibleSuperAdminBroadcastRecipients.length === 0) {
+        setSuperAdminBroadcastStatus('Выберите хотя бы одного подписанного получателя.');
+        return;
+      }
+    } else if (selectableSuperAdminBroadcastRecipients.length === 0) {
       setSuperAdminBroadcastStatus('По текущим фильтрам нет получателей для рассылки.');
       return;
     }
@@ -3864,7 +3977,13 @@ export const HomePage = ({
       return;
     }
 
-    const result = await onSendSuperAdminBroadcast(trimmedMessage);
+    const result = await onSendSuperAdminBroadcast(
+      trimmedMessage,
+      false,
+      superAdminBroadcastSelectionMode === 'selected'
+        ? selectedVisibleSuperAdminBroadcastRecipients.map((recipient) => recipient.userId)
+        : selectableSuperAdminBroadcastRecipients.map((recipient) => recipient.userId),
+    );
     setSuperAdminBroadcastStatus(result.message);
     if (result.ok) {
       setSuperAdminBroadcastMessage('');
@@ -3882,6 +4001,30 @@ export const HomePage = ({
 
     const result = await onSendSuperAdminBroadcast(trimmedMessage, true);
     setSuperAdminBroadcastStatus(result.message);
+  };
+
+  const handleToggleSuperAdminBroadcastRecipient = (userId: number) => {
+    setSuperAdminBroadcastSelectedUserIds((current) =>
+      current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId],
+    );
+  };
+
+  const handleSelectVisibleSuperAdminBroadcastRecipients = () => {
+    setSuperAdminBroadcastSelectedUserIds((current) => [
+      ...new Set([
+        ...current,
+        ...selectableSuperAdminBroadcastRecipients.map((recipient) => recipient.userId),
+      ]),
+    ]);
+  };
+
+  const handleClearVisibleSuperAdminBroadcastRecipients = () => {
+    const visibleIds = new Set(
+      selectableSuperAdminBroadcastRecipients.map((recipient) => recipient.userId),
+    );
+    setSuperAdminBroadcastSelectedUserIds((current) =>
+      current.filter((userId) => !visibleIds.has(userId)),
+    );
   };
 
   const handleResetAllGroupsSubmit = async () => {
@@ -5133,6 +5276,7 @@ export const HomePage = ({
                   superAdminGroupId={superAdminGroupId}
                   superAdminPlan={superAdminPlan}
                   superAdminDays={superAdminDays}
+                  status={superAdminStatus}
                   onChangeGroupId={setSuperAdminGroupId}
                   onChangePlan={setSuperAdminPlan}
                   onChangeDays={setSuperAdminDays}
@@ -5143,16 +5287,23 @@ export const HomePage = ({
               {activeSuperAdminTab === 'broadcast' ? (
                 <SuperAdminBroadcastTab
                   recipients={visibleSuperAdminBroadcastRecipients}
-                  recipientCount={visibleSuperAdminBroadcastRecipients.length}
+                  recipientCount={selectableSuperAdminBroadcastRecipients.length}
+                  selectedCount={selectedVisibleSuperAdminBroadcastRecipients.length}
                   isLoading={isSuperAdminBroadcastRecipientsLoading}
                   lastUpdatedAt={superAdminBroadcastRecipientsUpdatedAt}
                   broadcastMessage={superAdminBroadcastMessage}
                   broadcastStatus={superAdminBroadcastStatus}
                   broadcastSearch={superAdminBroadcastSearch}
                   subscribedOnly={superAdminBroadcastSubscribedOnly}
+                  selectionMode={superAdminBroadcastSelectionMode}
+                  selectedUserIds={superAdminBroadcastSelectedUserIds}
                   onChangeMessage={setSuperAdminBroadcastMessage}
                   onChangeSearch={setSuperAdminBroadcastSearch}
                   onToggleSubscribedOnly={setSuperAdminBroadcastSubscribedOnly}
+                  onChangeSelectionMode={setSuperAdminBroadcastSelectionMode}
+                  onToggleRecipient={handleToggleSuperAdminBroadcastRecipient}
+                  onSelectVisibleRecipients={handleSelectVisibleSuperAdminBroadcastRecipients}
+                  onClearVisibleRecipients={handleClearVisibleSuperAdminBroadcastRecipients}
                   onSubmit={handleSuperAdminBroadcastSubmit}
                   onSubmitTest={handleSuperAdminBroadcastTestSubmit}
                 />
@@ -5169,10 +5320,6 @@ export const HomePage = ({
                   onSubmitResetGroup={handleResetGroupSubmit}
                   onSubmitResetAllGroups={handleResetAllGroupsSubmit}
                 />
-              ) : null}
-
-              {superAdminStatus ? (
-                <div className="superadmin-card__status">{superAdminStatus}</div>
               ) : null}
             </div>
             <div className="admin-modal__actions">
@@ -5325,8 +5472,15 @@ export const HomePage = ({
             <div className="admin-modal__eyebrow">Подтверждение</div>
             <h3 className="admin-modal__title">Отправить массовую рассылку?</h3>
             <p className="admin-modal__text">
-              Сообщение уйдёт <strong>{visibleSuperAdminBroadcastRecipients.length}</strong>{' '}
-              получателям по текущим фильтрам.
+              Сообщение уйдёт{' '}
+              <strong>
+                {superAdminBroadcastSelectionMode === 'selected'
+                  ? selectedVisibleSuperAdminBroadcastRecipients.length
+                  : selectableSuperAdminBroadcastRecipients.length}
+              </strong>{' '}
+              {superAdminBroadcastSelectionMode === 'selected'
+                ? 'выбранным получателям.'
+                : 'получателям по текущим фильтрам.'}
             </p>
             <p className="admin-modal__text">
               В сообщение будет добавлена кнопка VK <strong>Отписаться</strong>.

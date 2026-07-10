@@ -203,7 +203,7 @@ function buildBroadcastActionKeyboard(groupId) {
               groupId,
             },
           },
-          color: 'secondary',
+          color: 'negative',
         },
       ],
     ],
@@ -453,6 +453,13 @@ export default async function handler(request, response) {
 
         const messageText = String(incomingSettings.message || '').trim();
         const isTestOnly = incomingSettings.testOnly === true;
+        const requestedRecipientIds = Array.isArray(incomingSettings.recipientIds)
+          ? [...new Set(
+              incomingSettings.recipientIds
+                .map((value) => Number(value))
+                .filter((value) => Number.isInteger(value) && value > 0),
+            )]
+          : [];
         if (!messageText) {
           return sendJson(response, 400, { ok: false, error: 'message is required' });
         }
@@ -502,6 +509,10 @@ export default async function handler(request, response) {
         }
 
         for (const [recipientId, recipient] of recipientsMap.entries()) {
+          if (requestedRecipientIds.length > 0 && !requestedRecipientIds.includes(recipientId)) {
+            continue;
+          }
+
           if (!recipient.isSubscribed) {
             continue;
           }

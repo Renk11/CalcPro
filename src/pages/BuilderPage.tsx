@@ -2144,6 +2144,12 @@ export const BuilderPage = ({
                       className={`builder-preview builder-preview_device_${previewDevice} ${previewDevice !== 'desktop' ? 'builder-preview_embedded-scroll' : ''}`}
                     >
                       <div className="builder-preview__header">
+                        {previewDevice !== 'desktop' ? (
+                          <button className="builder-preview__back" type="button" onClick={onBack}>
+                            <Icon20ArrowLeftOutline />
+                            <span>Назад</span>
+                          </button>
+                        ) : null}
                         <h3 className='builder-preview__title'>{template.title || '\u0411\u0435\u0437 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f'}</h3>
                         <p className="builder-preview__description">
                           {template.description || '\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u0437\u0434\u0435\u0441\u044c'}

@@ -1112,6 +1112,30 @@ body,
   gap: 10px;
 }
 
+.superadmin-broadcast-card__selection-mode {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.superadmin-broadcast-card__mode-button {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d8c7b2;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.superadmin-broadcast-card__mode-button_active {
+  background: rgba(255, 171, 96, 0.16);
+  border-color: rgba(255, 171, 96, 0.42);
+  color: #fff1dd;
+}
+
 .superadmin-broadcast-card__toggle {
   display: inline-flex;
   align-items: center;
@@ -1119,6 +1143,32 @@ body,
   color: #d8c7b2;
   font-size: 12px;
   font-weight: 700;
+}
+
+.superadmin-broadcast-card__selection-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.superadmin-broadcast-card__link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffb56c;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.superadmin-broadcast-card__recipient-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.superadmin-broadcast-card__recipient-toggle input[type='checkbox'] {
+  accent-color: #ff9c55;
 }
 
 .superadmin-broadcast-card__community-chip {
@@ -2926,6 +2976,22 @@ body,
   background: rgba(255, 179, 107, 0.08);
   color: #f7f0e5;
   line-height: 1.5;
+}
+
+.superadmin-card__status_toast {
+  animation: superadminStatusFadeIn 0.18s ease;
+}
+
+@keyframes superadminStatusFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .settings-form__field {
@@ -6934,7 +7000,25 @@ body,
 }
 
 .builder-preview__header {
+  display: grid;
+  gap: 14px;
   margin-bottom: 22px;
+}
+
+.builder-preview__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(44, 49, 56, 0.08);
+  color: #5f4c3a;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .builder-preview__title {
@@ -6967,6 +7051,12 @@ body,
 
 .builder-preview_device_mobile .builder-preview__title {
   font-size: 26px;
+}
+
+.builder-preview_device_tablet .builder-preview__back,
+.builder-preview_device_mobile .builder-preview__back {
+  background: rgba(255, 153, 80, 0.12);
+  color: #8c5628;
 }
 
 .builder-preview_device_mobile .builder-preview__request-block {
