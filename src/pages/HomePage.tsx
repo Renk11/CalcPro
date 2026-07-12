@@ -17,7 +17,7 @@ import {
   Icon20WalletOutline,
   Icon20WriteOutline,
 } from '@vkontakte/icons';
-import type { AdminProfile, AdminSection } from '../App';
+import type { AdminProfile, AdminSection, WebSessionCommunity } from '../App';
 import { TemplateCard } from '../components/TemplateCard';
 import {
   templateCatalog,
@@ -55,6 +55,7 @@ import type {
 
 interface HomePageProps {
   connectedCommunities: CalculatorConnectedCommunity[];
+  manageableCommunities: WebSessionCommunity[];
   folders: CalculatorFolder[];
   activeFolderId: 'all' | string;
   allTemplates: CalculatorTemplate[];
@@ -126,6 +127,7 @@ interface HomePageProps {
   onDisconnectCommunity: (groupId: number) => void;
   onStartPayment: (plan: CalculatorSubscriptionPlan) => void;
   onInstallInCommunity: () => void;
+  onConnectManagedCommunity: (groupId: number) => void;
   onExportRequestsToGoogleSheets: () => Promise<{ ok: boolean; message: string }>;
   onGrantProAccess: (
     targetGroupId: number,
@@ -153,6 +155,7 @@ interface HomePageProps {
   isDesktopClient: boolean;
   isCompactViewport: boolean;
   isCommunityContext: boolean;
+  isWebWorkspace: boolean;
 }
 
 type AnalyticsRange = 7 | 30 | 90 | 365;
@@ -710,7 +713,7 @@ const faqTopics: FaqTopic[] = [
       {
         title: 'Где находится блок интеграций',
         items: [
-          'Откройте раздел «Настройки» и найдите отдельную карточку «Интеграции». Все внешние подключения собраны там в одном месте.',
+          'Откройте отдельный раздел «Интеграции» в левом меню. Все внешние подключения теперь собраны там в одном месте.',
           'Сначала заполните только те каналы, которые реально нужны проекту. Пустые поля не мешают работе и просто не участвуют в отправке.',
           'После каждого заметного изменения сохраняйте настройки и сразу делайте тестовую заявку из опубликованного калькулятора.',
         ],
@@ -752,9 +755,9 @@ const faqTopics: FaqTopic[] = [
   {
     id: 'settings',
     title: 'Настройки и уведомления',
-    caption: 'Менеджер заявок и базовые параметры',
+    caption: 'Менеджер заявок, саппорт и базовые параметры',
     intro:
-      'В разделе «Настройки» хранятся служебные параметры текущего сообщества. Главная пользовательская настройка здесь — кому именно отправлять заявки из калькуляторов и как проверить, что этот сценарий действительно работает.',
+      'В разделе «Настройки» хранятся служебные параметры текущего сообщества. Здесь настраивается менеджер для заявок, доступны обращения в саппорт и другие базовые параметры, которые не относятся к отдельным разделам админки.',
     sections: [
       {
         title: 'ID менеджера для отправки заявок',
@@ -854,7 +857,7 @@ const faqTopics: FaqTopic[] = [
           '«Мои калькуляторы» — главный рабочий раздел. Здесь создаются, открываются, дублируются и публикуются проекты.',
           '«Шаблоны» — библиотека готовых решений. Подходит для быстрого старта, когда не хочется собирать структуру с нуля.',
           '«Аналитика» — статистика по просмотрам, заполнениям и эффективности калькуляторов. Полезна после публикации.',
-          '«Интеграции» — подключение внешних сценариев и расширений, если проекту нужна автоматизация.',
+          '«Интеграции» — отдельный раздел для подключения Telegram, Google Sheets, CRM и webhook-сценариев.',
         ],
       },
       {
@@ -863,7 +866,7 @@ const faqTopics: FaqTopic[] = [
           '«Заявки» — отдельная очередь обращений, где можно менять статусы и не терять лиды по каждому сообществу.',
           '«Платежи» — тариф, статус доступа, оплата и активация расширенных возможностей.',
           '«FAQ» — встроенная справка по конструктору, которую вы сейчас обновляете под реальную работу пользователей.',
-          '«Настройки» — служебные данные приложения, включая параметры для менеджеров и сценариев отправки заявок.',
+          '«Настройки» — служебные данные приложения: менеджер заявок, саппорт и базовые параметры текущего сообщества.',
         ],
       },
       {
@@ -976,6 +979,7 @@ const navItems: Array<{
   { key: 'analytics', label: 'Аналитика Pro', icon: Icon20GraphOutline },
   { key: 'requests', label: 'Заявки', icon: Icon20WriteOutline },
   { key: 'payments', label: 'Платежи', icon: Icon20PaymentCardOutline },
+  { key: 'integrations', label: 'Интеграции', icon: Icon20UserCircleOutline },
   { key: 'faq', label: 'FAQ', icon: Icon20QuestionOutline },
   { key: 'settings', label: 'Настройки', icon: Icon20GearOutline },
 ];
@@ -1845,6 +1849,7 @@ const TemplatePresetCard = ({
 
 export const HomePage = ({
   connectedCommunities,
+  manageableCommunities,
   folders,
   activeFolderId,
   allTemplates,
@@ -1897,6 +1902,7 @@ export const HomePage = ({
   onDisconnectCommunity,
   onStartPayment,
   onInstallInCommunity,
+  onConnectManagedCommunity,
   onExportRequestsToGoogleSheets,
   onGrantProAccess,
   onSendSuperAdminBroadcast,
@@ -1908,6 +1914,7 @@ export const HomePage = ({
   isDesktopClient,
   isCompactViewport,
   isCommunityContext,
+  isWebWorkspace,
 }: HomePageProps) => {
   const isSectionLocked = (section: AdminSection) =>
     (section === 'analytics' && !canUseAnalytics) ||
@@ -2545,6 +2552,10 @@ export const HomePage = ({
       : `${connectedCommunities.length} / ${currentPlan.communityLimit} сообществ`;
   const isCommunityLimitReached =
     currentPlan.communityLimit != null && connectedCommunities.length >= currentPlan.communityLimit;
+  const availableManagedCommunities = manageableCommunities.filter(
+    (community) =>
+      !connectedCommunities.some((connectedCommunity) => connectedCommunity.groupId === community.groupId),
+  );
   const activationSteps = isCommunityContext
     ? [
         'Оплатите доступ через YooKassa на этом экране.',
@@ -2870,7 +2881,7 @@ export const HomePage = ({
                 onClick={onInstallInCommunity}
                 disabled={isCommunityLimitReached}
               >
-                Подключить сообщество
+                {isWebWorkspace ? 'Обновить группы VK' : 'Подключить сообщество'}
               </button>
             </div>
           </div>
@@ -2954,12 +2965,74 @@ export const HomePage = ({
               })
             ) : (
               <div className="communities-card__empty">
-                Пока нет подключённых сообществ. Откройте приложение внутри нужной группы VK или
-                используйте установку сервиса в сообщество.
+                {isWebWorkspace
+                  ? 'Пока нет подключённых сообществ. Выберите группу ниже в блоке доступных групп VK и подключите её к кабинету.'
+                  : 'Пока нет подключённых сообществ. Откройте приложение внутри нужной группы VK или используйте установку сервиса в сообщество.'}
               </div>
             )}
           </div>
         </article>
+
+        {isWebWorkspace ? (
+          <article className="communities-card">
+            <div className="communities-card__head">
+              <div>
+                <div className="communities-card__eyebrow">Группы из VK</div>
+                <h3 className="communities-card__title">Доступные для подключения</h3>
+              </div>
+              <div className="communities-card__head-actions">
+                <div className="communities-card__meta">
+                  {availableManagedCommunities.length} доступно
+                </div>
+              </div>
+            </div>
+
+            <div className="communities-list">
+              {availableManagedCommunities.length ? (
+                availableManagedCommunities.map((community) => (
+                  <div key={community.groupId} className="community-row community-row_static">
+                    <div className="community-row__media">
+                      {community.photoUrl ? (
+                        <img
+                          className="community-row__avatar"
+                          src={community.photoUrl}
+                          alt={community.name}
+                        />
+                      ) : (
+                        <div className="community-row__avatar community-row__avatar_fallback">
+                          {community.name.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="community-row__body">
+                      <div className="community-row__name">{community.name}</div>
+                      <div className="community-row__meta">
+                        ID {community.groupId}
+                        {community.screenName ? ` · @${community.screenName}` : ''}
+                        {community.role ? ` · роль: ${community.role}` : ''}
+                      </div>
+                    </div>
+                    <div className="community-row__side">
+                      <button
+                        className="community-row__connect"
+                        type="button"
+                        disabled={isCommunityLimitReached}
+                        onClick={() => onConnectManagedCommunity(community.groupId)}
+                      >
+                        Подключить
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="communities-card__empty">
+                  Все доступные группы уже подключены или VK пока не вернул ни одной группы с
+                  правами администратора.
+                </div>
+              )}
+            </div>
+          </article>
+        ) : null}
 
         <article className="communities-card">
           <div className="communities-card__head">
@@ -5053,8 +5126,6 @@ export const HomePage = ({
       </div>
 
       <section className="settings-section">
-        {renderIntegrationsCard()}
-
         <article className="settings-card">
           <div className="settings-card__eyebrow">Менеджер заявок</div>
           <h2 className="settings-card__title">Подключение менеджера для отправки заявок</h2>
@@ -5395,6 +5466,18 @@ export const HomePage = ({
     </main>
   );
 
+  const renderIntegrationsSection = () => (
+    <main className="admin-home__content admin-home__content_wide">
+      <div className="admin-home__content-head">
+        <div className="admin-home__title-wrap">
+          <h1 className="admin-home__title">Интеграции</h1>
+        </div>
+      </div>
+
+      <section className="settings-section">{renderIntegrationsCard()}</section>
+    </main>
+  );
+
   const renderFaqSection = () => (
     <main className="admin-home__content admin-home__content_wide">
       <div className="admin-home__content-head">
@@ -5700,6 +5783,8 @@ export const HomePage = ({
           ? renderRequestsSection()
         : currentSection === 'payments'
           ? renderPaymentsSection()
+        : currentSection === 'integrations'
+          ? renderIntegrationsSection()
         : currentSection === 'settings'
           ? renderSettingsSection()
         : currentSection === 'templates'

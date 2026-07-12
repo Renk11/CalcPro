@@ -88,6 +88,7 @@ export type AdminSection =
   | 'analytics'
   | 'requests'
   | 'payments'
+  | 'integrations'
   | 'faq'
   | 'settings';
 
@@ -118,6 +119,27 @@ type PaymentStatusTone = 'neutral' | 'success' | 'error';
 type PaymentStatus = {
   tone: PaymentStatusTone;
   message: string;
+};
+
+export type WebSessionCommunity = {
+  groupId: number;
+  name: string;
+  screenName?: string;
+  photoUrl?: string;
+  role?: string;
+};
+
+type WebSessionData = {
+  viewerId: number;
+  profile: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    screenName?: string;
+    photoUrl?: string;
+  };
+  connectedCommunities: WebSessionCommunity[];
+  manageableCommunities: WebSessionCommunity[];
 };
 
 const MAX_COMMUNITY_NAME_LENGTH = 120;
@@ -274,6 +296,115 @@ const StartupSplash = () => (
     </div>
   </div>
 );
+
+const WebAccessGate = ({
+  session,
+  authError,
+  onLogin,
+  onLogout,
+  onConnectCommunity,
+}: {
+  session: WebSessionData | null;
+  authError: string | null;
+  onLogin: () => void;
+  onLogout: () => void;
+  onConnectCommunity: (groupId?: number) => void;
+}) => {
+  const [selectedGroupId, setSelectedGroupId] = useState<number>(() => session?.manageableCommunities[0]?.groupId || 0);
+  const alreadyConnectedIds = new Set(session?.connectedCommunities.map((community) => community.groupId) || []);
+
+  useEffect(() => {
+    setSelectedGroupId(session?.manageableCommunities[0]?.groupId || 0);
+  }, [session]);
+
+  const selectedCommunity =
+    session?.manageableCommunities.find((community) => community.groupId === selectedGroupId) || null;
+
+  return (
+    <div className="calculator-page calculator-page_empty">
+      <div className="calculator-page__shell">
+        <div className="calculator-page__hero-copy calculator-page__hero-copy_empty">
+          <div className="calculator-page__eyebrow">Веб-конструктор CalcPro</div>
+          <h1 className="calculator-page__title">
+            {session
+              ? session.connectedCommunities.length > 0
+                ? 'Доступ в кабинет готов'
+                : 'Подключите первое сообщество'
+              : 'Войдите через VK, чтобы открыть конструктор на сайте'}
+          </h1>
+          <p className="calculator-page__description">
+            {session
+              ? session.connectedCommunities.length > 0
+                ? 'Вы уже авторизованы. Доступ к кабинетам и шаблонам откроется сразу после выбора группы.'
+                : 'Выберите сообщество из списка групп, которыми вы управляете во VK, и добавьте его в рабочее пространство CalcPro.'
+              : 'После входа CalcPro покажет доступные вам сообщества, а конструктор откроется только для подключённых групп.'}
+          </p>
+          {authError ? (
+            <p className="calculator-page__description" style={{ color: '#ffb7b7' }}>
+              {authError}
+            </p>
+          ) : null}
+          {session ? (
+            <>
+              {session.manageableCommunities.length > 0 ? (
+                <div className="web-access-gate">
+                  <label className="settings-form__field">
+                    <span className="settings-form__label">Выберите группу</span>
+                    <select
+                      className="settings-form__input"
+                      value={selectedGroupId > 0 ? String(selectedGroupId) : ''}
+                      onChange={(event) => setSelectedGroupId(Number(event.target.value) || 0)}
+                    >
+                      {session.manageableCommunities.map((community) => (
+                        <option key={community.groupId} value={community.groupId}>
+                          {community.name} · ID {community.groupId}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {selectedCommunity ? (
+                    <div className="web-access-gate__community">
+                      <div className="web-access-gate__community-name">{selectedCommunity.name}</div>
+                      <div className="web-access-gate__community-meta">
+                        ID {selectedCommunity.groupId}
+                        {selectedCommunity.screenName ? ` · @${selectedCommunity.screenName}` : ''}
+                        {alreadyConnectedIds.has(selectedCommunity.groupId) ? ' · уже подключено' : ' · ещё не подключено'}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="calculator-page__actions calculator-page__actions_left">
+                <button
+                  className="calculator-page__back calculator-page__back_accent"
+                  type="button"
+                  onClick={() => onConnectCommunity(selectedGroupId || undefined)}
+                >
+                  {session.connectedCommunities.length > 0 ? 'Открыть выбор группы' : 'Подключить выбранную группу'}
+                </button>
+                <button className="calculator-page__back" type="button" onClick={onLogout}>
+                  Выйти
+                </button>
+              </div>
+              <p className="calculator-page__description">
+                Доступно групп во VK: {session.manageableCommunities.length}. Уже подключено:{' '}
+                {session.connectedCommunities.length}.
+              </p>
+            </>
+          ) : (
+            <div className="calculator-page__actions calculator-page__actions_left">
+              <button className="calculator-page__back calculator-page__back_accent" type="button" onClick={onLogin}>
+                Войти через VK
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const COMMUNITY_ADMIN_ROLES = new Set(['admin', 'editor', 'moder']);
 const DEFAULT_FOLDER_NAME = 'Новая папка';
@@ -494,6 +625,9 @@ const App = () => {
   const [homeSection, setHomeSection] = useState<AdminSection>('calculators');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
+  const [webSessionData, setWebSessionData] = useState<WebSessionData | null>(null);
+  const [isWebSessionResolved, setIsWebSessionResolved] = useState(false);
+  const [webAuthError, setWebAuthError] = useState<string | null>(null);
   const [liveSyncRevision, setLiveSyncRevision] = useState(0);
   const [isCommunitiesLoading, setIsCommunitiesLoading] = useState(true);
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
@@ -517,6 +651,7 @@ const App = () => {
       return getWindowLaunchParams();
     }
   });
+  const isWebSessionActive = Boolean(webSessionData?.viewerId);
   const hasActiveSubscription = useMemo(
     () => isSubscriptionActive(adminSettings.subscription),
     [adminSettings.subscription],
@@ -548,26 +683,38 @@ const App = () => {
   const canHideBranding = currentPlan.features.hideBranding;
   const canUseBooking = currentPlan.features.booking;
   const fallbackGroupId = getFallbackGroupIdFromLocation();
-  const currentGroupId = Number(launchParams?.vk_group_id ?? 0) || fallbackGroupId;
+  const viewerGroupRole = isWebSessionActive
+    ? 'admin'
+    : String(launchParams?.vk_viewer_group_role ?? 'none');
+  const isViewerGroupAdmin = isWebSessionActive || COMMUNITY_ADMIN_ROLES.has(viewerGroupRole);
+  const currentGroupId = isWebSessionActive
+    ? activeAdminGroupId
+    : Number(launchParams?.vk_group_id ?? 0) || fallbackGroupId;
   const effectiveAdminGroupId = activeAdminGroupId || currentGroupId;
-  const viewerGroupRole = launchParams?.vk_viewer_group_role ?? 'none';
-  const isViewerGroupAdmin = COMMUNITY_ADMIN_ROLES.has(viewerGroupRole);
   const isSuperAdmin = Boolean(adminProfile.id && SUPER_ADMIN_IDS.has(adminProfile.id));
   const isPublicViewer = !isViewerGroupAdmin;
   const launchPlatform = String(launchParams?.vk_platform || '');
   const isWebMonetizationPlatform =
     WEB_MONETIZATION_PLATFORMS.has(launchPlatform) ||
     (launchPlatform === '' && !bridge.isWebView());
-  const vkAuthHeaders = useMemo(() => createVkAuthHeaders(launchParams), [launchParams]);
-  const createApiUrl = (path: string) => appendVkLaunchParamsToPath(path, launchParams);
+  const vkAuthHeaders = useMemo(
+    () => (isWebSessionActive ? {} : createVkAuthHeaders(launchParams)),
+    [isWebSessionActive, launchParams],
+  );
+  const createApiUrl = (path: string) =>
+    isWebSessionActive ? path : appendVkLaunchParamsToPath(path, launchParams);
   const fallbackCommunity = useMemo(
-    () => (isViewerGroupAdmin ? createFallbackCommunity(currentGroupId, viewerGroupRole) : null),
-    [currentGroupId, isViewerGroupAdmin, viewerGroupRole],
+    () =>
+      isViewerGroupAdmin && !isWebSessionActive
+        ? createFallbackCommunity(currentGroupId, viewerGroupRole)
+        : null,
+    [currentGroupId, isViewerGroupAdmin, isWebSessionActive, viewerGroupRole],
   );
   const createJsonHeaders = () => ({
     'Content-Type': 'application/json',
     ...vkAuthHeaders,
   });
+  const isAccessContextResolved = isLaunchParamsResolved && isWebSessionResolved;
   const isProtectedApiUnavailable = (payload?: { error?: string } | null, status?: number) =>
     isVkLaunchParamsError(payload, status);
   const templatesSyncVersionRef = useRef(0);
@@ -625,6 +772,52 @@ const App = () => {
   }, [activeAdminGroupId, currentGroupId]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      setIsWebSessionResolved(true);
+      return;
+    }
+
+    let isCancelled = false;
+    const errorCode = new URLSearchParams(window.location.search).get('webAuthError');
+
+    const loadWebSession = async () => {
+      try {
+        const response = await fetch('/api/auth?action=session');
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; data?: WebSessionData | null; error?: string }
+          | null;
+
+        if (isCancelled) {
+          return;
+        }
+
+        if (response.ok && payload?.ok) {
+          setWebSessionData(payload.data ?? null);
+          setWebAuthError(
+            errorCode
+              ? 'VK авторизация не завершилась корректно. Попробуйте войти ещё раз.'
+              : null,
+          );
+        }
+      } catch {
+        if (!isCancelled) {
+          setWebSessionData(null);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsWebSessionResolved(true);
+        }
+      }
+    };
+
+    void loadWebSession();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (isViewerGroupAdmin) {
       void preloadHomePage().catch(() => undefined);
     }
@@ -637,7 +830,7 @@ const App = () => {
   }, [selectedTemplate]);
 
   useEffect(() => {
-    if (isPublicViewer) {
+    if (isPublicViewer || isWebSessionActive) {
       return;
     }
 
@@ -655,7 +848,23 @@ const App = () => {
       .catch(() => {
         setAdminProfile(FALLBACK_PROFILE);
       });
-  }, [isPublicViewer]);
+  }, [isPublicViewer, isWebSessionActive]);
+
+  useEffect(() => {
+    if (!isWebSessionActive || !webSessionData) {
+      return;
+    }
+
+    setAdminProfile({
+      id: webSessionData.profile.id,
+      firstName: webSessionData.profile.firstName || FALLBACK_PROFILE.firstName,
+      lastName: webSessionData.profile.lastName || FALLBACK_PROFILE.lastName,
+      nickname: webSessionData.profile.screenName
+        ? `@${webSessionData.profile.screenName}`
+        : `id${webSessionData.profile.id}`,
+      photoUrl: webSessionData.profile.photoUrl,
+    });
+  }, [isWebSessionActive, webSessionData]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -732,7 +941,7 @@ const App = () => {
     if (
       hasStartupDelayElapsed &&
       !isTemplatesLoading &&
-      isLaunchParamsResolved &&
+      isAccessContextResolved &&
       isInitialViewResolved
     ) {
       setIsStartupSplashVisible(false);
@@ -740,13 +949,13 @@ const App = () => {
   }, [
     hasStartupDelayElapsed,
     isInitialViewResolved,
-    isLaunchParamsResolved,
+    isAccessContextResolved,
     isStartupSplashVisible,
     isTemplatesLoading,
   ]);
 
   useEffect(() => {
-    if (!isLaunchParamsResolved) {
+    if (!isAccessContextResolved) {
       return;
     }
 
@@ -763,6 +972,25 @@ const App = () => {
 
     const syncCommunities = async () => {
       try {
+        if (isWebSessionActive) {
+          const response = await fetch(createApiUrl('/api/communities'), {
+            headers: vkAuthHeaders,
+          });
+          const payload = (await response.json().catch(() => null)) as
+            | { ok?: boolean; data?: CalculatorConnectedCommunity[]; error?: string }
+            | null;
+
+          if (!isCancelled && response.ok && payload?.ok && Array.isArray(payload.data)) {
+            setConnectedCommunities(payload.data);
+
+            if (payload.data.length > 0 && activeAdminGroupId === 0) {
+              setActiveAdminGroupId(payload.data[0].groupId);
+            }
+          }
+
+          return;
+        }
+
         if (currentGroupId > 0) {
           const connectedResponse = await fetch(createApiUrl('/api/communities'), {
             method: 'POST',
@@ -833,17 +1061,19 @@ const App = () => {
       isCancelled = true;
     };
   }, [
+    activeAdminGroupId,
     currentGroupId,
     currentPlan.id,
     viewerGroupRole,
     fallbackCommunity,
-    isLaunchParamsResolved,
+    isAccessContextResolved,
     isPublicViewer,
+    isWebSessionActive,
     liveSyncRevision,
   ]);
 
   useEffect(() => {
-    if (!isLaunchParamsResolved) {
+    if (!isAccessContextResolved) {
       return;
     }
 
@@ -883,10 +1113,10 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [effectiveAdminGroupId, isLaunchParamsResolved, isPublicViewer, liveSyncRevision]);
+  }, [effectiveAdminGroupId, isAccessContextResolved, isPublicViewer, liveSyncRevision]);
 
   useEffect(() => {
-    if (!isLaunchParamsResolved) {
+    if (!isAccessContextResolved) {
       return;
     }
 
@@ -953,10 +1183,10 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [effectiveAdminGroupId, isLaunchParamsResolved, vkAuthHeaders]);
+  }, [effectiveAdminGroupId, isAccessContextResolved, vkAuthHeaders]);
 
   useEffect(() => {
-    if (!isLaunchParamsResolved) {
+    if (!isAccessContextResolved) {
       return;
     }
 
@@ -1029,14 +1259,14 @@ const App = () => {
     };
   }, [
     effectiveAdminGroupId,
-    isLaunchParamsResolved,
+    isAccessContextResolved,
     isViewerGroupAdmin,
     liveSyncRevision,
     vkAuthHeaders,
   ]);
 
   useEffect(() => {
-    if (!isLaunchParamsResolved) {
+    if (!isAccessContextResolved) {
       return;
     }
 
@@ -1077,7 +1307,7 @@ const App = () => {
     };
   }, [
     effectiveAdminGroupId,
-    isLaunchParamsResolved,
+    isAccessContextResolved,
     isViewerGroupAdmin,
     liveSyncRevision,
     vkAuthHeaders,
@@ -1112,7 +1342,14 @@ const App = () => {
       return;
     }
 
-    if (!isLaunchParamsResolved || isTemplatesLoading) {
+    if (!isAccessContextResolved || (isTemplatesLoading && !isWebSessionActive)) {
+      return;
+    }
+
+    if (isWebSessionActive) {
+      setSelectedTemplate(undefined);
+      setActiveView('home');
+      setIsInitialViewResolved(true);
       return;
     }
 
@@ -1153,7 +1390,8 @@ const App = () => {
     setIsInitialViewResolved(true);
   }, [
     activeView,
-    isLaunchParamsResolved,
+    isAccessContextResolved,
+    isWebSessionActive,
     isTemplatesLoading,
     isViewerGroupAdmin,
     latestPublishedTemplate,
@@ -1795,7 +2033,165 @@ const App = () => {
     }
   };
 
+  const openWebVkLogin = () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.assign(`/api/auth?action=vk-start&returnTo=${encodeURIComponent(returnTo)}`);
+  };
+
+  const handleWebLogout = async () => {
+    try {
+      await fetch('/api/auth?action=logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch {
+      // Ignore network issues and drop local state anyway.
+    } finally {
+      setWebSessionData(null);
+      setConnectedCommunities([]);
+      setActiveAdminGroupId(0);
+      setAdminProfile(FALLBACK_PROFILE);
+      setHomeSection('calculators');
+      setActiveView('calculator');
+    }
+  };
+
+  const refreshWebManagedCommunities = async () => {
+    const response = await fetch('/api/auth?action=refresh-managed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const payload = (await response.json().catch(() => null)) as
+      | { ok?: boolean; data?: WebSessionData | null; error?: string }
+      | null;
+
+    if (!response.ok || !payload?.ok || !payload.data) {
+      throw new Error(payload?.error || 'Не удалось обновить список групп из VK.');
+    }
+
+    setWebSessionData(payload.data);
+    return payload.data;
+  };
+
+  const openWebsiteCommunityConnect = async (preferredGroupId?: number) => {
+    if (!isWebSessionActive) {
+      openWebVkLogin();
+      return;
+    }
+
+    let sessionSnapshot = webSessionData;
+
+    if (!sessionSnapshot) {
+      return;
+    }
+
+    if (sessionSnapshot.manageableCommunities.length === 0) {
+      try {
+        sessionSnapshot = await refreshWebManagedCommunities();
+      } catch (error) {
+        setPaymentStatus({
+          tone: 'error',
+          message:
+            error instanceof Error ? error.message : 'Не удалось получить список доступных групп.',
+        });
+        setHomeSection('communities');
+        setActiveView('home');
+        return;
+      }
+    }
+
+    const manageableCommunities = sessionSnapshot.manageableCommunities;
+    if (manageableCommunities.length === 0 && typeof window !== 'undefined') {
+      window.alert(
+        'VK не вернул группы, где у вас есть права администратора. Проверьте, что вы вошли нужным аккаунтом и у приложения есть доступ.',
+      );
+      return;
+    }
+
+    const selectedGroupId =
+      typeof preferredGroupId === 'number' && preferredGroupId > 0 ? preferredGroupId : 0;
+
+    if (selectedGroupId === 0) {
+      setHomeSection('communities');
+      setActiveView('home');
+      setPaymentStatus({
+        tone: 'neutral',
+        message:
+          'Выберите группу в разделе «Мои сообщества» из списка доступных групп VK и подключите её одной кнопкой.',
+      });
+      return;
+    }
+
+    const selectedCommunity =
+      manageableCommunities.find((community) => community.groupId === selectedGroupId) || null;
+
+    if (!selectedCommunity) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/communities', {
+        method: 'POST',
+        headers: createJsonHeaders(),
+        body: JSON.stringify({
+          groupId: selectedCommunity.groupId,
+          name: selectedCommunity.name,
+          screenName: selectedCommunity.screenName,
+          photoUrl: selectedCommunity.photoUrl,
+          role: selectedCommunity.role || 'admin',
+          workspacePlan: currentPlan.id,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; data?: CalculatorConnectedCommunity[]; error?: string }
+        | null;
+
+      if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+        throw new Error(payload?.error || 'Не удалось подключить сообщество к кабинету.');
+      }
+
+      setConnectedCommunities(payload.data);
+      const nextConnectedCommunities: WebSessionCommunity[] = payload.data.map((community) => ({
+        groupId: community.groupId,
+        name: community.name,
+        screenName: community.screenName,
+        photoUrl: community.photoUrl,
+        role: community.role,
+      }));
+      setWebSessionData((current) =>
+        current
+          ? {
+              ...current,
+              connectedCommunities: nextConnectedCommunities,
+            }
+          : current,
+      );
+      setActiveAdminGroupId(selectedCommunity.groupId);
+      setHomeSection('communities');
+      setActiveView('home');
+      setPaymentStatus({
+        tone: 'success',
+        message: `Сообщество «${selectedCommunity.name}» подключено к веб-кабинету.`,
+      });
+    } catch (error) {
+      setPaymentStatus({
+        tone: 'error',
+        message:
+          error instanceof Error ? error.message : 'Не удалось подключить сообщество к кабинету.',
+      });
+    }
+  };
+
   const openCommunityInstall = async () => {
+    if (isWebSessionActive) {
+      await openWebsiteCommunityConnect();
+      return;
+    }
+
     let addedGroupId = 0;
     let resolvedCommunity: Partial<CalculatorConnectedCommunity> | null = null;
 
@@ -2563,6 +2959,24 @@ const App = () => {
     return <StartupSplash />;
   }
 
+  const shouldShowWebAccessGate =
+    isAccessContextResolved &&
+    !bridge.isWebView() &&
+    !Number(launchParams?.vk_user_id ?? 0) &&
+    (!isWebSessionActive || connectedCommunities.length === 0);
+
+  if (shouldShowWebAccessGate) {
+    return (
+      <WebAccessGate
+        session={webSessionData}
+        authError={webAuthError}
+        onLogin={openWebVkLogin}
+        onLogout={handleWebLogout}
+        onConnectCommunity={openWebsiteCommunityConnect}
+      />
+    );
+  }
+
   return (
     <SplitLayout>
       <SplitCol width="100%" maxWidth="100%">
@@ -2572,6 +2986,7 @@ const App = () => {
                 <Suspense fallback={<AdminPageFallback title="Загружаем кабинет" />}>
                   <HomePage
                     connectedCommunities={connectedCommunities}
+                    manageableCommunities={webSessionData?.manageableCommunities ?? []}
                     folders={folders}
                     activeFolderId={activeFolderId}
                     allTemplates={sortedTemplates}
@@ -2618,6 +3033,7 @@ const App = () => {
                     onDisconnectCommunity={handleDisconnectCommunity}
                     onStartPayment={startSubscriptionPayment}
                     onInstallInCommunity={openCommunityInstall}
+                    onConnectManagedCommunity={openWebsiteCommunityConnect}
                     onExportRequestsToGoogleSheets={handleExportRequestsToGoogleSheets}
                     requestLimit={requestLimit}
                     canUseTemplates={canUseTemplates}
@@ -2635,6 +3051,7 @@ const App = () => {
                     isDesktopClient={isDesktopClient}
                     isCompactViewport={isCompactViewport}
                     isCommunityContext={currentGroupId > 0}
+                    isWebWorkspace={isWebSessionActive}
                   />
                 </Suspense>
               ) : null}

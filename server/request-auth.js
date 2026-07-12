@@ -1,8 +1,11 @@
 import crypto from 'node:crypto';
 import { sendJson } from './http.js';
+import { getViewerCommunities } from './community-store.js';
+import { getWebSession } from './web-session.js';
 
 const COMMUNITY_ADMIN_ROLES = new Set(['admin', 'editor', 'moder']);
 export const VK_LAUNCH_PARAMS_ERROR = 'VK launch params verification failed';
+export const WEB_SESSION_ERROR = 'CalcPro web session is required';
 
 function isLocalDevHost(hostname) {
   const normalizedHostname = String(hostname || '').trim().toLowerCase();
@@ -220,10 +223,15 @@ function isValidLaunchSignature(params) {
 }
 
 export function getTrustedViewerContextError(request) {
+  const webSession = getWebSession(request);
+  if (webSession) {
+    return null;
+  }
+
   const { launchParams, errorCode } = parseLaunchParams(request);
   if (!launchParams) {
     return {
-      errorCode: errorCode || 'missing_launch_params',
+      errorCode: errorCode || 'missing_launch_params_or_session',
     };
   }
 
@@ -252,12 +260,26 @@ export function sendTrustedViewerContextError(request, response) {
   const error = getTrustedViewerContextError(request);
   sendJson(response, 401, {
     ok: false,
-    error: VK_LAUNCH_PARAMS_ERROR,
+    error: error?.errorCode?.includes('session') ? WEB_SESSION_ERROR : VK_LAUNCH_PARAMS_ERROR,
     errorCode: error?.errorCode || 'unknown_vk_context_error',
   });
 }
 
 export function getTrustedViewerContext(request) {
+  const webSession = getWebSession(request);
+  if (webSession) {
+    return {
+      authType: 'web',
+      viewerId: webSession.viewerId,
+      groupId: 0,
+      viewerRole: 'admin',
+      isCommunityAdmin: true,
+      profile: webSession.profile,
+      manageableGroupIds: webSession.manageableCommunities.map((community) => community.groupId),
+      sessionId: webSession.id,
+    };
+  }
+
   const authError = getTrustedViewerContextError(request);
   if (authError) {
     return null;
@@ -270,10 +292,12 @@ export function getTrustedViewerContext(request) {
   const viewerRole = String(launchParams.vk_viewer_group_role || '').trim().toLowerCase();
 
   return {
+    authType: 'vk',
     viewerId: Number.isInteger(viewerId) && viewerId > 0 ? viewerId : 0,
     groupId: Number.isInteger(groupId) && groupId > 0 ? groupId : 0,
     viewerRole,
     isCommunityAdmin: COMMUNITY_ADMIN_ROLES.has(viewerRole),
+    manageableGroupIds: [],
   };
 }
 
@@ -287,7 +311,27 @@ export function requireTrustedViewerContext(request, response) {
   return null;
 }
 
-export function requireCommunityAdmin(request, response, groupId) {
+async function resolveAvailableGroupIds(context) {
+  const availableGroupIds = new Set();
+
+  if (context?.groupId > 0) {
+    availableGroupIds.add(context.groupId);
+  }
+
+  if (context?.viewerId > 0) {
+    const connectedCommunities = await getViewerCommunities(context.viewerId);
+    connectedCommunities.forEach((community) => {
+      const communityGroupId = Number(community.groupId);
+      if (Number.isInteger(communityGroupId) && communityGroupId > 0) {
+        availableGroupIds.add(communityGroupId);
+      }
+    });
+  }
+
+  return availableGroupIds;
+}
+
+export async function requireCommunityAdmin(request, response, groupId) {
   const context = requireTrustedViewerContext(request, response);
   if (!context) {
     return null;
@@ -301,12 +345,18 @@ export function requireCommunityAdmin(request, response, groupId) {
     return null;
   }
 
-  if (groupId > 0 && context.groupId !== groupId) {
-    sendJson(response, 403, {
-      ok: false,
-      error: 'The requested group does not match the current VK context',
-    });
-    return null;
+  if (groupId > 0) {
+    const availableGroupIds = await resolveAvailableGroupIds(context);
+    if (!availableGroupIds.has(groupId)) {
+      sendJson(response, 403, {
+        ok: false,
+        error:
+          context.authType === 'vk'
+            ? 'The requested group does not match the current VK context'
+            : 'The requested group is not connected to the current workspace',
+      });
+      return null;
+    }
   }
 
   return context;

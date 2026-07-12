@@ -26,6 +26,24 @@ function parseWorkspacePlan(rawValue) {
   return rawValue === 'free' || rawValue === 'start' || rawValue === 'pro' ? rawValue : undefined;
 }
 
+async function isCommunityAvailableToWebSession(auth, groupId) {
+  if (auth?.authType !== 'web') {
+    return true;
+  }
+
+  const normalizedGroupId = parseGroupId(groupId);
+  if (!normalizedGroupId) {
+    return false;
+  }
+
+  if (Array.isArray(auth.manageableGroupIds) && auth.manageableGroupIds.includes(normalizedGroupId)) {
+    return true;
+  }
+
+  const connectedCommunities = await getViewerCommunities(auth.viewerId);
+  return connectedCommunities.some((community) => community.groupId === normalizedGroupId);
+}
+
 export default async function handler(request, response) {
   try {
     const action = String(request.query?.action || request.body?.action || '').toLowerCase();
@@ -88,6 +106,17 @@ export default async function handler(request, response) {
         photoUrl: request.body?.photoUrl,
         role: request.body?.role,
       };
+
+      if (
+        auth.authType === 'web' &&
+        !(await isCommunityAvailableToWebSession(auth, community.groupId))
+      ) {
+        return sendJson(response, 403, {
+          ok: false,
+          error: 'This community is not available for the current VK web session',
+        });
+      }
+
       const workspacePlan = parseWorkspacePlan(request.body?.workspacePlan);
 
       const communities = await connectViewerCommunity(viewerId, community, workspacePlan);

@@ -1,8 +1,53 @@
 const VK_API_URL = 'https://api.vk.com/method';
 const VK_API_VERSION = '5.199';
+const DEFAULT_VK_APP_ID = '54626522';
 
 function getVkGroupToken() {
   return process.env.VK_GROUP_TOKEN || '';
+}
+
+export async function getVkManagedCommunities(accessToken) {
+  const response = await requestVkWithToken(accessToken, 'groups.get', {
+    extended: 1,
+    filter: 'admin,editor,moder',
+    fields: 'screen_name,photo_100,photo_200,admin_level',
+  });
+
+  const items = Array.isArray(response?.items)
+    ? response.items
+    : Array.isArray(response)
+      ? response
+      : [];
+
+  return items
+    .map((group) => {
+      const groupId = Number(group?.id || 0);
+      if (!Number.isInteger(groupId) || groupId <= 0) {
+        return null;
+      }
+
+      return {
+        groupId,
+        name: String(group?.name || `Сообщество ${groupId}`),
+        screenName: String(group?.screen_name || '').trim(),
+        photoUrl: String(group?.photo_200 || group?.photo_100 || '').trim(),
+        role: 'admin',
+      };
+    })
+    .filter(Boolean);
+}
+
+function getVkAppId() {
+  return process.env.VK_APP_ID || process.env.VK_CLIENT_ID || DEFAULT_VK_APP_ID;
+}
+
+function getVkClientSecret() {
+  return (
+    process.env.VK_CLIENT_SECRET ||
+    process.env.VK_APP_SECRET ||
+    process.env.VK_MINI_APP_SECRET ||
+    ''
+  );
 }
 
 function normalizeCommunityIdentifier(rawValue) {
@@ -49,6 +94,32 @@ export async function getVkUserInfo(userId) {
   };
 }
 
+export async function getVkUserInfoByAccessToken(accessToken, userId) {
+  const normalizedUserId = Number(userId);
+
+  if (!Number.isInteger(normalizedUserId) || normalizedUserId <= 0) {
+    throw new Error('Valid userId is required');
+  }
+
+  const response = await requestVkWithToken(accessToken, 'users.get', {
+    user_ids: normalizedUserId,
+    fields: 'photo_100,photo_200,screen_name',
+  });
+  const user = Array.isArray(response) ? response[0] : response?.[0] || response;
+
+  if (!user) {
+    throw new Error('VK user not found');
+  }
+
+  return {
+    id: normalizedUserId,
+    firstName: String(user.first_name || ''),
+    lastName: String(user.last_name || ''),
+    screenName: String(user.screen_name || ''),
+    photoUrl: String(user.photo_200 || user.photo_100 || ''),
+  };
+}
+
 export function hasVkGroupToken() {
   return Boolean(getVkGroupToken());
 }
@@ -57,6 +128,15 @@ async function requestVk(method, params = {}) {
   const token = getVkGroupToken();
   if (!token) {
     throw new Error('VK_GROUP_TOKEN is not configured');
+  }
+
+  return requestVkWithToken(token, method, params);
+}
+
+export async function requestVkWithToken(accessToken, method, params = {}) {
+  const token = String(accessToken || '').trim();
+  if (!token) {
+    throw new Error('VK access token is required');
   }
 
   const body = new URLSearchParams({
@@ -88,6 +168,30 @@ async function requestVk(method, params = {}) {
   }
 
   return payload?.response;
+}
+
+export async function exchangeVkOAuthCode({ code, redirectUri }) {
+  const appId = String(getVkAppId() || '').trim();
+  const clientSecret = String(getVkClientSecret() || '').trim();
+
+  if (!appId || !clientSecret) {
+    throw new Error('VK OAuth credentials are not configured');
+  }
+
+  const tokenUrl = new URL('https://oauth.vk.com/access_token');
+  tokenUrl.searchParams.set('client_id', appId);
+  tokenUrl.searchParams.set('client_secret', clientSecret);
+  tokenUrl.searchParams.set('redirect_uri', String(redirectUri || '').trim());
+  tokenUrl.searchParams.set('code', String(code || '').trim());
+
+  const response = await fetch(tokenUrl, { method: 'GET' });
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok || payload?.error) {
+    throw new Error(payload?.error_description || payload?.error || 'VK OAuth token request failed');
+  }
+
+  return payload;
 }
 
 export async function sendVkMessage(userId, message) {
