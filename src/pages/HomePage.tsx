@@ -122,6 +122,7 @@ interface HomePageProps {
   canUseRequestStatuses: boolean;
   canUseFolders: boolean;
   onSelectAdminGroup: (groupId: number) => void;
+  onRenameCommunity: (groupId: number, currentName: string) => void;
   onDisconnectCommunity: (groupId: number) => void;
   onStartPayment: (plan: CalculatorSubscriptionPlan) => void;
   onInstallInCommunity: () => void;
@@ -1765,6 +1766,7 @@ export const HomePage = ({
   canUseRequestStatuses,
   canUseFolders,
   onSelectAdminGroup,
+  onRenameCommunity,
   onDisconnectCommunity,
   onStartPayment,
   onInstallInCommunity,
@@ -2706,6 +2708,17 @@ export const HomePage = ({
                       >
                         {isActive ? 'Текущая группа' : 'Сделать активной'}
                       </span>
+                      <button
+                        className="community-row__action"
+                        type="button"
+                        aria-label={`Переименовать ${community.name}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onRenameCommunity(community.groupId, community.name);
+                        }}
+                      >
+                        <Icon20WriteOutline />
+                      </button>
                       {!isActive ? (
                         <button
                           className="community-row__remove"

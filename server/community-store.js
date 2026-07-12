@@ -40,6 +40,38 @@ function normalizeCommunityEntry(entry = {}) {
   };
 }
 
+function isGenericCommunityName(name, groupId) {
+  const normalizedName = String(name || '').trim().toLowerCase();
+  return normalizedName === `сообщество ${groupId}`;
+}
+
+function isMaskedCommunityName(name) {
+  const normalizedName = String(name || '').trim().toLowerCase();
+
+  return (
+    normalizedName === 'частное сообщество' ||
+    normalizedName === 'private community' ||
+    normalizedName === 'closed community'
+  );
+}
+
+function pickCommunityName(groupId, ...candidates) {
+  const normalizedCandidates = candidates
+    .map((candidate) => String(candidate || '').trim())
+    .filter(Boolean);
+
+  const meaningfulName = normalizedCandidates.find(
+    (candidate) => !isGenericCommunityName(candidate, groupId) && !isMaskedCommunityName(candidate),
+  );
+
+  if (meaningfulName) {
+    return meaningfulName;
+  }
+
+  const fallbackName = normalizedCandidates.find((candidate) => !isMaskedCommunityName(candidate));
+  return fallbackName || `Сообщество ${groupId}`;
+}
+
 function normalizeCommunitiesList(items = []) {
   if (!Array.isArray(items)) {
     return [];
@@ -181,19 +213,33 @@ export async function connectViewerCommunity(viewerId, community, workspacePlanI
     throw new Error('groupId is required');
   }
 
-  let normalizedCommunity = baseCommunity;
+  const latestList = await getViewerCommunities(normalizedViewerId);
+  const existingCommunity =
+    latestList.find((item) => item.groupId === baseCommunity.groupId) || null;
+  let normalizedCommunity = normalizeCommunityEntry({
+    ...baseCommunity,
+    name: pickCommunityName(baseCommunity.groupId, baseCommunity.name, existingCommunity?.name),
+    screenName: baseCommunity.screenName || existingCommunity?.screenName || '',
+    photoUrl: baseCommunity.photoUrl || existingCommunity?.photoUrl || '',
+  });
 
   if (hasVkGroupToken()) {
     try {
       const vkCommunity = await getVkCommunityInfo(baseCommunity.groupId);
       normalizedCommunity = normalizeCommunityEntry({
-        ...baseCommunity,
-        name: vkCommunity.name || baseCommunity.name,
-        screenName: vkCommunity.screenName || baseCommunity.screenName,
-        photoUrl: vkCommunity.photoUrl || baseCommunity.photoUrl,
+        ...normalizedCommunity,
+        name: pickCommunityName(
+          baseCommunity.groupId,
+          vkCommunity.name,
+          normalizedCommunity?.name,
+          existingCommunity?.name,
+        ),
+        screenName:
+          vkCommunity.screenName || normalizedCommunity?.screenName || existingCommunity?.screenName,
+        photoUrl: vkCommunity.photoUrl || normalizedCommunity?.photoUrl || existingCommunity?.photoUrl,
       });
     } catch {
-      normalizedCommunity = baseCommunity;
+      normalizedCommunity = normalizeCommunityEntry(normalizedCommunity);
     }
   }
 
@@ -202,7 +248,6 @@ export async function connectViewerCommunity(viewerId, community, workspacePlanI
     ? getSubscriptionPlanConfig(workspacePlanId)
     : getSubscriptionPlanConfig(groupSettings.subscription.plan);
   const communityLimit = activePlan.communityLimit;
-  const latestList = await getViewerCommunities(normalizedViewerId);
   const existingIndex = latestList.findIndex(
     (item) => item.groupId === normalizedCommunity.groupId,
   );

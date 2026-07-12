@@ -2827,6 +2827,25 @@ body,
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+.community-row__action {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffcf9a;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.community-row__action:hover {
+  background: rgba(255, 179, 107, 0.14);
+  color: #ffe4be;
+}
+
 .community-row__remove:hover {
   background: rgba(255, 99, 99, 0.12);
   color: #ffd0d0;

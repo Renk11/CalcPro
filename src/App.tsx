@@ -120,6 +120,8 @@ type PaymentStatus = {
   message: string;
 };
 
+const MAX_COMMUNITY_NAME_LENGTH = 120;
+
 const AdminPageFallback = ({ title }: { title: string }) => (
   <div className="calculator-page calculator-page_empty">
     <div className="calculator-page__shell">
@@ -281,9 +283,9 @@ const parsePositiveInteger = (rawValue: string | null | undefined) => {
   return Number.isInteger(value) && value > 0 ? value : 0;
 };
 
-const parseCommunityIdFromInstallResult = (result: unknown) => {
+const parseCommunityPayload = (result: unknown) => {
   if (!result || typeof result !== 'object') {
-    return 0;
+    return null;
   }
 
   const payload = result as {
@@ -291,10 +293,25 @@ const parseCommunityIdFromInstallResult = (result: unknown) => {
     groupId?: number | string;
     group_ids?: Array<number | string>;
     groupIds?: Array<number | string>;
-    group?: { id?: number | string };
+    group?: {
+      id?: number | string;
+      name?: string;
+      screen_name?: string;
+      screenName?: string;
+      photo_100?: string;
+      photo_200?: string;
+      photoUrl?: string;
+    };
+    name?: string;
+    group_name?: string;
+    screen_name?: string;
+    screenName?: string;
+    photo_100?: string;
+    photo_200?: string;
+    photoUrl?: string;
   };
 
-  return (
+  const groupId =
     parsePositiveInteger(payload.group_id != null ? String(payload.group_id) : null) ||
     parsePositiveInteger(payload.groupId != null ? String(payload.groupId) : null) ||
     parsePositiveInteger(payload.group?.id != null ? String(payload.group.id) : null) ||
@@ -307,8 +324,36 @@ const parseCommunityIdFromInstallResult = (result: unknown) => {
       Array.isArray(payload.groupIds) && payload.groupIds.length > 0
         ? String(payload.groupIds[0])
         : null,
-    )
-  );
+    );
+
+  if (groupId <= 0) {
+    return null;
+  }
+
+  return {
+    groupId,
+    name: String(payload.group?.name || payload.name || payload.group_name || '').trim(),
+    screenName: String(
+      payload.group?.screen_name ||
+        payload.group?.screenName ||
+        payload.screen_name ||
+        payload.screenName ||
+        '',
+    ).trim(),
+    photoUrl: String(
+      payload.group?.photo_200 ||
+        payload.group?.photo_100 ||
+        payload.photo_200 ||
+        payload.photo_100 ||
+        payload.group?.photoUrl ||
+        payload.photoUrl ||
+        '',
+    ).trim(),
+  };
+};
+
+const parseCommunityIdFromInstallResult = (result: unknown) => {
+  return parseCommunityPayload(result)?.groupId || 0;
 };
 
 const parseCommunityIdFromUserInput = (rawValue: string | null | undefined) => {
@@ -1752,11 +1797,13 @@ const App = () => {
 
   const openCommunityInstall = async () => {
     let addedGroupId = 0;
+    let resolvedCommunity: Partial<CalculatorConnectedCommunity> | null = null;
 
     try {
       const result = (await bridge.send('VKWebAppAddToCommunity' as never, {
         hide_success_modal: false,
       } as never)) as unknown;
+      resolvedCommunity = parseCommunityPayload(result);
       addedGroupId = parseCommunityIdFromInstallResult(result);
     } catch {
       setHomeSection('payments');
@@ -1800,6 +1847,12 @@ const App = () => {
             Number(resolvePayload.data?.groupId) > 0
           ) {
             addedGroupId = Number(resolvePayload.data?.groupId);
+            resolvedCommunity = {
+              groupId: addedGroupId,
+              name: String(resolvePayload.data?.name || '').trim(),
+              screenName: String(resolvePayload.data?.screenName || '').trim(),
+              photoUrl: String(resolvePayload.data?.photoUrl || '').trim(),
+            };
           } else if (resolvePayload?.error) {
             setPaymentStatus({
               tone: 'error',
@@ -1835,6 +1888,9 @@ const App = () => {
           body: JSON.stringify({
             groupId: addedGroupId,
             workspaceGroupId: currentGroupId,
+            name: resolvedCommunity?.name,
+            screenName: resolvedCommunity?.screenName,
+            photoUrl: resolvedCommunity?.photoUrl,
             role: viewerGroupRole,
             workspacePlan: currentPlan.id,
             platform: launchParams?.vk_platform ?? '',
@@ -2449,6 +2505,60 @@ const App = () => {
       });
   };
 
+  const handleRenameCommunity = (groupId: number, currentName: string) => {
+    if (!adminProfile.id || groupId <= 0) {
+      return;
+    }
+
+    const nextName = window.prompt('Введите новое название сообщества:', currentName)?.trim();
+    if (!nextName || nextName === currentName) {
+      return;
+    }
+
+    const normalizedName = nextName.slice(0, MAX_COMMUNITY_NAME_LENGTH).trim();
+    if (!normalizedName) {
+      return;
+    }
+
+    const currentCommunity =
+      connectedCommunities.find((community) => community.groupId === groupId) || null;
+
+    fetch(createApiUrl('/api/communities'), {
+      method: 'POST',
+      headers: createJsonHeaders(),
+      body: JSON.stringify({
+        groupId,
+        name: normalizedName,
+        screenName: currentCommunity?.screenName,
+        photoUrl: currentCommunity?.photoUrl,
+        role: currentCommunity?.role || viewerGroupRole,
+        workspacePlan: currentPlan.id,
+      }),
+    })
+      .then((response) => response.json().catch(() => null))
+      .then((payload: { ok?: boolean; data?: CalculatorConnectedCommunity[] } | null) => {
+        if (payload?.ok && Array.isArray(payload.data)) {
+          setConnectedCommunities(
+            scopeCommunitiesToContext(payload.data, currentGroupId, fallbackCommunity),
+          );
+          return;
+        }
+
+        setConnectedCommunities((current) =>
+          current.map((community) =>
+            community.groupId === groupId ? { ...community, name: normalizedName } : community,
+          ),
+        );
+      })
+      .catch(() => {
+        setConnectedCommunities((current) =>
+          current.map((community) =>
+            community.groupId === groupId ? { ...community, name: normalizedName } : community,
+          ),
+        );
+      });
+  };
+
   if (isStartupSplashVisible) {
     return <StartupSplash />;
   }
@@ -2504,6 +2614,7 @@ const App = () => {
                     canCreateMoreRequests={canCreateMoreRequests}
                     monthlyRequestsUsed={monthlyRequestsUsed}
                     onSelectAdminGroup={handleSelectAdminGroup}
+                    onRenameCommunity={handleRenameCommunity}
                     onDisconnectCommunity={handleDisconnectCommunity}
                     onStartPayment={startSubscriptionPayment}
                     onInstallInCommunity={openCommunityInstall}
