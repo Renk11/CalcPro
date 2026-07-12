@@ -868,6 +868,19 @@ const App = () => {
 
   useEffect(() => {
     let isCancelled = false;
+    const BRIDGE_LAUNCH_PARAMS_TIMEOUT_MS = 1500;
+    const launchParamsFallback = getWindowLaunchParams();
+    const fallbackTimer = window.setTimeout(() => {
+      if (isCancelled) {
+        return;
+      }
+
+      setLaunchParams((currentParams) => ({
+        ...(currentParams ?? {}),
+        ...launchParamsFallback,
+      }));
+      setIsLaunchParamsResolved(true);
+    }, BRIDGE_LAUNCH_PARAMS_TIMEOUT_MS);
 
     bridge
       .send('VKWebAppGetLaunchParams')
@@ -876,9 +889,10 @@ const App = () => {
           return;
         }
 
+        window.clearTimeout(fallbackTimer);
         setLaunchParams((currentParams) => ({
           ...(currentParams ?? {}),
-          ...getWindowLaunchParams(),
+          ...launchParamsFallback,
           ...params,
         }));
         setIsLaunchParamsResolved(true);
@@ -888,17 +902,19 @@ const App = () => {
           return;
         }
 
+        window.clearTimeout(fallbackTimer);
         // Keep launch params parsed from the current URL when bridge params
         // are unavailable, for example during desktop VK embedding quirks.
         setLaunchParams((currentParams) => ({
           ...(currentParams ?? {}),
-          ...getWindowLaunchParams(),
+          ...launchParamsFallback,
         }));
         setIsLaunchParamsResolved(true);
       });
 
     return () => {
       isCancelled = true;
+      window.clearTimeout(fallbackTimer);
     };
   }, []);
 
