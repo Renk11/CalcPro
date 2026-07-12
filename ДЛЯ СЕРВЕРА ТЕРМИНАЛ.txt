@@ -1,0 +1,5 @@
+cd /var/www/calcpro
+git pull
+npm run build
+pm2 restart calcpro
+nano .env

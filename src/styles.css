@@ -4403,6 +4403,37 @@ body,
   gap: 16px;
 }
 
+.templates-hub__summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.templates-hub__summary-card {
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 18px 36px rgba(0, 0, 0, 0.14);
+}
+
+.templates-hub__summary-value {
+  color: #f7f0e5;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.templates-hub__summary-label {
+  color: #b9aa99;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .templates-hub__search {
   position: relative;
   display: block;
@@ -4519,6 +4550,38 @@ body,
 
 .template-preset_furniture .template-preset__visual {
   background: linear-gradient(135deg, #c8b49a 0%, #f2e0c2 100%);
+}
+
+.template-preset_beauty .template-preset__visual {
+  background: linear-gradient(135deg, #ffd0e2 0%, #ffb08e 100%);
+}
+
+.template-preset_legal .template-preset__visual {
+  background: linear-gradient(135deg, #d8d6ff 0%, #8fa7ff 100%);
+}
+
+.template-preset_auto .template-preset__visual {
+  background: linear-gradient(135deg, #b3fff4 0%, #5e8cff 100%);
+}
+
+.template-preset_education .template-preset__visual {
+  background: linear-gradient(135deg, #ffd6a3 0%, #ffecc8 100%);
+}
+
+.template-preset_events .template-preset__visual {
+  background: linear-gradient(135deg, #ffc4ae 0%, #ffe29f 100%);
+}
+
+.template-preset_security .template-preset__visual {
+  background: linear-gradient(135deg, #b5d2ff 0%, #97f0d7 100%);
+}
+
+.template-preset_septic .template-preset__visual {
+  background: linear-gradient(135deg, #b9f0c3 0%, #7cc5b2 100%);
+}
+
+.template-preset_fence .template-preset__visual {
+  background: linear-gradient(135deg, #d4c09d 0%, #f1e4c1 100%);
 }
 
 .template-preset__badge {
@@ -4658,6 +4721,27 @@ body,
   padding: 16px 4px 12px;
 }
 
+.template-preset__eyebrow-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.template-preset__eyebrow-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 153, 80, 0.14);
+  color: #ffbf86;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.template-preset__eyebrow-pill_muted {
+  background: rgba(255, 255, 255, 0.06);
+  color: #bfb0a0;
+}
+
 .template-preset__title,
 .template-preset__blank-title {
   margin: 0;
@@ -4674,8 +4758,59 @@ body,
   line-height: 1.5;
 }
 
+.template-preset__detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.template-preset__detail {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.template-preset__detail span {
+  color: #9ea497;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.template-preset__detail strong {
+  color: #f3e8da;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.template-preset__outcomes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.template-preset__outcome {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(95, 208, 176, 0.12);
+  color: #90e0c9;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .template-preset__meta {
   margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   color: #9ea497;
   font-size: 13px;
   font-weight: 600;
@@ -4710,6 +4845,10 @@ body,
   gap: 14px;
   background: rgba(40, 46, 52, 0.45);
   border: 2px dashed #4b5f63;
+}
+
+.template-preset_blank-state {
+  min-height: 360px;
 }
 
 .template-preset__blank-plus {
@@ -10158,6 +10297,10 @@ body::-webkit-scrollbar-thumb:hover,
     align-items: flex-start;
   }
 
+  .templates-hub__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .faq-layout {
     grid-template-columns: 1fr;
   }
@@ -10432,6 +10575,14 @@ body::-webkit-scrollbar-thumb:hover,
   }
 
   .admin-home__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .templates-hub__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .template-preset__detail-grid {
     grid-template-columns: 1fr;
   }
 

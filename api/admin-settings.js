@@ -570,6 +570,7 @@ export default async function handler(request, response) {
             incomingSettings.billingReminderVkId ?? currentSettings.billingReminderVkId,
           billingReminderConfirmedAt:
             incomingSettings.billingReminderConfirmedAt ?? currentSettings.billingReminderConfirmedAt,
+          integrations: incomingSettings.integrations ?? currentSettings.integrations,
           googleSheetsWebhookUrl:
             incomingSettings.googleSheetsWebhookUrl ?? currentSettings.googleSheetsWebhookUrl,
           googleSheetsLastExportAt:

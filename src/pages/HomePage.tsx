@@ -706,6 +706,18 @@ const faqTopics: FaqTopic[] = [
           'Если нужна быстрая проверка, сначала запустите ручную выгрузку, а потом создайте тестовую заявку и убедитесь, что новая строка добавляется уже автоматически.',
         ],
       },
+      {
+        title: 'Как подключить Telegram, Google Sheets, amoCRM, Bitrix24 и webhook',
+        items: [
+          'Откройте раздел «Заявки» и найдите блок интеграций. Все каналы подключаются именно там, в одном месте.',
+          'Для Telegram укажите Bot Token и Chat ID. После сохранения каждая новая заявка будет отправляться сообщением в выбранный чат или канал.',
+          'Для Google Sheets вставьте Web App URL опубликованного Google Apps Script. После сохранения новые заявки начнут добавляться автоматически, а старые можно выгрузить кнопкой «Выгрузить все заявки».',
+          'Для amoCRM заполните subdomain и access token. При необходимости дополнительно укажите Pipeline ID, Status ID и Responsible User ID, если хотите сразу класть лид в конкретную воронку и на ответственного.',
+          'Для Bitrix24 вставьте incoming webhook и при необходимости заполните Assigned By ID и Source ID. Тогда новая заявка будет создаваться как лид в CRM.',
+          'Для пользовательского webhook укажите URL вашего обработчика. CalcPro будет отправлять туда полный JSON заявки, чтобы вы могли подключить свои сценарии, ботов или интеграторы.',
+          'После сохранения интеграций сделайте тестовую заявку из опубликованного калькулятора и проверьте, что она дошла во все нужные системы. Если канал не заполнен, он просто не будет использоваться.',
+        ],
+      },
     ],
   },
   {
@@ -971,6 +983,12 @@ const categoryLabels: Record<'all' | TemplateCatalogCategory, string> = {
   other: 'Другое',
 };
 
+const presetDifficultyLabels: Record<TemplateCatalogPreset['difficulty'], string> = {
+  quick: 'Быстрый старт',
+  medium: 'Средняя настройка',
+  advanced: 'Глубокая настройка',
+};
+
 const presetVisualContent: Record<
   TemplateCatalogPreset['visual'],
   {
@@ -1039,6 +1057,54 @@ const presetVisualContent: Record<
     headline: 'Модули и материал',
     chips: ['Шкаф', 'МДФ', 'Фурнитура'],
     metrics: ['6 модулей', '92 000 ₽'],
+  },
+  beauty: {
+    kicker: 'Бьюти',
+    headline: 'Зоны и курс',
+    chips: ['Абонемент', 'Лазер', 'Пакет'],
+    metrics: ['4 зоны', '8 900 ₽'],
+  },
+  legal: {
+    kicker: 'Юристы',
+    headline: 'Долг и пакет',
+    chips: ['Кредиторы', 'Споры', 'Под ключ'],
+    metrics: ['7 дел', '79 000 ₽'],
+  },
+  auto: {
+    kicker: 'Авто',
+    headline: 'Класс и срочность',
+    chips: ['SUV', 'Ночь', 'Сложность'],
+    metrics: ['18 км', '6 400 ₽'],
+  },
+  education: {
+    kicker: 'Обучение',
+    headline: 'Тариф и куратор',
+    chips: ['VIP', 'Разборы', 'Курс'],
+    metrics: ['12 модулей', '34 900 ₽'],
+  },
+  events: {
+    kicker: 'Ивенты',
+    headline: 'Гости и сервис',
+    chips: ['Банкет', 'Свадьба', 'Декор'],
+    metrics: ['60 гостей', '186 000 ₽'],
+  },
+  security: {
+    kicker: 'Безопасность',
+    headline: 'Камеры и архив',
+    chips: ['PTZ', 'Монтаж', 'Сервер'],
+    metrics: ['16 точек', '214 000 ₽'],
+  },
+  septic: {
+    kicker: 'Загородка',
+    headline: 'Грунт и монтаж',
+    chips: ['Септик', 'Скважина', 'Техника'],
+    metrics: ['5 чел', '168 000 ₽'],
+  },
+  fence: {
+    kicker: 'Участок',
+    headline: 'Метры и ворота',
+    chips: ['Жалюзи', 'Калитка', 'Откатные'],
+    metrics: ['42 м', '241 000 ₽'],
   },
 };
 
@@ -1667,7 +1733,7 @@ const TemplatePresetCard = ({
 }) => (
   <article className={`template-preset template-preset_${preset.visual}`}>
     <div className="template-preset__visual">
-      <div className="template-preset__badge">Готовый шаблон</div>
+      <div className="template-preset__badge">{preset.recommendedFor}</div>
       <div className="template-preset__art">
         <div className="template-preset__glass template-preset__glass_main">
           <div className="template-preset__kicker">{presetVisualContent[preset.visual].kicker}</div>
@@ -1698,10 +1764,42 @@ const TemplatePresetCard = ({
     </div>
 
     <div className="template-preset__body">
+      <div className="template-preset__eyebrow-row">
+        <span className="template-preset__eyebrow-pill">{preset.industry}</span>
+        <span className="template-preset__eyebrow-pill template-preset__eyebrow-pill_muted">
+          {categoryLabels[preset.category]}
+        </span>
+      </div>
       <h3 className="template-preset__title">{preset.title}</h3>
       <p className="template-preset__description">{preset.description}</p>
+      <div className="template-preset__detail-grid">
+        <div className="template-preset__detail">
+          <span>Аудитория</span>
+          <strong>{preset.audience}</strong>
+        </div>
+        <div className="template-preset__detail">
+          <span>Настройка</span>
+          <strong>{preset.estimatedSetup}</strong>
+        </div>
+        <div className="template-preset__detail">
+          <span>Сложность</span>
+          <strong>{presetDifficultyLabels[preset.difficulty]}</strong>
+        </div>
+        <div className="template-preset__detail">
+          <span>Блоков</span>
+          <strong>{preset.fields.length}</strong>
+        </div>
+      </div>
+      <div className="template-preset__outcomes">
+        {preset.outcomes.map((item) => (
+          <span key={item} className="template-preset__outcome">
+            {item}
+          </span>
+        ))}
+      </div>
       <div className="template-preset__meta">
-        {preset.usesCount} использований
+        <span>{preset.usesCount} использований</span>
+        <span>{preset.formulaMode === 'custom' ? 'Своя формула' : 'Быстрый расчет'}</span>
       </div>
     </div>
 
@@ -1860,8 +1958,43 @@ export const HomePage = ({
   const [requestCommentDraft, setRequestCommentDraft] = useState<Record<string, string>>({});
   const [managerVkId, setManagerVkId] = useState(adminSettings.managerVkId);
   const [managerVkIdStatus, setManagerVkIdStatus] = useState('');
+  const [telegramBotToken, setTelegramBotToken] = useState(
+    adminSettings.integrations?.telegram?.botToken || '',
+  );
+  const [telegramChatId, setTelegramChatId] = useState(
+    adminSettings.integrations?.telegram?.chatId || '',
+  );
   const [googleSheetsWebhookUrl, setGoogleSheetsWebhookUrl] = useState(
-    adminSettings.googleSheetsWebhookUrl || '',
+    adminSettings.integrations?.googleSheets?.webhookUrl ||
+      adminSettings.googleSheetsWebhookUrl ||
+      '',
+  );
+  const [amoCrmSubdomain, setAmoCrmSubdomain] = useState(
+    adminSettings.integrations?.amoCrm?.subdomain || '',
+  );
+  const [amoCrmAccessToken, setAmoCrmAccessToken] = useState(
+    adminSettings.integrations?.amoCrm?.accessToken || '',
+  );
+  const [amoCrmPipelineId, setAmoCrmPipelineId] = useState(
+    adminSettings.integrations?.amoCrm?.pipelineId || '',
+  );
+  const [amoCrmStatusId, setAmoCrmStatusId] = useState(
+    adminSettings.integrations?.amoCrm?.statusId || '',
+  );
+  const [amoCrmResponsibleUserId, setAmoCrmResponsibleUserId] = useState(
+    adminSettings.integrations?.amoCrm?.responsibleUserId || '',
+  );
+  const [bitrix24WebhookUrl, setBitrix24WebhookUrl] = useState(
+    adminSettings.integrations?.bitrix24?.webhookUrl || '',
+  );
+  const [bitrix24AssignedById, setBitrix24AssignedById] = useState(
+    adminSettings.integrations?.bitrix24?.assignedById || '',
+  );
+  const [bitrix24SourceId, setBitrix24SourceId] = useState(
+    adminSettings.integrations?.bitrix24?.sourceId || '',
+  );
+  const [customWebhookUrl, setCustomWebhookUrl] = useState(
+    adminSettings.integrations?.webhook?.url || '',
   );
   const [googleSheetsStatus, setGoogleSheetsStatus] = useState('');
   const [isGoogleSheetsHelpOpen, setIsGoogleSheetsHelpOpen] = useState(false);
@@ -2049,8 +2182,23 @@ export const HomePage = ({
   }, [adminSettings.managerVkId]);
 
   useEffect(() => {
-    setGoogleSheetsWebhookUrl(adminSettings.googleSheetsWebhookUrl || '');
-  }, [adminSettings.googleSheetsWebhookUrl]);
+    setTelegramBotToken(adminSettings.integrations?.telegram?.botToken || '');
+    setTelegramChatId(adminSettings.integrations?.telegram?.chatId || '');
+    setGoogleSheetsWebhookUrl(
+      adminSettings.integrations?.googleSheets?.webhookUrl ||
+        adminSettings.googleSheetsWebhookUrl ||
+        '',
+    );
+    setAmoCrmSubdomain(adminSettings.integrations?.amoCrm?.subdomain || '');
+    setAmoCrmAccessToken(adminSettings.integrations?.amoCrm?.accessToken || '');
+    setAmoCrmPipelineId(adminSettings.integrations?.amoCrm?.pipelineId || '');
+    setAmoCrmStatusId(adminSettings.integrations?.amoCrm?.statusId || '');
+    setAmoCrmResponsibleUserId(adminSettings.integrations?.amoCrm?.responsibleUserId || '');
+    setBitrix24WebhookUrl(adminSettings.integrations?.bitrix24?.webhookUrl || '');
+    setBitrix24AssignedById(adminSettings.integrations?.bitrix24?.assignedById || '');
+    setBitrix24SourceId(adminSettings.integrations?.bitrix24?.sourceId || '');
+    setCustomWebhookUrl(adminSettings.integrations?.webhook?.url || '');
+  }, [adminSettings.integrations, adminSettings.googleSheetsWebhookUrl]);
 
   useEffect(() => {
     setManagerVkIdStatus('');
@@ -2058,7 +2206,20 @@ export const HomePage = ({
 
   useEffect(() => {
     setGoogleSheetsStatus('');
-  }, [googleSheetsWebhookUrl]);
+  }, [
+    telegramBotToken,
+    telegramChatId,
+    googleSheetsWebhookUrl,
+    amoCrmSubdomain,
+    amoCrmAccessToken,
+    amoCrmPipelineId,
+    amoCrmStatusId,
+    amoCrmResponsibleUserId,
+    bitrix24WebhookUrl,
+    bitrix24AssignedById,
+    bitrix24SourceId,
+    customWebhookUrl,
+  ]);
 
   useEffect(() => {
     setBillingReminderActionStatus('');
@@ -2537,11 +2698,37 @@ export const HomePage = ({
       const matchesSearch =
         normalizedQuery.length === 0
           ? true
-          : `${preset.title} ${preset.description}`.toLowerCase().includes(normalizedQuery);
+          : [
+              preset.title,
+              preset.description,
+              preset.industry,
+              preset.audience,
+              preset.recommendedFor,
+              ...preset.tags,
+              ...preset.outcomes,
+            ]
+              .join(' ')
+              .toLowerCase()
+              .includes(normalizedQuery);
 
       return matchesCategory && matchesSearch;
     });
   }, [templateCategory, templateSearch]);
+
+  const catalogStats = useMemo(() => {
+    const uniqueIndustries = new Set(templateCatalog.map((preset) => preset.industry));
+    const advancedCount = templateCatalog.filter((preset) => preset.difficulty === 'advanced').length;
+    const customFormulaCount = templateCatalog.filter(
+      (preset) => preset.formulaMode === 'custom',
+    ).length;
+
+    return {
+      total: templateCatalog.length,
+      industries: uniqueIndustries.size,
+      advancedCount,
+      customFormulaCount,
+    };
+  }, []);
 
   const renderCommunitySkeleton = () => (
     <div className="content-skeleton content-skeleton_communities" aria-hidden="true">
@@ -3198,10 +3385,11 @@ export const HomePage = ({
         <div className="templates-hub__hero">
           <div>
             <div className="templates-hub__eyebrow">Каталог шаблонов</div>
-            <h2 className="templates-hub__title">Выберите основу и настройте под себя</h2>
+            <h2 className="templates-hub__title">Сильная библиотека нишевых калькуляторов</h2>
             <p className="templates-hub__text">
-              Быстрый старт для популярных ниш: потолки, окна, кухни, ремонт, доставка,
-              мебель, натяжные потолки и клининг.
+              Здесь не просто демо-пресеты, а готовые сценарии под реальные ниши: загородное
+              строительство, юрлиды, бьюти, мебель, ремонт, логистика, безопасность и услуги с
+              длинным циклом сделки.
             </p>
           </div>
           <button
@@ -3214,6 +3402,25 @@ export const HomePage = ({
           </button>
         </div>
 
+        <div className="templates-hub__summary">
+          <article className="templates-hub__summary-card">
+            <span className="templates-hub__summary-value">{catalogStats.total}</span>
+            <span className="templates-hub__summary-label">готовых шаблонов</span>
+          </article>
+          <article className="templates-hub__summary-card">
+            <span className="templates-hub__summary-value">{catalogStats.industries}</span>
+            <span className="templates-hub__summary-label">ниш и сценариев</span>
+          </article>
+          <article className="templates-hub__summary-card">
+            <span className="templates-hub__summary-value">{catalogStats.advancedCount}</span>
+            <span className="templates-hub__summary-label">глубоких пресетов</span>
+          </article>
+          <article className="templates-hub__summary-card">
+            <span className="templates-hub__summary-value">{catalogStats.customFormulaCount}</span>
+            <span className="templates-hub__summary-label">шаблона со своей формулой</span>
+          </article>
+        </div>
+
         <div className="templates-hub__toolbar">
           <label className="templates-hub__search">
             <span className="templates-hub__search-icon">
@@ -3221,7 +3428,7 @@ export const HomePage = ({
             </span>
             <input
               value={templateSearch}
-              placeholder="Поиск шаблонов..."
+              placeholder="Поиск по нише, сценарию или тегу..."
               onChange={(event) => setTemplateSearch(event.target.value)}
             />
           </label>
@@ -3250,6 +3457,16 @@ export const HomePage = ({
               showMonetizationLabels={canManageMonetization}
             />
           ))}
+
+          {!filteredCatalog.length ? (
+            <div className="template-preset template-preset_blank template-preset_blank-state">
+              <div className="template-preset__blank-plus">?</div>
+              <div className="template-preset__blank-title">Ничего не найдено</div>
+              <div className="template-preset__blank-text">
+                Попробуйте другой запрос или снимите фильтр по категории.
+              </div>
+            </div>
+          ) : null}
 
           <button
             className="template-preset template-preset_blank"
@@ -4176,8 +4393,8 @@ export const HomePage = ({
           </div>
 
           <div className="settings-form__hint settings-form__hint_accent">
-            Подключите Google Sheets, чтобы новые заявки уходили в таблицу автоматически, а всю
-            текущую базу можно было выгрузить одной кнопкой.
+            Подключите нужные каналы, чтобы каждая новая заявка сразу уходила в мессенджеры,
+            таблицы, CRM и ваши внешние сценарии.
           </div>
 
           <div className="settings-form__actions settings-form__actions_compact">
@@ -4191,6 +4408,28 @@ export const HomePage = ({
           </div>
 
           <label className="settings-form__field">
+            <span className="settings-form__label">Telegram Bot Token</span>
+            <input
+              className="settings-form__input"
+              type="text"
+              placeholder="123456:ABCDEF..."
+              value={telegramBotToken}
+              onChange={(event) => setTelegramBotToken(event.target.value)}
+            />
+          </label>
+
+          <label className="settings-form__field">
+            <span className="settings-form__label">Telegram Chat ID</span>
+            <input
+              className="settings-form__input"
+              type="text"
+              placeholder="-1001234567890"
+              value={telegramChatId}
+              onChange={(event) => setTelegramChatId(event.target.value)}
+            />
+          </label>
+
+          <label className="settings-form__field">
             <span className="settings-form__label">Webhook URL Google Apps Script</span>
             <input
               className="settings-form__input"
@@ -4201,34 +4440,171 @@ export const HomePage = ({
             />
           </label>
 
+          <label className="settings-form__field">
+            <span className="settings-form__label">amoCRM subdomain</span>
+            <input
+              className="settings-form__input"
+              type="text"
+              placeholder="mycompany"
+              value={amoCrmSubdomain}
+              onChange={(event) => setAmoCrmSubdomain(event.target.value)}
+            />
+          </label>
+
+          <label className="settings-form__field">
+            <span className="settings-form__label">amoCRM access token</span>
+            <input
+              className="settings-form__input"
+              type="password"
+              placeholder="Токен длинного доступа"
+              value={amoCrmAccessToken}
+              onChange={(event) => setAmoCrmAccessToken(event.target.value)}
+            />
+          </label>
+
+          <div className="settings-form__actions settings-form__actions_compact">
+            <label className="settings-form__field">
+              <span className="settings-form__label">Pipeline ID</span>
+              <input
+                className="settings-form__input"
+                type="text"
+                placeholder="123456"
+                value={amoCrmPipelineId}
+                onChange={(event) => setAmoCrmPipelineId(event.target.value)}
+              />
+            </label>
+            <label className="settings-form__field">
+              <span className="settings-form__label">Status ID</span>
+              <input
+                className="settings-form__input"
+                type="text"
+                placeholder="654321"
+                value={amoCrmStatusId}
+                onChange={(event) => setAmoCrmStatusId(event.target.value)}
+              />
+            </label>
+            <label className="settings-form__field">
+              <span className="settings-form__label">Responsible User ID</span>
+              <input
+                className="settings-form__input"
+                type="text"
+                placeholder="987654"
+                value={amoCrmResponsibleUserId}
+                onChange={(event) => setAmoCrmResponsibleUserId(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <label className="settings-form__field">
+            <span className="settings-form__label">Bitrix24 incoming webhook</span>
+            <input
+              className="settings-form__input"
+              type="url"
+              placeholder="https://portal.bitrix24.ru/rest/1/secret/"
+              value={bitrix24WebhookUrl}
+              onChange={(event) => setBitrix24WebhookUrl(event.target.value)}
+            />
+          </label>
+
+          <div className="settings-form__actions settings-form__actions_compact">
+            <label className="settings-form__field">
+              <span className="settings-form__label">Assigned By ID</span>
+              <input
+                className="settings-form__input"
+                type="text"
+                placeholder="1"
+                value={bitrix24AssignedById}
+                onChange={(event) => setBitrix24AssignedById(event.target.value)}
+              />
+            </label>
+            <label className="settings-form__field">
+              <span className="settings-form__label">Source ID</span>
+              <input
+                className="settings-form__input"
+                type="text"
+                placeholder="WEB"
+                value={bitrix24SourceId}
+                onChange={(event) => setBitrix24SourceId(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <label className="settings-form__field">
+            <span className="settings-form__label">Пользовательский webhook</span>
+            <input
+              className="settings-form__input"
+              type="url"
+              placeholder="https://example.com/hooks/calcpro"
+              value={customWebhookUrl}
+              onChange={(event) => setCustomWebhookUrl(event.target.value)}
+            />
+          </label>
+
           <div className="settings-form__hint">
-            Используйте ссылку опубликованного Google Apps Script Web App. После сохранения каждая
-            новая заявка будет добавляться в таблицу автоматически.
+            `Telegram` использует Bot API, `Google Sheets` работает через опубликованный Google Apps
+            Script, `amoCRM` создаёт сделку через API, `Bitrix24` создаёт лид через incoming webhook,
+            а пользовательский `webhook` получает полный JSON заявки.
           </div>
 
           <div className="settings-form__actions">
             <button
               className="settings-form__button"
               type="button"
-              onClick={() => {
-                onSaveAdminSettings({
+              onClick={async () => {
+                const nextSettings = {
                   ...adminSettings,
+                  integrations: {
+                    telegram: {
+                      botToken: telegramBotToken.trim(),
+                      chatId: telegramChatId.trim(),
+                      enabled: Boolean(telegramBotToken.trim() && telegramChatId.trim()),
+                    },
+                    googleSheets: {
+                      webhookUrl: googleSheetsWebhookUrl.trim(),
+                      enabled: Boolean(googleSheetsWebhookUrl.trim()),
+                      lastExportAt: adminSettings.integrations?.googleSheets?.lastExportAt || '',
+                    },
+                    amoCrm: {
+                      subdomain: amoCrmSubdomain.trim(),
+                      accessToken: amoCrmAccessToken.trim(),
+                      pipelineId: amoCrmPipelineId.trim(),
+                      statusId: amoCrmStatusId.trim(),
+                      responsibleUserId: amoCrmResponsibleUserId.trim(),
+                      enabled: Boolean(amoCrmSubdomain.trim() && amoCrmAccessToken.trim()),
+                    },
+                    bitrix24: {
+                      webhookUrl: bitrix24WebhookUrl.trim(),
+                      assignedById: bitrix24AssignedById.trim(),
+                      sourceId: bitrix24SourceId.trim(),
+                      enabled: Boolean(bitrix24WebhookUrl.trim()),
+                    },
+                    webhook: {
+                      url: customWebhookUrl.trim(),
+                      enabled: Boolean(customWebhookUrl.trim()),
+                    },
+                  },
                   googleSheetsWebhookUrl: googleSheetsWebhookUrl.trim(),
-                });
+                };
+                const result = await onSaveAdminSettings(nextSettings);
                 setGoogleSheetsStatus(
-                  googleSheetsWebhookUrl.trim()
-                    ? 'Ссылка Google Sheets сохранена.'
-                    : 'Ссылка Google Sheets очищена.',
+                  result.ok
+                    ? 'Интеграции сохранены.'
+                    : result.message || 'Не удалось сохранить интеграции.',
                 );
               }}
             >
-              Сохранить ссылку
+              Сохранить интеграции
             </button>
 
             <button
               className="settings-form__button settings-form__button_secondary"
               type="button"
-              disabled={!adminSettings.googleSheetsWebhookUrl}
+              disabled={
+                !(
+                  adminSettings.integrations?.googleSheets?.webhookUrl ||
+                  adminSettings.googleSheetsWebhookUrl
+                )
+              }
               onClick={async () => {
                 const result = await onExportRequestsToGoogleSheets();
                 setGoogleSheetsStatus(result.message);
@@ -4239,8 +4615,14 @@ export const HomePage = ({
           </div>
 
           <div className="settings-form__hint">
-            {adminSettings.googleSheetsLastExportAt
-              ? `Последняя выгрузка: ${formatSubscriptionDate(adminSettings.googleSheetsLastExportAt) || 'недавно'}`
+            {(adminSettings.integrations?.googleSheets?.lastExportAt ||
+              adminSettings.googleSheetsLastExportAt)
+              ? `Последняя выгрузка: ${
+                  formatSubscriptionDate(
+                    adminSettings.integrations?.googleSheets?.lastExportAt ||
+                      adminSettings.googleSheetsLastExportAt,
+                  ) || 'недавно'
+                }`
               : 'Ручная выгрузка ещё не запускалась.'}
           </div>
 

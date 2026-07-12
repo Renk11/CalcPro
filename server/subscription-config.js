@@ -68,6 +68,36 @@ export function createDefaultAdminSettings() {
     billingReminderVkId: '',
     billingReminderConfirmedAt: '',
     updatesBroadcastUnsubscribedAt: '',
+    integrations: {
+      telegram: {
+        botToken: '',
+        chatId: '',
+        enabled: false,
+      },
+      googleSheets: {
+        webhookUrl: '',
+        enabled: false,
+        lastExportAt: '',
+      },
+      amoCrm: {
+        subdomain: '',
+        accessToken: '',
+        pipelineId: '',
+        statusId: '',
+        responsibleUserId: '',
+        enabled: false,
+      },
+      bitrix24: {
+        webhookUrl: '',
+        assignedById: '',
+        sourceId: '',
+        enabled: false,
+      },
+      webhook: {
+        url: '',
+        enabled: false,
+      },
+    },
     googleSheetsWebhookUrl: '',
     googleSheetsLastExportAt: '',
     billingReminderState: {

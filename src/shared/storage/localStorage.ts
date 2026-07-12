@@ -551,6 +551,44 @@ export const getAdminSettings = (): CalculatorAdminSettings => {
     billingReminderVkId: settings.billingReminderVkId ?? '',
     billingReminderConfirmedAt: settings.billingReminderConfirmedAt ?? '',
     updatesBroadcastUnsubscribedAt: settings.updatesBroadcastUnsubscribedAt ?? '',
+    integrations: {
+      telegram: {
+        botToken: settings.integrations?.telegram?.botToken ?? '',
+        chatId: settings.integrations?.telegram?.chatId ?? '',
+        enabled: settings.integrations?.telegram?.enabled ?? false,
+      },
+      googleSheets: {
+        webhookUrl:
+          settings.integrations?.googleSheets?.webhookUrl ?? settings.googleSheetsWebhookUrl ?? '',
+        enabled:
+          settings.integrations?.googleSheets?.enabled ??
+          Boolean(
+            settings.integrations?.googleSheets?.webhookUrl ?? settings.googleSheetsWebhookUrl,
+          ),
+        lastExportAt:
+          settings.integrations?.googleSheets?.lastExportAt ??
+          settings.googleSheetsLastExportAt ??
+          '',
+      },
+      amoCrm: {
+        subdomain: settings.integrations?.amoCrm?.subdomain ?? '',
+        accessToken: settings.integrations?.amoCrm?.accessToken ?? '',
+        pipelineId: settings.integrations?.amoCrm?.pipelineId ?? '',
+        statusId: settings.integrations?.amoCrm?.statusId ?? '',
+        responsibleUserId: settings.integrations?.amoCrm?.responsibleUserId ?? '',
+        enabled: settings.integrations?.amoCrm?.enabled ?? false,
+      },
+      bitrix24: {
+        webhookUrl: settings.integrations?.bitrix24?.webhookUrl ?? '',
+        assignedById: settings.integrations?.bitrix24?.assignedById ?? '',
+        sourceId: settings.integrations?.bitrix24?.sourceId ?? '',
+        enabled: settings.integrations?.bitrix24?.enabled ?? false,
+      },
+      webhook: {
+        url: settings.integrations?.webhook?.url ?? '',
+        enabled: settings.integrations?.webhook?.enabled ?? false,
+      },
+    },
     googleSheetsWebhookUrl: settings.googleSheetsWebhookUrl ?? '',
     googleSheetsLastExportAt: settings.googleSheetsLastExportAt ?? '',
     billingReminderState: {

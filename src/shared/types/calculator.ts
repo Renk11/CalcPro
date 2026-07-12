@@ -238,6 +238,36 @@ export interface CalculatorAdminSettings {
   billingReminderVkId: string;
   billingReminderConfirmedAt?: string;
   updatesBroadcastUnsubscribedAt?: string;
+  integrations?: {
+    telegram?: {
+      botToken?: string;
+      chatId?: string;
+      enabled?: boolean;
+    };
+    googleSheets?: {
+      webhookUrl?: string;
+      enabled?: boolean;
+      lastExportAt?: string;
+    };
+    amoCrm?: {
+      subdomain?: string;
+      accessToken?: string;
+      pipelineId?: string;
+      statusId?: string;
+      responsibleUserId?: string;
+      enabled?: boolean;
+    };
+    bitrix24?: {
+      webhookUrl?: string;
+      assignedById?: string;
+      sourceId?: string;
+      enabled?: boolean;
+    };
+    webhook?: {
+      url?: string;
+      enabled?: boolean;
+    };
+  };
   googleSheetsWebhookUrl?: string;
   googleSheetsLastExportAt?: string;
   billingReminderState?: {

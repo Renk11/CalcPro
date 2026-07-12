@@ -80,6 +80,66 @@ function normalizeWebhookUrl(value) {
   }
 }
 
+function normalizeBoolean(value) {
+  return value === true;
+}
+
+function normalizeIntegrations(integrations = {}, defaults = createDefaultAdminSettings().integrations) {
+  const normalizedIntegrations =
+    integrations && typeof integrations === 'object' && !Array.isArray(integrations)
+      ? integrations
+      : {};
+
+  return {
+    telegram: {
+      botToken: String(
+        normalizedIntegrations.telegram?.botToken || defaults.telegram.botToken || '',
+      ).trim(),
+      chatId: String(normalizedIntegrations.telegram?.chatId || defaults.telegram.chatId || '').trim(),
+      enabled: normalizeBoolean(normalizedIntegrations.telegram?.enabled),
+    },
+    googleSheets: {
+      webhookUrl: normalizeWebhookUrl(
+        normalizedIntegrations.googleSheets?.webhookUrl || defaults.googleSheets.webhookUrl || '',
+      ),
+      enabled: normalizeBoolean(normalizedIntegrations.googleSheets?.enabled),
+      lastExportAt: String(
+        normalizedIntegrations.googleSheets?.lastExportAt || defaults.googleSheets.lastExportAt || '',
+      ).trim(),
+    },
+    amoCrm: {
+      subdomain: String(
+        normalizedIntegrations.amoCrm?.subdomain || defaults.amoCrm.subdomain || '',
+      ).trim(),
+      accessToken: String(
+        normalizedIntegrations.amoCrm?.accessToken || defaults.amoCrm.accessToken || '',
+      ).trim(),
+      pipelineId: String(
+        normalizedIntegrations.amoCrm?.pipelineId || defaults.amoCrm.pipelineId || '',
+      ).trim(),
+      statusId: String(normalizedIntegrations.amoCrm?.statusId || defaults.amoCrm.statusId || '').trim(),
+      responsibleUserId: String(
+        normalizedIntegrations.amoCrm?.responsibleUserId || defaults.amoCrm.responsibleUserId || '',
+      ).trim(),
+      enabled: normalizeBoolean(normalizedIntegrations.amoCrm?.enabled),
+    },
+    bitrix24: {
+      webhookUrl: normalizeWebhookUrl(
+        normalizedIntegrations.bitrix24?.webhookUrl || defaults.bitrix24.webhookUrl || '',
+      ),
+      assignedById: String(
+        normalizedIntegrations.bitrix24?.assignedById || defaults.bitrix24.assignedById || '',
+      ).trim(),
+      sourceId: String(normalizedIntegrations.bitrix24?.sourceId || defaults.bitrix24.sourceId || '').trim(),
+      enabled: normalizeBoolean(normalizedIntegrations.bitrix24?.enabled),
+    },
+    webhook: {
+      url: normalizeWebhookUrl(normalizedIntegrations.webhook?.url || defaults.webhook.url || ''),
+      enabled: normalizeBoolean(normalizedIntegrations.webhook?.enabled),
+    },
+  };
+}
+
 function normalizeBillingReminderState(state = {}, paidUntil = '') {
   const normalizedState =
     state && typeof state === 'object' && !Array.isArray(state) ? state : {};
@@ -109,6 +169,26 @@ function normalizeBillingReminderState(state = {}, paidUntil = '') {
 export function normalizeAdminSettings(settings = {}) {
   const defaults = createDefaultAdminSettings();
   const subscription = normalizeSubscription(settings.subscription);
+  const normalizedIntegrations = normalizeIntegrations(settings.integrations, defaults.integrations);
+  const fallbackGoogleSheetsWebhookUrl = normalizeWebhookUrl(
+    settings.googleSheetsWebhookUrl || normalizedIntegrations.googleSheets.webhookUrl,
+  );
+  const fallbackGoogleSheetsLastExportAt = String(
+    settings.googleSheetsLastExportAt || normalizedIntegrations.googleSheets.lastExportAt,
+  ).trim();
+  const integrations = {
+    ...normalizedIntegrations,
+    googleSheets: {
+      ...normalizedIntegrations.googleSheets,
+      webhookUrl: normalizedIntegrations.googleSheets.webhookUrl || fallbackGoogleSheetsWebhookUrl,
+      enabled:
+        normalizedIntegrations.googleSheets.enabled ||
+        Boolean(
+          normalizedIntegrations.googleSheets.webhookUrl || fallbackGoogleSheetsWebhookUrl,
+        ),
+      lastExportAt: normalizedIntegrations.googleSheets.lastExportAt || fallbackGoogleSheetsLastExportAt,
+    },
+  };
 
   return {
     managerVkId: normalizeManagerVkUserId(settings.managerVkId || defaults.managerVkId),
@@ -120,11 +200,12 @@ export function normalizeAdminSettings(settings = {}) {
     updatesBroadcastUnsubscribedAt: String(
       settings.updatesBroadcastUnsubscribedAt || defaults.updatesBroadcastUnsubscribedAt,
     ).trim(),
+    integrations,
     googleSheetsWebhookUrl: normalizeWebhookUrl(
-      settings.googleSheetsWebhookUrl || defaults.googleSheetsWebhookUrl,
+      fallbackGoogleSheetsWebhookUrl || defaults.googleSheetsWebhookUrl,
     ),
     googleSheetsLastExportAt: String(
-      settings.googleSheetsLastExportAt || defaults.googleSheetsLastExportAt,
+      fallbackGoogleSheetsLastExportAt || defaults.googleSheetsLastExportAt,
     ).trim(),
     billingReminderState: normalizeBillingReminderState(
       settings.billingReminderState,

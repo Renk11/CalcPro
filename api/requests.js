@@ -17,7 +17,10 @@ import {
   getEffectiveSubscriptionPlan,
   getSubscriptionQuotaCycleId,
 } from '../server/subscription-config.js';
-import { sendRequestsToGoogleSheets } from '../server/google-sheets.js';
+import {
+  dispatchRequestIntegrations,
+  exportRequestsToGoogleSheets,
+} from '../server/request-integrations.js';
 import { hasVkGroupToken, sendVkMessage } from '../server/vk.js';
 
 function parseGroupId(rawValue) {
@@ -258,7 +261,9 @@ export default async function handler(request, response) {
         }
 
         const settings = await getServerAdminSettings(groupId);
-        if (!settings.googleSheetsWebhookUrl) {
+        const googleSheetsWebhookUrl =
+          settings.integrations?.googleSheets?.webhookUrl || settings.googleSheetsWebhookUrl;
+        if (!googleSheetsWebhookUrl) {
           return sendJson(response, 400, {
             ok: false,
             error: 'Google Sheets webhook URL is not configured',
@@ -266,16 +271,20 @@ export default async function handler(request, response) {
         }
 
         const requests = await getServerRequests(groupId);
-        const exportResult = await sendRequestsToGoogleSheets({
-          webhookUrl: settings.googleSheetsWebhookUrl,
-          groupId,
-          mode: 'replace',
-          requests,
-        });
+        const exportResult = await exportRequestsToGoogleSheets(settings, groupId, requests, 'replace');
 
         const nextSettings = await saveServerAdminSettings(
           {
             ...settings,
+            integrations: {
+              ...settings.integrations,
+              googleSheets: {
+                ...settings.integrations?.googleSheets,
+                webhookUrl: googleSheetsWebhookUrl,
+                enabled: true,
+                lastExportAt: exportResult.exportedAt,
+              },
+            },
             googleSheetsLastExportAt: exportResult.exportedAt,
           },
           groupId,
@@ -323,30 +332,40 @@ export default async function handler(request, response) {
         savedRequests = [];
       }
 
-      if (settings.googleSheetsWebhookUrl) {
-        sendRequestsToGoogleSheets({
-          webhookUrl: settings.googleSheetsWebhookUrl,
-          groupId,
-          mode: 'append',
-          requests: [requestPayload],
-        })
-          .then(async (exportResult) => {
-            try {
-              await saveServerAdminSettings(
-                {
-                  ...settings,
-                  googleSheetsLastExportAt: exportResult.exportedAt,
+      dispatchRequestIntegrations(settings, requestPayload, groupId)
+        .then(async (integrationResults) => {
+          const googleSheetsResult = integrationResults.googleSheets;
+          if (googleSheetsResult?.status !== 'fulfilled') {
+            return;
+          }
+
+          const exportedAt = googleSheetsResult.value?.exportedAt;
+          if (!exportedAt) {
+            return;
+          }
+
+          try {
+            await saveServerAdminSettings(
+              {
+                ...settings,
+                integrations: {
+                  ...settings.integrations,
+                  googleSheets: {
+                    ...settings.integrations?.googleSheets,
+                    lastExportAt: exportedAt,
+                  },
                 },
-                groupId,
-              );
-            } catch {
-              // Ignore export status persistence failures.
-            }
-          })
-          .catch(() => {
-            // Google Sheets export must not block request processing.
-          });
-      }
+                googleSheetsLastExportAt: exportedAt,
+              },
+              groupId,
+            );
+          } catch {
+            // Ignore export status persistence failures.
+          }
+        })
+        .catch(() => {
+          // Integrations must not block request processing.
+        });
 
       if (requestLimit != null) {
         const cycleId = getSubscriptionQuotaCycleId();
