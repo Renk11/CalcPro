@@ -698,24 +698,53 @@ const faqTopics: FaqTopic[] = [
           'Удаление убирает заявку из списка, но не уменьшает счётчик использованных заявок в лимите тарифа.',
         ],
       },
+    ],
+  },
+  {
+    id: 'integrations',
+    title: 'Интеграции',
+    caption: 'Telegram, CRM, таблицы и webhook',
+    intro:
+      'Этот раздел помогает подключить внешние каналы, чтобы заявки не оставались только внутри CalcPro. Здесь настраиваются мессенджеры, таблицы, CRM и собственные вебхуки для автоматизации.',
+    sections: [
       {
-        title: 'Выгрузка в Google Sheets',
+        title: 'Где находится блок интеграций',
         items: [
-          'В разделе «Заявки» можно подключить Google Sheets через Web App URL от Google Apps Script.',
-          'После сохранения ссылки новые заявки будут автоматически добавляться в таблицу, а кнопка «Выгрузить все заявки» отправит в Sheets всю текущую базу.',
+          'Откройте раздел «Настройки» и найдите отдельную карточку «Интеграции». Все внешние подключения собраны там в одном месте.',
+          'Сначала заполните только те каналы, которые реально нужны проекту. Пустые поля не мешают работе и просто не участвуют в отправке.',
+          'После каждого заметного изменения сохраняйте настройки и сразу делайте тестовую заявку из опубликованного калькулятора.',
+        ],
+      },
+      {
+        title: 'Telegram',
+        items: [
+          'Укажите Bot Token и Chat ID. После сохранения каждая новая заявка будет отправляться в выбранный чат, группу или канал.',
+          'Если уведомления не приходят, чаще всего проблема в неверном Chat ID или в том, что бот не добавлен в нужный чат.',
+          'Telegram удобен для быстрых уведомлений менеджеру или общей команде без входа в CRM.',
+        ],
+      },
+      {
+        title: 'Google Sheets',
+        items: [
+          'Вставьте Web App URL опубликованного Google Apps Script. После сохранения новые заявки начнут добавляться в таблицу автоматически.',
+          'Кнопка «Выгрузить все заявки» отправляет в таблицу всю текущую базу, если нужно быстро синхронизировать историю.',
           'Если нужна быстрая проверка, сначала запустите ручную выгрузку, а потом создайте тестовую заявку и убедитесь, что новая строка добавляется уже автоматически.',
         ],
       },
       {
-        title: 'Как подключить Telegram, Google Sheets, amoCRM, Bitrix24 и webhook',
+        title: 'amoCRM и Bitrix24',
         items: [
-          'Откройте раздел «Заявки» и найдите блок интеграций. Все каналы подключаются именно там, в одном месте.',
-          'Для Telegram укажите Bot Token и Chat ID. После сохранения каждая новая заявка будет отправляться сообщением в выбранный чат или канал.',
-          'Для Google Sheets вставьте Web App URL опубликованного Google Apps Script. После сохранения новые заявки начнут добавляться автоматически, а старые можно выгрузить кнопкой «Выгрузить все заявки».',
           'Для amoCRM заполните subdomain и access token. При необходимости дополнительно укажите Pipeline ID, Status ID и Responsible User ID, если хотите сразу класть лид в конкретную воронку и на ответственного.',
           'Для Bitrix24 вставьте incoming webhook и при необходимости заполните Assigned By ID и Source ID. Тогда новая заявка будет создаваться как лид в CRM.',
-          'Для пользовательского webhook укажите URL вашего обработчика. CalcPro будет отправлять туда полный JSON заявки, чтобы вы могли подключить свои сценарии, ботов или интеграторы.',
-          'После сохранения интеграций сделайте тестовую заявку из опубликованного калькулятора и проверьте, что она дошла во все нужные системы. Если канал не заполнен, он просто не будет использоваться.',
+          'После подключения CRM проверьте не только создание лида, но и то, в какую именно воронку, статус и на какого ответственного он попадает.',
+        ],
+      },
+      {
+        title: 'Пользовательский webhook',
+        items: [
+          'Укажите URL вашего обработчика, если хотите принимать полный JSON заявки в собственной системе, боте, интеграторе или no-code сценарии.',
+          'Этот вариант удобен, когда нужно запустить нестандартную автоматизацию: отправку в несколько сервисов, аналитику, обогащение лида или собственную бизнес-логику.',
+          'Если канал не заполнен, CalcPro просто пропускает его и продолжает отправку в остальные подключённые системы.',
         ],
       },
     ],
@@ -4370,6 +4399,258 @@ export const HomePage = ({
     }
   };
 
+  const renderIntegrationsCard = () => (
+    <article className="settings-card">
+      <div className="settings-card__eyebrow">Интеграции</div>
+      <h2 className="settings-card__title">Telegram, CRM, таблицы и webhook</h2>
+      <p className="settings-card__text">
+        Подключите нужные каналы, чтобы каждая новая заявка сразу уходила в мессенджеры,
+        таблицы, CRM и ваши внешние сценарии.
+      </p>
+
+      <div className="settings-form__actions settings-form__actions_compact">
+        <button
+          className="settings-support__button settings-support__button_secondary"
+          type="button"
+          onClick={() => setIsGoogleSheetsHelpOpen(true)}
+        >
+          Как настроить Google Sheets
+        </button>
+        <button
+          className="settings-support__button settings-support__button_secondary"
+          type="button"
+          onClick={() => {
+            setSelectedFaqTopicId('integrations');
+            navigateToSection('faq');
+          }}
+        >
+          Открыть FAQ по интеграциям
+        </button>
+      </div>
+
+      <label className="settings-form__field">
+        <span className="settings-form__label">Telegram Bot Token</span>
+        <input
+          className="settings-form__input"
+          type="text"
+          placeholder="123456:ABCDEF..."
+          value={telegramBotToken}
+          onChange={(event) => setTelegramBotToken(event.target.value)}
+        />
+      </label>
+
+      <label className="settings-form__field">
+        <span className="settings-form__label">Telegram Chat ID</span>
+        <input
+          className="settings-form__input"
+          type="text"
+          placeholder="-1001234567890"
+          value={telegramChatId}
+          onChange={(event) => setTelegramChatId(event.target.value)}
+        />
+      </label>
+
+      <label className="settings-form__field">
+        <span className="settings-form__label">Webhook URL Google Apps Script</span>
+        <input
+          className="settings-form__input"
+          type="url"
+          placeholder="https://script.google.com/macros/s/.../exec"
+          value={googleSheetsWebhookUrl}
+          onChange={(event) => setGoogleSheetsWebhookUrl(event.target.value)}
+        />
+      </label>
+
+      <label className="settings-form__field">
+        <span className="settings-form__label">amoCRM subdomain</span>
+        <input
+          className="settings-form__input"
+          type="text"
+          placeholder="mycompany"
+          value={amoCrmSubdomain}
+          onChange={(event) => setAmoCrmSubdomain(event.target.value)}
+        />
+      </label>
+
+      <label className="settings-form__field">
+        <span className="settings-form__label">amoCRM access token</span>
+        <input
+          className="settings-form__input"
+          type="password"
+          placeholder="Токен длинного доступа"
+          value={amoCrmAccessToken}
+          onChange={(event) => setAmoCrmAccessToken(event.target.value)}
+        />
+      </label>
+
+      <div className="settings-form__actions settings-form__actions_compact">
+        <label className="settings-form__field">
+          <span className="settings-form__label">Pipeline ID</span>
+          <input
+            className="settings-form__input"
+            type="text"
+            placeholder="123456"
+            value={amoCrmPipelineId}
+            onChange={(event) => setAmoCrmPipelineId(event.target.value)}
+          />
+        </label>
+        <label className="settings-form__field">
+          <span className="settings-form__label">Status ID</span>
+          <input
+            className="settings-form__input"
+            type="text"
+            placeholder="654321"
+            value={amoCrmStatusId}
+            onChange={(event) => setAmoCrmStatusId(event.target.value)}
+          />
+        </label>
+        <label className="settings-form__field">
+          <span className="settings-form__label">Responsible User ID</span>
+          <input
+            className="settings-form__input"
+            type="text"
+            placeholder="987654"
+            value={amoCrmResponsibleUserId}
+            onChange={(event) => setAmoCrmResponsibleUserId(event.target.value)}
+          />
+        </label>
+      </div>
+
+      <label className="settings-form__field">
+        <span className="settings-form__label">Bitrix24 incoming webhook</span>
+        <input
+          className="settings-form__input"
+          type="url"
+          placeholder="https://portal.bitrix24.ru/rest/1/secret/"
+          value={bitrix24WebhookUrl}
+          onChange={(event) => setBitrix24WebhookUrl(event.target.value)}
+        />
+      </label>
+
+      <div className="settings-form__actions settings-form__actions_compact">
+        <label className="settings-form__field">
+          <span className="settings-form__label">Assigned By ID</span>
+          <input
+            className="settings-form__input"
+            type="text"
+            placeholder="1"
+            value={bitrix24AssignedById}
+            onChange={(event) => setBitrix24AssignedById(event.target.value)}
+          />
+        </label>
+        <label className="settings-form__field">
+          <span className="settings-form__label">Source ID</span>
+          <input
+            className="settings-form__input"
+            type="text"
+            placeholder="WEB"
+            value={bitrix24SourceId}
+            onChange={(event) => setBitrix24SourceId(event.target.value)}
+          />
+        </label>
+      </div>
+
+      <label className="settings-form__field">
+        <span className="settings-form__label">Пользовательский webhook</span>
+        <input
+          className="settings-form__input"
+          type="url"
+          placeholder="https://example.com/hooks/calcpro"
+          value={customWebhookUrl}
+          onChange={(event) => setCustomWebhookUrl(event.target.value)}
+        />
+      </label>
+
+      <div className="settings-form__hint">
+        `Telegram` использует Bot API, `Google Sheets` работает через опубликованный Google Apps
+        Script, `amoCRM` создаёт сделку через API, `Bitrix24` создаёт лид через incoming webhook,
+        а пользовательский `webhook` получает полный JSON заявки.
+      </div>
+
+      <div className="settings-form__actions">
+        <button
+          className="settings-form__button"
+          type="button"
+          onClick={async () => {
+            const nextSettings = {
+              ...adminSettings,
+              integrations: {
+                telegram: {
+                  botToken: telegramBotToken.trim(),
+                  chatId: telegramChatId.trim(),
+                  enabled: Boolean(telegramBotToken.trim() && telegramChatId.trim()),
+                },
+                googleSheets: {
+                  webhookUrl: googleSheetsWebhookUrl.trim(),
+                  enabled: Boolean(googleSheetsWebhookUrl.trim()),
+                  lastExportAt: adminSettings.integrations?.googleSheets?.lastExportAt || '',
+                },
+                amoCrm: {
+                  subdomain: amoCrmSubdomain.trim(),
+                  accessToken: amoCrmAccessToken.trim(),
+                  pipelineId: amoCrmPipelineId.trim(),
+                  statusId: amoCrmStatusId.trim(),
+                  responsibleUserId: amoCrmResponsibleUserId.trim(),
+                  enabled: Boolean(amoCrmSubdomain.trim() && amoCrmAccessToken.trim()),
+                },
+                bitrix24: {
+                  webhookUrl: bitrix24WebhookUrl.trim(),
+                  assignedById: bitrix24AssignedById.trim(),
+                  sourceId: bitrix24SourceId.trim(),
+                  enabled: Boolean(bitrix24WebhookUrl.trim()),
+                },
+                webhook: {
+                  url: customWebhookUrl.trim(),
+                  enabled: Boolean(customWebhookUrl.trim()),
+                },
+              },
+              googleSheetsWebhookUrl: googleSheetsWebhookUrl.trim(),
+            };
+            const result = await onSaveAdminSettings(nextSettings);
+            setGoogleSheetsStatus(
+              result.ok ? 'Интеграции сохранены.' : result.message || 'Не удалось сохранить интеграции.',
+            );
+          }}
+        >
+          Сохранить интеграции
+        </button>
+
+        <button
+          className="settings-form__button settings-form__button_secondary"
+          type="button"
+          disabled={
+            !(
+              adminSettings.integrations?.googleSheets?.webhookUrl ||
+              adminSettings.googleSheetsWebhookUrl
+            )
+          }
+          onClick={async () => {
+            const result = await onExportRequestsToGoogleSheets();
+            setGoogleSheetsStatus(result.message);
+          }}
+        >
+          Выгрузить все заявки
+        </button>
+      </div>
+
+      <div className="settings-form__hint">
+        {(adminSettings.integrations?.googleSheets?.lastExportAt ||
+          adminSettings.googleSheetsLastExportAt)
+          ? `Последняя выгрузка: ${
+              formatSubscriptionDate(
+                adminSettings.integrations?.googleSheets?.lastExportAt ||
+                  adminSettings.googleSheetsLastExportAt,
+              ) || 'недавно'
+            }`
+          : 'Ручная выгрузка ещё не запускалась.'}
+      </div>
+
+      {googleSheetsStatus ? (
+        <div className="settings-form__status settings-form__status_success">{googleSheetsStatus}</div>
+      ) : null}
+    </article>
+  );
+
   const renderRequestsSection = () => (
     <main className="admin-home__content admin-home__content_wide">
       <div className="admin-home__content-head">
@@ -4391,244 +4672,6 @@ export const HomePage = ({
               ? 'Удаление заявки очищает её из списка, но не уменьшает счётчик использованных заявок в лимите текущего тарифа.'
               : 'Удаление заявки очищает её из списка, но не меняет уже сохранённую статистику.'}
           </div>
-
-          <div className="settings-form__hint settings-form__hint_accent">
-            Подключите нужные каналы, чтобы каждая новая заявка сразу уходила в мессенджеры,
-            таблицы, CRM и ваши внешние сценарии.
-          </div>
-
-          <div className="settings-form__actions settings-form__actions_compact">
-            <button
-              className="settings-support__button settings-support__button_secondary"
-              type="button"
-              onClick={() => setIsGoogleSheetsHelpOpen(true)}
-            >
-              Как настроить Google Sheets
-            </button>
-          </div>
-
-          <label className="settings-form__field">
-            <span className="settings-form__label">Telegram Bot Token</span>
-            <input
-              className="settings-form__input"
-              type="text"
-              placeholder="123456:ABCDEF..."
-              value={telegramBotToken}
-              onChange={(event) => setTelegramBotToken(event.target.value)}
-            />
-          </label>
-
-          <label className="settings-form__field">
-            <span className="settings-form__label">Telegram Chat ID</span>
-            <input
-              className="settings-form__input"
-              type="text"
-              placeholder="-1001234567890"
-              value={telegramChatId}
-              onChange={(event) => setTelegramChatId(event.target.value)}
-            />
-          </label>
-
-          <label className="settings-form__field">
-            <span className="settings-form__label">Webhook URL Google Apps Script</span>
-            <input
-              className="settings-form__input"
-              type="url"
-              placeholder="https://script.google.com/macros/s/.../exec"
-              value={googleSheetsWebhookUrl}
-              onChange={(event) => setGoogleSheetsWebhookUrl(event.target.value)}
-            />
-          </label>
-
-          <label className="settings-form__field">
-            <span className="settings-form__label">amoCRM subdomain</span>
-            <input
-              className="settings-form__input"
-              type="text"
-              placeholder="mycompany"
-              value={amoCrmSubdomain}
-              onChange={(event) => setAmoCrmSubdomain(event.target.value)}
-            />
-          </label>
-
-          <label className="settings-form__field">
-            <span className="settings-form__label">amoCRM access token</span>
-            <input
-              className="settings-form__input"
-              type="password"
-              placeholder="Токен длинного доступа"
-              value={amoCrmAccessToken}
-              onChange={(event) => setAmoCrmAccessToken(event.target.value)}
-            />
-          </label>
-
-          <div className="settings-form__actions settings-form__actions_compact">
-            <label className="settings-form__field">
-              <span className="settings-form__label">Pipeline ID</span>
-              <input
-                className="settings-form__input"
-                type="text"
-                placeholder="123456"
-                value={amoCrmPipelineId}
-                onChange={(event) => setAmoCrmPipelineId(event.target.value)}
-              />
-            </label>
-            <label className="settings-form__field">
-              <span className="settings-form__label">Status ID</span>
-              <input
-                className="settings-form__input"
-                type="text"
-                placeholder="654321"
-                value={amoCrmStatusId}
-                onChange={(event) => setAmoCrmStatusId(event.target.value)}
-              />
-            </label>
-            <label className="settings-form__field">
-              <span className="settings-form__label">Responsible User ID</span>
-              <input
-                className="settings-form__input"
-                type="text"
-                placeholder="987654"
-                value={amoCrmResponsibleUserId}
-                onChange={(event) => setAmoCrmResponsibleUserId(event.target.value)}
-              />
-            </label>
-          </div>
-
-          <label className="settings-form__field">
-            <span className="settings-form__label">Bitrix24 incoming webhook</span>
-            <input
-              className="settings-form__input"
-              type="url"
-              placeholder="https://portal.bitrix24.ru/rest/1/secret/"
-              value={bitrix24WebhookUrl}
-              onChange={(event) => setBitrix24WebhookUrl(event.target.value)}
-            />
-          </label>
-
-          <div className="settings-form__actions settings-form__actions_compact">
-            <label className="settings-form__field">
-              <span className="settings-form__label">Assigned By ID</span>
-              <input
-                className="settings-form__input"
-                type="text"
-                placeholder="1"
-                value={bitrix24AssignedById}
-                onChange={(event) => setBitrix24AssignedById(event.target.value)}
-              />
-            </label>
-            <label className="settings-form__field">
-              <span className="settings-form__label">Source ID</span>
-              <input
-                className="settings-form__input"
-                type="text"
-                placeholder="WEB"
-                value={bitrix24SourceId}
-                onChange={(event) => setBitrix24SourceId(event.target.value)}
-              />
-            </label>
-          </div>
-
-          <label className="settings-form__field">
-            <span className="settings-form__label">Пользовательский webhook</span>
-            <input
-              className="settings-form__input"
-              type="url"
-              placeholder="https://example.com/hooks/calcpro"
-              value={customWebhookUrl}
-              onChange={(event) => setCustomWebhookUrl(event.target.value)}
-            />
-          </label>
-
-          <div className="settings-form__hint">
-            `Telegram` использует Bot API, `Google Sheets` работает через опубликованный Google Apps
-            Script, `amoCRM` создаёт сделку через API, `Bitrix24` создаёт лид через incoming webhook,
-            а пользовательский `webhook` получает полный JSON заявки.
-          </div>
-
-          <div className="settings-form__actions">
-            <button
-              className="settings-form__button"
-              type="button"
-              onClick={async () => {
-                const nextSettings = {
-                  ...adminSettings,
-                  integrations: {
-                    telegram: {
-                      botToken: telegramBotToken.trim(),
-                      chatId: telegramChatId.trim(),
-                      enabled: Boolean(telegramBotToken.trim() && telegramChatId.trim()),
-                    },
-                    googleSheets: {
-                      webhookUrl: googleSheetsWebhookUrl.trim(),
-                      enabled: Boolean(googleSheetsWebhookUrl.trim()),
-                      lastExportAt: adminSettings.integrations?.googleSheets?.lastExportAt || '',
-                    },
-                    amoCrm: {
-                      subdomain: amoCrmSubdomain.trim(),
-                      accessToken: amoCrmAccessToken.trim(),
-                      pipelineId: amoCrmPipelineId.trim(),
-                      statusId: amoCrmStatusId.trim(),
-                      responsibleUserId: amoCrmResponsibleUserId.trim(),
-                      enabled: Boolean(amoCrmSubdomain.trim() && amoCrmAccessToken.trim()),
-                    },
-                    bitrix24: {
-                      webhookUrl: bitrix24WebhookUrl.trim(),
-                      assignedById: bitrix24AssignedById.trim(),
-                      sourceId: bitrix24SourceId.trim(),
-                      enabled: Boolean(bitrix24WebhookUrl.trim()),
-                    },
-                    webhook: {
-                      url: customWebhookUrl.trim(),
-                      enabled: Boolean(customWebhookUrl.trim()),
-                    },
-                  },
-                  googleSheetsWebhookUrl: googleSheetsWebhookUrl.trim(),
-                };
-                const result = await onSaveAdminSettings(nextSettings);
-                setGoogleSheetsStatus(
-                  result.ok
-                    ? 'Интеграции сохранены.'
-                    : result.message || 'Не удалось сохранить интеграции.',
-                );
-              }}
-            >
-              Сохранить интеграции
-            </button>
-
-            <button
-              className="settings-form__button settings-form__button_secondary"
-              type="button"
-              disabled={
-                !(
-                  adminSettings.integrations?.googleSheets?.webhookUrl ||
-                  adminSettings.googleSheetsWebhookUrl
-                )
-              }
-              onClick={async () => {
-                const result = await onExportRequestsToGoogleSheets();
-                setGoogleSheetsStatus(result.message);
-              }}
-            >
-              Выгрузить все заявки
-            </button>
-          </div>
-
-          <div className="settings-form__hint">
-            {(adminSettings.integrations?.googleSheets?.lastExportAt ||
-              adminSettings.googleSheetsLastExportAt)
-              ? `Последняя выгрузка: ${
-                  formatSubscriptionDate(
-                    adminSettings.integrations?.googleSheets?.lastExportAt ||
-                      adminSettings.googleSheetsLastExportAt,
-                  ) || 'недавно'
-                }`
-              : 'Ручная выгрузка ещё не запускалась.'}
-          </div>
-
-          {googleSheetsStatus ? (
-            <div className="settings-form__status settings-form__status_success">{googleSheetsStatus}</div>
-          ) : null}
 
           {!canUseRequestStatuses ? (
             <div className="settings-form__hint">
@@ -5010,6 +5053,8 @@ export const HomePage = ({
       </div>
 
       <section className="settings-section">
+        {renderIntegrationsCard()}
+
         <article className="settings-card">
           <div className="settings-card__eyebrow">Менеджер заявок</div>
           <h2 className="settings-card__title">Подключение менеджера для отправки заявок</h2>
