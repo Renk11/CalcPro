@@ -105,7 +105,7 @@ function buildMessage(ticket, groupId) {
 export default async function handler(request, response) {
   try {
     const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
-    const auth = await requireCommunityAdmin(request, response, groupId);
+    const auth = requireCommunityAdmin(request, response, groupId);
     if (!auth) {
       return undefined;
     }

@@ -4,7 +4,6 @@ import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import analyticsHandler from '../api/analytics.js';
 import adminSettingsHandler from '../api/admin-settings.js';
-import authHandler from '../api/auth.js';
 import communitiesHandler from '../api/communities.js';
 import requestsHandler from '../api/requests.js';
 import supportHandler from '../api/support.js';
@@ -24,7 +23,6 @@ const DEFAULT_APP_HOSTS = ['app.calcpro.su'];
 const API_ROUTES = new Map([
   ['/api/analytics', analyticsHandler],
   ['/api/admin-settings', adminSettingsHandler],
-  ['/api/auth', authHandler],
   ['/api/communities', communitiesHandler],
   ['/api/requests', requestsHandler],
   ['/api/support', supportHandler],
@@ -124,24 +122,6 @@ function getRequestQuery(url) {
   return query;
 }
 
-function parseCookies(cookieHeader) {
-  return String(cookieHeader || '')
-    .split(';')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .reduce((acc, part) => {
-      const separatorIndex = part.indexOf('=');
-      if (separatorIndex <= 0) {
-        return acc;
-      }
-
-      const key = part.slice(0, separatorIndex).trim();
-      const value = part.slice(separatorIndex + 1).trim();
-      acc[key] = decodeURIComponent(value);
-      return acc;
-    }, {});
-}
-
 function parseRequestBody(rawBody, contentType) {
   if (!rawBody) {
     return {};
@@ -197,7 +177,6 @@ async function handleApiRequest(request, response, url) {
 
   try {
     request.query = getRequestQuery(url);
-    request.cookies = parseCookies(request.headers.cookie);
     request.body =
       request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH'
         ? await readRequestBody(request)
