@@ -1189,6 +1189,7 @@ export const BuilderPage = ({
   const isRequestFormSelected = selectedFieldId === REQUEST_FORM_SELECTION_ID;
   const isResultCardSelected = selectedFieldId === RESULT_CARD_SELECTION_ID;
   const isLivePreview = isPreview || isTestMode;
+  const isInspectorVisible = !isTestMode && isInspectorOpen;
   const visualFormulaTokens = template.visualFormulaTokens ?? [];
   const visualFormulaExpression = useMemo(
     () => buildVisualFormulaString(visualFormulaTokens),
@@ -1268,6 +1269,12 @@ export const BuilderPage = ({
       setIsSpacingOpen(false);
     }
   }, [selectedFieldId]);
+
+  useEffect(() => {
+    if (isTestMode) {
+      setIsInspectorOpen(false);
+    }
+  }, [isTestMode]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -2431,9 +2438,9 @@ export const BuilderPage = ({
 
         <main
           ref={canvasRef}
-          className={`builder-canvas ${isInspectorOpen ? 'builder-canvas_compact' : 'builder-canvas_expanded'}`}
+          className={`builder-canvas ${isInspectorVisible ? 'builder-canvas_compact' : 'builder-canvas_expanded'}`}
         >
-          <div className={`builder-canvas__board ${isInspectorOpen ? 'builder-canvas__board_compact' : 'builder-canvas__board_expanded'}`}>
+          <div className={`builder-canvas__board ${isInspectorVisible ? 'builder-canvas__board_compact' : 'builder-canvas__board_expanded'}`}>
             {mode !== 'formula' ? (
               <button
                 className={`builder-library__toggle ${isLibraryOpen ? 'builder-library__toggle_open' : ''}`}
@@ -2446,15 +2453,15 @@ export const BuilderPage = ({
             ) : null}
             {mode !== 'formula' ? (
               <button
-                className={`builder-inspector__toggle ${isInspectorOpen ? 'builder-inspector__toggle_open' : ''} ${!selectedField ? 'builder-inspector__toggle_muted' : ''}`}
+                className={`builder-inspector__toggle ${isInspectorVisible ? 'builder-inspector__toggle_open' : ''} ${!selectedField ? 'builder-inspector__toggle_muted' : ''}`}
                 type="button"
-                aria-label={isInspectorOpen ? '\u0421\u043a\u0440\u044b\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438'}
+                aria-label={isInspectorVisible ? '\u0421\u043a\u0440\u044b\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438'}
                 onClick={openInspector}
               >
                 {renderPanelToggleIcon('right')}
               </button>
             ) : null}
-            <div className={`builder-canvas__toolbar ${isInspectorOpen ? 'builder-canvas__toolbar_compact' : 'builder-canvas__toolbar_expanded'}`}>
+            <div className={`builder-canvas__toolbar ${isInspectorVisible ? 'builder-canvas__toolbar_compact' : 'builder-canvas__toolbar_expanded'}`}>
               {!isLivePreview && mode !== 'formula' ? (
                 <>
               <div className="builder-canvas__field-group">
@@ -2522,7 +2529,7 @@ export const BuilderPage = ({
               </div>
             </div>
 
-            <div className={`builder-canvas__scene ${isInspectorOpen ? 'builder-canvas__scene_compact' : 'builder-canvas__scene_expanded'}`}>
+            <div className={`builder-canvas__scene ${isInspectorVisible ? 'builder-canvas__scene_compact' : 'builder-canvas__scene_expanded'}`}>
               {isLivePreview ? (
                 <div className={`builder-preview-shell ${isTestMode ? 'builder-preview-shell_test' : ''}`}>
                   <div className="builder-preview-devices" role="tablist" aria-label="Размер предпросмотра">
@@ -3587,16 +3594,16 @@ export const BuilderPage = ({
 
         {mode !== 'formula' && !isLivePreview ? (
           <button
-            className={`builder-inspector__toggle builder-floating-toggle_legacy ${isInspectorOpen ? 'builder-inspector__toggle_open' : ''} ${!selectedField && !isRequestFormSelected && !isResultCardSelected ? 'builder-inspector__toggle_muted' : ''}`}
+            className={`builder-inspector__toggle builder-floating-toggle_legacy ${isInspectorVisible ? 'builder-inspector__toggle_open' : ''} ${!selectedField && !isRequestFormSelected && !isResultCardSelected ? 'builder-inspector__toggle_muted' : ''}`}
             type="button"
-            aria-label={isInspectorOpen ? '\u0421\u043a\u0440\u044b\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438'}
+            aria-label={isInspectorVisible ? '\u0421\u043a\u0440\u044b\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438'}
             onClick={openInspector}
           >
             {renderPanelToggleIcon('right')}
           </button>
         ) : null}
 
-        <aside className={`builder-inspector ${isInspectorOpen ? 'builder-inspector_open' : 'builder-inspector_closed'}`}>
+        <aside className={`builder-inspector ${isInspectorVisible ? 'builder-inspector_open' : 'builder-inspector_closed'}`}>
           <div ref={inspectorPanelRef} className="builder-inspector__panel">
           {isOverlayViewport ? (
             <div className="builder-inspector__panel-head">
