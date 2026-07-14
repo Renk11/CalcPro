@@ -21,6 +21,29 @@ function normalizeHost(hostHeader) {
     .toLowerCase();
 }
 
+function getConfiguredAppHosts() {
+  const configuredHosts = String(process.env.CALCPRO_APP_HOSTS || '')
+    .split(',')
+    .map((host) => normalizeHost(host))
+    .filter(Boolean);
+
+  const publicAppUrl = String(process.env.PUBLIC_APP_URL || '').trim();
+  if (publicAppUrl) {
+    try {
+      configuredHosts.push(normalizeHost(new URL(publicAppUrl).host));
+    } catch {
+      configuredHosts.push(normalizeHost(publicAppUrl));
+    }
+  }
+
+  return new Set(configuredHosts.filter(Boolean));
+}
+
+function isConfiguredAppHost(hostHeader) {
+  const host = normalizeHost(hostHeader);
+  return Boolean(host) && getConfiguredAppHosts().has(host);
+}
+
 function shouldBypassLaunchParamsVerification(request) {
   if (String(process.env.CALCPRO_ALLOW_UNTRUSTED_VK_LAUNCH_PARAMS || '').trim() === '1') {
     return true;
@@ -45,7 +68,7 @@ function shouldAllowLaunchParamsFallback(request) {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    return false;
+    return isConfiguredAppHost(request?.headers?.host);
   }
 
   const hostHeader = String(request?.headers?.host || '').trim().toLowerCase();
@@ -155,15 +178,28 @@ function parseLaunchParamsFallback(request) {
 
 function parseLaunchParams(request) {
   const headerResult = parseLaunchParamsHeader(request);
+  const fallbackResult = shouldAllowLaunchParamsFallback(request)
+    ? parseLaunchParamsFallback(request)
+    : {
+        launchParams: null,
+        errorCode: headerResult.errorCode || 'missing_launch_params',
+      };
+
+  if (headerResult.launchParams && fallbackResult.launchParams) {
+    return {
+      launchParams: {
+        ...fallbackResult.launchParams,
+        ...headerResult.launchParams,
+      },
+      errorCode: null,
+    };
+  }
+
   if (headerResult.launchParams) {
     return headerResult;
   }
 
-  if (!shouldAllowLaunchParamsFallback(request)) {
-    return headerResult;
-  }
-
-  return parseLaunchParamsFallback(request);
+  return fallbackResult.launchParams ? fallbackResult : headerResult;
 }
 
 function buildSignedPayload(params) {
