@@ -1246,7 +1246,7 @@ export const BuilderPage = ({
   const isRequestFormSelected = selectedFieldId === REQUEST_FORM_SELECTION_ID;
   const isResultCardSelected = selectedFieldId === RESULT_CARD_SELECTION_ID;
   const isLivePreview = isPreview || isTestMode;
-  const isInspectorVisible = !isTestMode && isInspectorOpen;
+  const isInspectorVisible = !isLivePreview && isInspectorOpen;
   const visualFormulaTokens = template.visualFormulaTokens ?? [];
   const visualFormulaExpression = useMemo(
     () => buildVisualFormulaString(visualFormulaTokens),
@@ -1352,10 +1352,10 @@ export const BuilderPage = ({
   }, [selectedFieldId]);
 
   useEffect(() => {
-    if (isTestMode) {
+    if (isLivePreview) {
       setIsInspectorOpen(false);
     }
-  }, [isTestMode]);
+  }, [isLivePreview]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
