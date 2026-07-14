@@ -21,6 +21,43 @@ function normalizeHost(hostHeader) {
     .toLowerCase();
 }
 
+function getConfiguredAppHosts() {
+  const configuredHosts = new Set();
+  const publicAppUrl = String(process.env.PUBLIC_APP_URL || '').trim();
+  const appHosts = String(process.env.CALCPRO_APP_HOSTS || '').trim();
+
+  if (publicAppUrl) {
+    try {
+      configuredHosts.add(normalizeHost(new URL(publicAppUrl).host));
+    } catch {
+      configuredHosts.add(normalizeHost(publicAppUrl));
+    }
+  }
+
+  if (appHosts) {
+    appHosts
+      .split(',')
+      .map((host) => normalizeHost(host))
+      .filter(Boolean)
+      .forEach((host) => configuredHosts.add(host));
+  }
+
+  return configuredHosts;
+}
+
+function isConfiguredAppHost(hostHeader) {
+  const normalizedHost = normalizeHost(hostHeader);
+  if (!normalizedHost) {
+    return false;
+  }
+
+  return getConfiguredAppHosts().has(normalizedHost);
+}
+
+function hasQueryLaunchParams(request) {
+  return Boolean(parseLaunchParamsQueryFallback(request).launchParams);
+}
+
 function shouldBypassLaunchParamsVerification(request) {
   if (String(process.env.CALCPRO_ALLOW_UNTRUSTED_VK_LAUNCH_PARAMS || '').trim() === '1') {
     return true;
@@ -31,7 +68,7 @@ function shouldBypassLaunchParamsVerification(request) {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    return false;
+    return isConfiguredAppHost(request?.headers?.host) && hasQueryLaunchParams(request);
   }
 
   const hostHeader = String(request?.headers?.host || '').trim().toLowerCase();
