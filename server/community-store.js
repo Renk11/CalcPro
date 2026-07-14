@@ -4,6 +4,12 @@ import { supabaseSelect, supabaseUpsert } from './supabase.js';
 import { getVkCommunityInfo, hasVkGroupToken } from './vk.js';
 
 const COMMUNITIES_KEY_PREFIX = 'calcpro:communities:viewer:';
+const GENERIC_COMMUNITY_NAME_PREFIX = 'Сообщество ';
+const MASKED_COMMUNITY_NAMES = new Set([
+  'частное сообщество',
+  'private community',
+  'closed community',
+]);
 
 function normalizeViewerId(viewerId) {
   const trimmed = String(viewerId || '').trim();
@@ -31,7 +37,7 @@ function normalizeCommunityEntry(entry = {}) {
 
   return {
     groupId,
-    name: String(entry.name || `Сообщество ${groupId}`),
+    name: String(entry.name || `${GENERIC_COMMUNITY_NAME_PREFIX}${groupId}`),
     screenName: String(entry.screenName || ''),
     photoUrl: String(entry.photoUrl || ''),
     role: String(entry.role || ''),
@@ -42,17 +48,12 @@ function normalizeCommunityEntry(entry = {}) {
 
 function isGenericCommunityName(name, groupId) {
   const normalizedName = String(name || '').trim().toLowerCase();
-  return normalizedName === `сообщество ${groupId}`;
+  return normalizedName === `${GENERIC_COMMUNITY_NAME_PREFIX}${groupId}`.toLowerCase();
 }
 
 function isMaskedCommunityName(name) {
   const normalizedName = String(name || '').trim().toLowerCase();
-
-  return (
-    normalizedName === 'частное сообщество' ||
-    normalizedName === 'private community' ||
-    normalizedName === 'closed community'
-  );
+  return MASKED_COMMUNITY_NAMES.has(normalizedName);
 }
 
 function pickCommunityName(groupId, ...candidates) {
@@ -69,7 +70,7 @@ function pickCommunityName(groupId, ...candidates) {
   }
 
   const fallbackName = normalizedCandidates.find((candidate) => !isMaskedCommunityName(candidate));
-  return fallbackName || `Сообщество ${groupId}`;
+  return fallbackName || `${GENERIC_COMMUNITY_NAME_PREFIX}${groupId}`;
 }
 
 function normalizeCommunitiesList(items = []) {
@@ -81,6 +82,56 @@ function normalizeCommunitiesList(items = []) {
     .map(normalizeCommunityEntry)
     .filter(Boolean)
     .sort((left, right) => Date.parse(right.lastUsedAt) - Date.parse(left.lastUsedAt));
+}
+
+function shouldRefreshCommunityFromVk(community) {
+  if (!community) {
+    return false;
+  }
+
+  return (
+    isGenericCommunityName(community.name, community.groupId) ||
+    isMaskedCommunityName(community.name) ||
+    !String(community.screenName || '').trim() ||
+    !String(community.photoUrl || '').trim()
+  );
+}
+
+async function enrichCommunitiesWithVkData(communities) {
+  if (!hasVkGroupToken() || communities.length === 0) {
+    return communities;
+  }
+
+  let changed = false;
+  const nextCommunities = [];
+
+  for (const community of communities) {
+    if (!shouldRefreshCommunityFromVk(community)) {
+      nextCommunities.push(community);
+      continue;
+    }
+
+    try {
+      const vkCommunity = await getVkCommunityInfo(community.groupId);
+      const enrichedCommunity = normalizeCommunityEntry({
+        ...community,
+        name: pickCommunityName(community.groupId, vkCommunity.name, community.name),
+        screenName: vkCommunity.screenName || community.screenName || '',
+        photoUrl: vkCommunity.photoUrl || community.photoUrl || '',
+      });
+
+      nextCommunities.push(enrichedCommunity || community);
+      changed =
+        changed ||
+        enrichedCommunity?.name !== community.name ||
+        enrichedCommunity?.screenName !== community.screenName ||
+        enrichedCommunity?.photoUrl !== community.photoUrl;
+    } catch {
+      nextCommunities.push(community);
+    }
+  }
+
+  return changed ? normalizeCommunitiesList(nextCommunities) : communities;
 }
 
 async function readSettingRow(key) {
@@ -127,7 +178,14 @@ export async function getViewerCommunities(viewerId) {
     return [];
   }
 
-  return normalizeCommunitiesList((await readSettingRow(key)) || []);
+  const communities = normalizeCommunitiesList((await readSettingRow(key)) || []);
+  const enrichedCommunities = await enrichCommunitiesWithVkData(communities);
+
+  if (enrichedCommunities !== communities) {
+    await writeSettingRow(key, enrichedCommunities);
+  }
+
+  return enrichedCommunities;
 }
 
 export async function listAllConnectedCommunities() {
@@ -157,7 +215,7 @@ export async function listAllConnectedCommunities() {
         aggregated.set(community.groupId, {
           ...existing,
           ...community,
-          name: existing.name || community.name,
+          name: pickCommunityName(community.groupId, existing.name, community.name),
           screenName: existing.screenName || community.screenName,
           photoUrl: existing.photoUrl || community.photoUrl,
           role: existing.role || community.role,
