@@ -112,6 +112,7 @@ const getProfileLabel = (profile: AdminProfile) =>
 
 const SUPER_ADMIN_IDS = new Set([139346496]);
 const WEB_MONETIZATION_PLATFORMS = new Set(['desktop_web', 'mobile_web']);
+const VK_BRIDGE_TIMEOUT_MS = 1800;
 
 type PaymentStatusTone = 'neutral' | 'success' | 'error';
 
@@ -668,6 +669,17 @@ const App = () => {
 
   useEffect(() => {
     let isCancelled = false;
+    const fallbackTimeoutId = window.setTimeout(() => {
+      if (isCancelled) {
+        return;
+      }
+
+      setLaunchParams((currentParams) => ({
+        ...(currentParams ?? {}),
+        ...getWindowLaunchParams(),
+      }));
+      setIsLaunchParamsResolved(true);
+    }, VK_BRIDGE_TIMEOUT_MS);
 
     bridge
       .send('VKWebAppGetLaunchParams')
@@ -675,6 +687,8 @@ const App = () => {
         if (isCancelled) {
           return;
         }
+
+        window.clearTimeout(fallbackTimeoutId);
 
         setLaunchParams((currentParams) => ({
           ...(currentParams ?? {}),
@@ -688,6 +702,8 @@ const App = () => {
           return;
         }
 
+        window.clearTimeout(fallbackTimeoutId);
+
         // Keep launch params parsed from the current URL when bridge params
         // are unavailable, for example during desktop VK embedding quirks.
         setLaunchParams((currentParams) => ({
@@ -699,6 +715,7 @@ const App = () => {
 
     return () => {
       isCancelled = true;
+      window.clearTimeout(fallbackTimeoutId);
     };
   }, []);
 
