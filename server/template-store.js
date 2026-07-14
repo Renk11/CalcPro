@@ -19,6 +19,21 @@ function normalizeTemplates(templates = []) {
   return Array.isArray(templates) ? templates : [];
 }
 
+function findPublishedTemplateInCollection(templates, publicId) {
+  const normalizedPublicId = String(publicId || '').trim();
+  if (!normalizedPublicId) {
+    return null;
+  }
+
+  return (
+    normalizeTemplates(templates).find(
+      (template) =>
+        String(template?.publicId || '').trim() === normalizedPublicId &&
+        String(template?.publicationStatus || '').trim() === 'published',
+    ) || null
+  );
+}
+
 function createTemplateId() {
   return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
@@ -79,6 +94,29 @@ export async function getServerTemplates(groupId) {
   }
 
   return normalizeTemplates([]);
+}
+
+export async function findPublishedTemplateByPublicId(publicId) {
+  const normalizedPublicId = String(publicId || '').trim();
+  if (!normalizedPublicId) {
+    return null;
+  }
+
+  const scopedRows = await supabaseSelect('app_settings', {
+    select: 'key,value',
+    filter: { key: 'key', value: `like.${GROUP_TEMPLATES_KEY_PREFIX}%` },
+    limit: 1000,
+  });
+
+  for (const row of scopedRows || []) {
+    const matchedTemplate = findPublishedTemplateInCollection(row?.value, normalizedPublicId);
+    if (matchedTemplate) {
+      return matchedTemplate;
+    }
+  }
+
+  const legacyTemplates = await readSettingRow(TEMPLATES_KEY);
+  return findPublishedTemplateInCollection(legacyTemplates, normalizedPublicId);
 }
 
 export async function saveServerTemplates(templates, groupId) {

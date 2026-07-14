@@ -1,6 +1,7 @@
 import { sendJson } from '../server/http.js';
 import { getTrustedViewerContext, sendTrustedViewerContextError } from '../server/request-auth.js';
 import {
+  findPublishedTemplateByPublicId,
   getServerTemplates,
   saveServerTemplates,
   transferServerTemplate,
@@ -64,8 +65,16 @@ async function requireWorkspaceCommunityAdmin(request, response, groupId) {
 export default async function handler(request, response) {
   try {
     const requestedGroupId = parseGroupId(request.query?.groupId || request.body?.groupId);
+    const publicTemplateId = String(
+      request.query?.calculator || request.query?.publicId || request.body?.calculator || '',
+    ).trim();
 
     if (request.method === 'GET') {
+      if (publicTemplateId) {
+        const template = await findPublishedTemplateByPublicId(publicTemplateId);
+        return sendJson(response, 200, { ok: true, data: template ? [template] : [] });
+      }
+
       const auth = getTrustedViewerContext(request);
       if (!auth) {
         sendTrustedViewerContextError(request, response);

@@ -563,6 +563,10 @@ const App = () => {
   const isWebMonetizationPlatform =
     WEB_MONETIZATION_PLATFORMS.has(launchPlatform) ||
     (launchPlatform === '' && !bridge.isWebView());
+  const publicCalculatorId =
+    typeof window === 'undefined'
+      ? ''
+      : String(new URLSearchParams(window.location.search).get('calculator') || '').trim();
   const vkAuthHeaders = useMemo(() => createVkAuthHeaders(launchParams), [launchParams]);
   const createApiUrl = (path: string) => appendVkLaunchParamsToPath(path, launchParams);
   const fallbackCommunity = useMemo(
@@ -901,7 +905,12 @@ const App = () => {
 
     const syncTemplatesFromServer = async () => {
       try {
-        const query = effectiveAdminGroupId > 0 ? `?groupId=${effectiveAdminGroupId}` : '';
+        const query =
+          effectiveAdminGroupId > 0
+            ? `?groupId=${effectiveAdminGroupId}`
+            : publicCalculatorId
+              ? `?calculator=${encodeURIComponent(publicCalculatorId)}`
+              : '';
         const response = await fetch(createApiUrl(`/api/templates${query}`), {
           headers: vkAuthHeaders,
         });
@@ -924,7 +933,9 @@ const App = () => {
         }
 
         const nextTemplates = payload.data.map((template) => normalizeTemplateRecord(template));
+        const canSyncMigrationsBackToServer = effectiveAdminGroupId > 0;
         const didMigrateServerTemplates =
+          canSyncMigrationsBackToServer &&
           JSON.stringify(nextTemplates) !== JSON.stringify(payload.data);
         saveTemplates(nextTemplates);
         setTemplates(nextTemplates);
@@ -958,7 +969,7 @@ const App = () => {
     return () => {
       isCancelled = true;
     };
-  }, [effectiveAdminGroupId, isLaunchParamsResolved, vkAuthHeaders]);
+  }, [effectiveAdminGroupId, isLaunchParamsResolved, publicCalculatorId, vkAuthHeaders]);
 
   useEffect(() => {
     if (!isLaunchParamsResolved) {
