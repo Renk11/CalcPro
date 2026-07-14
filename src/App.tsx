@@ -121,6 +121,8 @@ type PaymentStatus = {
 };
 
 const MAX_COMMUNITY_NAME_LENGTH = 120;
+const MANUAL_COMMUNITY_PROMPT_TEXT =
+  'VK не вернул ID выбранного сообщества. Вставьте ссылку на группу или её ID, чтобы добавить сообщество в кабинет.';
 
 const AdminPageFallback = ({ title }: { title: string }) => (
   <div className="calculator-page calculator-page_empty">
@@ -494,6 +496,8 @@ const App = () => {
   const [homeSection, setHomeSection] = useState<AdminSection>('calculators');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
+  const [isManualCommunityPromptOpen, setIsManualCommunityPromptOpen] = useState(false);
+  const [manualCommunityInput, setManualCommunityInput] = useState('');
   const [liveSyncRevision, setLiveSyncRevision] = useState(0);
   const [isCommunitiesLoading, setIsCommunitiesLoading] = useState(true);
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
@@ -503,6 +507,7 @@ const App = () => {
   const [isInitialViewResolved, setIsInitialViewResolved] = useState(false);
   const [isDesktopClient, setIsDesktopClient] = useState(true);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const manualCommunityPromptResolverRef = useRef<((value: string | null) => void) | null>(null);
   const [launchParams, setLaunchParams] = useState<Partial<GetLaunchParamsResponse> | null>(() => {
     if (typeof window === 'undefined') {
       return null;
@@ -1246,6 +1251,21 @@ const App = () => {
     setActiveView('calculator');
   };
 
+  const openManualCommunityPrompt = () =>
+    new Promise<string | null>((resolve) => {
+      manualCommunityPromptResolverRef.current = resolve;
+      setManualCommunityInput('');
+      setIsManualCommunityPromptOpen(true);
+    });
+
+  const closeManualCommunityPrompt = (value: string | null) => {
+    setIsManualCommunityPromptOpen(false);
+    setManualCommunityInput('');
+    const resolve = manualCommunityPromptResolverRef.current;
+    manualCommunityPromptResolverRef.current = null;
+    resolve?.(value);
+  };
+
   const openAdminHome = () => {
     if (!isViewerGroupAdmin) {
       return;
@@ -1816,10 +1836,7 @@ const App = () => {
     }
 
     if (addedGroupId === 0 && typeof window !== 'undefined') {
-      const manualGroupInput = window.prompt(
-        'VK не вернул ID выбранного сообщества. Вставьте ссылку на группу или её ID, чтобы добавить сообщество в кабинет.',
-        '',
-      );
+      const manualGroupInput = await openManualCommunityPrompt();
 
       const manuallyResolvedGroupId = parseCommunityIdFromUserInput(manualGroupInput);
       if (manuallyResolvedGroupId > 0) {
@@ -2505,13 +2522,8 @@ const App = () => {
       });
   };
 
-  const handleRenameCommunity = (groupId: number, currentName: string) => {
+  const handleRenameCommunity = (groupId: number, nextName: string) => {
     if (!adminProfile.id || groupId <= 0) {
-      return;
-    }
-
-    const nextName = window.prompt('Введите новое название сообщества:', currentName)?.trim();
-    if (!nextName || nextName === currentName) {
       return;
     }
 
@@ -2522,6 +2534,9 @@ const App = () => {
 
     const currentCommunity =
       connectedCommunities.find((community) => community.groupId === groupId) || null;
+    if (currentCommunity && normalizedName === currentCommunity.name) {
+      return;
+    }
 
     fetch(createApiUrl('/api/communities'), {
       method: 'POST',
@@ -2725,6 +2740,62 @@ const App = () => {
               ) : null}
             </Panel>
           </View>
+          {isManualCommunityPromptOpen ? (
+            <div
+              className="admin-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="manual-community-prompt-title"
+            >
+              <div
+                className="admin-modal__backdrop"
+                onClick={() => closeManualCommunityPrompt(null)}
+              />
+              <div className="admin-modal__card">
+                <div className="admin-modal__eyebrow">Подключение сообщества</div>
+                <h3 className="admin-modal__title" id="manual-community-prompt-title">
+                  Введите ссылку или ID сообщества
+                </h3>
+                <p className="admin-modal__text">{MANUAL_COMMUNITY_PROMPT_TEXT}</p>
+                <div className="admin-modal__field">
+                  <label className="admin-modal__label" htmlFor="manual-community-input">
+                    Ссылка или числовой ID
+                  </label>
+                  <input
+                    id="manual-community-input"
+                    className="admin-modal__input"
+                    type="text"
+                    value={manualCommunityInput}
+                    autoFocus
+                    onChange={(event) => setManualCommunityInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        closeManualCommunityPrompt(manualCommunityInput.trim() || null);
+                      }
+                    }}
+                  />
+                </div>
+                <div className="admin-modal__actions">
+                  <button
+                    className="admin-modal__button admin-modal__button_secondary"
+                    type="button"
+                    onClick={() => closeManualCommunityPrompt(null)}
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    className="admin-modal__button"
+                    type="button"
+                    disabled={!manualCommunityInput.trim()}
+                    onClick={() => closeManualCommunityPrompt(manualCommunityInput.trim())}
+                  >
+                    Продолжить
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
       </SplitCol>
     </SplitLayout>
   );

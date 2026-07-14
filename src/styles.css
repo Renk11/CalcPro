@@ -4917,6 +4917,38 @@ body,
   line-height: 1.55;
 }
 
+.admin-modal__field {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.admin-modal__label {
+  color: #f7f0e5;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-modal__input {
+  width: 100%;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 179, 107, 0.5);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #2f261f;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  box-sizing: border-box;
+}
+
+.admin-modal__input:focus {
+  outline: none;
+  border-color: rgba(255, 179, 107, 0.9);
+  box-shadow: 0 0 0 3px rgba(255, 179, 107, 0.14);
+}
+
 .admin-modal__textarea {
   width: 100%;
   min-height: 320px;
@@ -4958,6 +4990,11 @@ body,
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+}
+
+.admin-modal__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .admin-modal__button_secondary {

@@ -79,6 +79,12 @@ async function createPayment(request, response) {
   });
 
   const payment = normalizeYooKassaPayment(yooKassaPayment);
+  const nextSettings = await updateServerSubscription(
+    {
+      pendingPaymentId: payment.id,
+    },
+    groupId,
+  );
   await saveServerPayment({
     id: payment.id,
     status: payment.status || 'pending',
@@ -96,6 +102,7 @@ async function createPayment(request, response) {
         confirmationUrl: payment.confirmationUrl,
         amountRub,
       },
+      subscription: nextSettings.subscription,
     },
   });
 }
@@ -116,6 +123,16 @@ async function checkPayment(request, response) {
   }
 
   const settings = await getServerAdminSettings(groupId);
+  const isKnownPayment =
+    settings.subscription.pendingPaymentId === payment.id ||
+    settings.subscription.externalPaymentId === payment.id;
+  if (!isKnownPayment) {
+    return sendJson(response, 409, {
+      ok: false,
+      error: 'Unknown or expired payment session',
+    });
+  }
+
   const rawPlan = String(
     rawPayment?.metadata?.plan || request.body?.plan || settings.subscription.plan || DEFAULT_SUBSCRIPTION_PLAN,
   );
@@ -165,6 +182,7 @@ async function checkPayment(request, response) {
       quotaMonthlyUsage: {},
       provider: 'yookassa',
       externalPaymentId: payment.id,
+      pendingPaymentId: '',
     },
     groupId,
   );
@@ -203,12 +221,23 @@ async function handleWebhook(request, response) {
   const planConfig = getSubscriptionPlanConfig(rawPlan);
   const expectedAmountRub = normalizeSubscriptionAmount(rawPayment?.metadata?.expectedAmountRub, planConfig.id);
   const groupId = parseGroupId(rawPayment?.metadata?.groupId);
+  const settings = await getServerAdminSettings(groupId);
+  const isKnownPayment =
+    settings.subscription.pendingPaymentId === payment.id ||
+    settings.subscription.externalPaymentId === payment.id;
+  if (!isKnownPayment) {
+    return sendJson(response, 202, {
+      ok: true,
+      data: {
+        ignored: true,
+      },
+    });
+  }
 
   if (
     (payment.paid || payment.status === 'succeeded') &&
     isSubscriptionAmountValid(payment.amountRub, expectedAmountRub)
   ) {
-    const settings = await getServerAdminSettings(groupId);
     if (settings.subscription.externalPaymentId !== payment.id) {
       await updateServerSubscription(
         {
@@ -220,10 +249,18 @@ async function handleWebhook(request, response) {
           quotaMonthlyUsage: {},
           provider: 'yookassa',
           externalPaymentId: payment.id,
+          pendingPaymentId: '',
         },
         groupId,
       );
     }
+  } else if (settings.subscription.pendingPaymentId === payment.id && payment.status === 'canceled') {
+    await updateServerSubscription(
+      {
+        pendingPaymentId: '',
+      },
+      groupId,
+    );
   }
 
   await saveServerPayment({

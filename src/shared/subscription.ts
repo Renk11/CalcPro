@@ -118,6 +118,7 @@ export const createDefaultSubscriptionSettings = (): CalculatorAdminSettings['su
     quotaMonthlyUsage: {},
     provider: '',
     externalPaymentId: '',
+    pendingPaymentId: '',
   };
 };
 

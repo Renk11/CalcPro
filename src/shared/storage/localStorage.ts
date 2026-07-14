@@ -612,6 +612,8 @@ export const getAdminSettings = (): CalculatorAdminSettings => {
       provider: settings.subscription?.provider ?? defaultSubscription.provider,
       externalPaymentId:
         settings.subscription?.externalPaymentId ?? defaultSubscription.externalPaymentId,
+      pendingPaymentId:
+        settings.subscription?.pendingPaymentId ?? defaultSubscription.pendingPaymentId,
     },
   };
 };

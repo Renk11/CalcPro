@@ -23,7 +23,7 @@ function sendPlainText(response, statusCode, payload) {
 function isAllowedSecret(secret) {
   const expectedSecret = String(process.env.VK_CALLBACK_SECRET || '').trim();
   if (!expectedSecret) {
-    return true;
+    return false;
   }
 
   return secret === expectedSecret;
@@ -175,12 +175,21 @@ export default async function handler(request, response) {
       return sendPlainText(response, 405, 'method_not_allowed');
     }
 
+    if (!String(process.env.VK_CALLBACK_SECRET || '').trim()) {
+      return sendPlainText(response, 503, 'callback_secret_not_configured');
+    }
+
     if (!isAllowedSecret(String(body.secret || '').trim())) {
       return sendPlainText(response, 403, 'forbidden');
     }
 
     if (body.type === 'confirmation') {
-      return sendPlainText(response, 200, getConfirmationToken());
+      const confirmationToken = getConfirmationToken();
+      if (!confirmationToken) {
+        return sendPlainText(response, 503, 'confirmation_token_not_configured');
+      }
+
+      return sendPlainText(response, 200, confirmationToken);
     }
 
     if (body.type === 'message_event') {

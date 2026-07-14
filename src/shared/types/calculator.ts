@@ -285,6 +285,7 @@ export interface CalculatorAdminSettings {
     quotaMonthlyUsage?: Record<string, number>;
     provider?: string;
     externalPaymentId?: string;
+    pendingPaymentId?: string;
   };
 }
 

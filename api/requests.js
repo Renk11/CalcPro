@@ -18,10 +18,16 @@ import {
   getSubscriptionQuotaCycleId,
 } from '../server/subscription-config.js';
 import {
+  getSubscriptionBypassPlan,
+  hasSubscriptionBypassForViewer,
+} from '../server/subscription-bypass.js';
+import {
   dispatchRequestIntegrations,
   exportRequestsToGoogleSheets,
 } from '../server/request-integrations.js';
 import { hasVkGroupToken, sendVkMessage } from '../server/vk.js';
+
+const groupSubmissionLocks = new Map();
 
 function parseGroupId(rawValue) {
   const groupId = Number(rawValue);
@@ -145,6 +151,27 @@ function getMonthlyUsageFromSubscription(subscription, date = new Date()) {
   const cycleId = getSubscriptionQuotaCycleId(date);
   const rawValue = usage[cycleId];
   return Number.isFinite(rawValue) ? Math.max(0, Math.trunc(rawValue)) : 0;
+}
+
+async function withGroupSubmissionLock(groupId, task) {
+  const key = String(groupId);
+  const previous = groupSubmissionLocks.get(key) || Promise.resolve();
+  let releaseCurrent;
+  const current = new Promise((resolve) => {
+    releaseCurrent = resolve;
+  });
+
+  groupSubmissionLocks.set(key, previous.then(() => current));
+  await previous;
+
+  try {
+    return await task();
+  } finally {
+    releaseCurrent();
+    if (groupSubmissionLocks.get(key) === current) {
+      groupSubmissionLocks.delete(key);
+    }
+  }
 }
 
 async function resolveAvailableGroupIds(auth) {
@@ -311,26 +338,59 @@ export default async function handler(request, response) {
       }
 
       const requestPayload = request.body || {};
-      const settings = await getServerAdminSettings(groupId);
-      const currentPlan = getEffectiveSubscriptionPlan(settings.subscription);
-      const requestLimit = currentPlan.monthlyRequestLimit;
-      const usedRequests = getMonthlyUsageFromSubscription(settings.subscription);
+      const submission = await withGroupSubmissionLock(groupId, async () => {
+        const settings = await getServerAdminSettings(groupId);
+        const currentPlan = hasSubscriptionBypassForViewer(auth.viewerId)
+          ? getSubscriptionBypassPlan()
+          : getEffectiveSubscriptionPlan(settings.subscription);
+        const requestLimit = currentPlan.monthlyRequestLimit;
+        const usedRequests = getMonthlyUsageFromSubscription(settings.subscription);
 
-      if (requestLimit != null && usedRequests >= requestLimit) {
+        if (requestLimit != null && usedRequests >= requestLimit) {
+          return {
+            blocked: true,
+            usedRequests,
+            requestLimit,
+          };
+        }
+
+        const savedRequests = await addServerRequest(requestPayload, groupId);
+        let nextSettings = settings;
+
+        if (requestLimit != null) {
+          const cycleId = getSubscriptionQuotaCycleId();
+          nextSettings = await saveServerAdminSettings(
+            {
+              ...settings,
+              subscription: {
+                ...settings.subscription,
+                quotaMonthlyUsage: {
+                  ...(settings.subscription.quotaMonthlyUsage || {}),
+                  [cycleId]: usedRequests + 1,
+                },
+              },
+            },
+            groupId,
+          );
+        }
+
+        return {
+          blocked: false,
+          savedRequests,
+          settings: nextSettings,
+        };
+      });
+
+      if (submission.blocked) {
         return sendJson(response, 200, {
           ok: false,
           error: 'MONTHLY_REQUEST_LIMIT_REACHED',
-          message: `Лимит заявок на этот месяц исчерпан: ${usedRequests} из ${requestLimit}.`,
+          message: `?????????? ???????????? ???? ???????? ?????????? ????????????????: ${submission.usedRequests} ???? ${submission.requestLimit}.`,
         });
       }
 
-      let savedRequests = [];
-
-      try {
-        savedRequests = await addServerRequest(requestPayload, groupId);
-      } catch {
-        savedRequests = [];
-      }
+      const savedRequests = submission.savedRequests;
+      const settings = submission.settings;
 
       dispatchRequestIntegrations(settings, requestPayload, groupId)
         .then(async (integrationResults) => {
@@ -366,23 +426,6 @@ export default async function handler(request, response) {
         .catch(() => {
           // Integrations must not block request processing.
         });
-
-      if (requestLimit != null) {
-        const cycleId = getSubscriptionQuotaCycleId();
-        await saveServerAdminSettings(
-          {
-            ...settings,
-            subscription: {
-              ...settings.subscription,
-              quotaMonthlyUsage: {
-                ...(settings.subscription.quotaMonthlyUsage || {}),
-                [cycleId]: usedRequests + 1,
-              },
-            },
-          },
-          groupId,
-        );
-      }
 
       const managerIds = parseManagerIds(settings.managerVkId);
 

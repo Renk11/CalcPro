@@ -122,7 +122,7 @@ interface HomePageProps {
   canUseRequestStatuses: boolean;
   canUseFolders: boolean;
   onSelectAdminGroup: (groupId: number) => void;
-  onRenameCommunity: (groupId: number, currentName: string) => void;
+  onRenameCommunity: (groupId: number, name: string) => void;
   onDisconnectCommunity: (groupId: number) => void;
   onStartPayment: (plan: CalculatorSubscriptionPlan) => void;
   onInstallInCommunity: () => void;
@@ -167,11 +167,16 @@ type FaqTopic = {
   intro: string;
   sections: FaqTopicSection[];
 };
+type PendingRenameCommunity = {
+  groupId: number;
+  currentName: string;
+};
 
 const restrictedMonetizationFaqPattern =
   /\b(?:free|start|pro)\b|тариф|тарифах|оплат|подписк|апгрейд/iu;
 const BILLING_REMINDER_CONTACT_LABEL = 'сообществу CalcPro';
 const BILLING_REMINDER_CONTACT_LINK = 'https://vk.com/im?sel=-180574723';
+const MAX_COMMUNITY_NAME_LENGTH = 120;
 
 const formatSubscriptionCountdown = (diffMs: number) => {
   if (diffMs <= 0) {
@@ -1967,6 +1972,10 @@ export const HomePage = ({
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [draftFolderName, setDraftFolderName] = useState('');
   const [pendingDeleteFolder, setPendingDeleteFolder] = useState<CalculatorFolder | null>(null);
+  const [pendingRenameCommunity, setPendingRenameCommunity] = useState<PendingRenameCommunity | null>(
+    null,
+  );
+  const [communityNameDraft, setCommunityNameDraft] = useState('');
   const [pendingDeleteTemplate, setPendingDeleteTemplate] = useState<CalculatorTemplate | null>(
     null,
   );
@@ -2930,7 +2939,7 @@ export const HomePage = ({
                         aria-label={`Переименовать ${community.name}`}
                         onClick={(event) => {
                           event.stopPropagation();
-                          onRenameCommunity(community.groupId, community.name);
+                          openRenameCommunityModal(community.groupId, community.name);
                         }}
                       >
                         <Icon20WriteOutline />
@@ -3218,6 +3227,30 @@ export const HomePage = ({
   const commitFolderName = (folderId: string) => {
     onRenameFolder(folderId, draftFolderName);
     setEditingFolderId(null);
+  };
+
+  const openRenameCommunityModal = (groupId: number, currentName: string) => {
+    setPendingRenameCommunity({ groupId, currentName });
+    setCommunityNameDraft(currentName);
+  };
+
+  const closeRenameCommunityModal = () => {
+    setPendingRenameCommunity(null);
+    setCommunityNameDraft('');
+  };
+
+  const submitRenameCommunity = () => {
+    if (!pendingRenameCommunity) {
+      return;
+    }
+
+    const normalizedName = communityNameDraft.slice(0, MAX_COMMUNITY_NAME_LENGTH).trim();
+    if (!normalizedName || normalizedName === pendingRenameCommunity.currentName) {
+      return;
+    }
+
+    onRenameCommunity(pendingRenameCommunity.groupId, normalizedName);
+    closeRenameCommunityModal();
   };
 
   const renderCalculatorsSection = () => (
@@ -5709,6 +5742,67 @@ export const HomePage = ({
         : currentSection === 'faq'
           ? renderFaqSection()
           : renderPlaceholderSection()}
+
+      {pendingRenameCommunity ? (
+        <div
+          className="admin-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rename-community-title"
+        >
+          <div className="admin-modal__backdrop" onClick={closeRenameCommunityModal} />
+          <div className="admin-modal__card">
+            <div className="admin-modal__eyebrow">Сообщество</div>
+            <h3 className="admin-modal__title" id="rename-community-title">
+              Переименовать сообщество
+            </h3>
+            <p className="admin-modal__text">
+              Новое название увидят только в интерфейсе CalcPro. В VK название сообщества не
+              изменится.
+            </p>
+            <div className="admin-modal__field">
+              <label className="admin-modal__label" htmlFor="rename-community-input">
+                Название сообщества
+              </label>
+              <input
+                id="rename-community-input"
+                className="admin-modal__input"
+                type="text"
+                value={communityNameDraft}
+                maxLength={MAX_COMMUNITY_NAME_LENGTH}
+                autoFocus
+                onChange={(event) => setCommunityNameDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    submitRenameCommunity();
+                  }
+                }}
+              />
+            </div>
+            <div className="admin-modal__actions">
+              <button
+                className="admin-modal__button admin-modal__button_secondary"
+                type="button"
+                onClick={closeRenameCommunityModal}
+              >
+                Отмена
+              </button>
+              <button
+                className="admin-modal__button"
+                type="button"
+                disabled={
+                  !communityNameDraft.trim() ||
+                  communityNameDraft.trim() === pendingRenameCommunity.currentName
+                }
+                onClick={submitRenameCommunity}
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {pendingDeleteFolder ? (
         <div className="admin-modal" role="dialog" aria-modal="true">

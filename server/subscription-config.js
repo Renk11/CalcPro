@@ -58,6 +58,7 @@ export function createDefaultSubscriptionSettings() {
     quotaMonthlyUsage: {},
     provider: '',
     externalPaymentId: '',
+    pendingPaymentId: '',
   };
 }
 

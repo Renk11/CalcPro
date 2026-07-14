@@ -49,6 +49,7 @@ function normalizeSubscription(subscription = {}) {
     quotaMonthlyUsage,
     provider: String(subscription.provider || defaults.provider),
     externalPaymentId: String(subscription.externalPaymentId || defaults.externalPaymentId),
+    pendingPaymentId: String(subscription.pendingPaymentId || defaults.pendingPaymentId),
   };
 }
 
@@ -74,10 +75,26 @@ function normalizeWebhookUrl(value) {
 
   try {
     const url = new URL(trimmedValue);
-    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : '';
+    const isLocalhost =
+      url.hostname === 'localhost' ||
+      url.hostname === '127.0.0.1' ||
+      url.hostname === '::1' ||
+      url.hostname === '[::1]';
+    if (url.protocol === 'https:') {
+      return url.toString();
+    }
+
+    return process.env.NODE_ENV !== 'production' && isLocalhost && url.protocol === 'http:'
+      ? url.toString()
+      : '';
   } catch {
     return '';
   }
+}
+
+function normalizeAmoCrmSubdomain(value) {
+  const trimmedValue = String(value || '').trim().toLowerCase();
+  return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(trimmedValue) ? trimmedValue : '';
 }
 
 function normalizeBoolean(value) {
@@ -108,9 +125,9 @@ function normalizeIntegrations(integrations = {}, defaults = createDefaultAdminS
       ).trim(),
     },
     amoCrm: {
-      subdomain: String(
+      subdomain: normalizeAmoCrmSubdomain(
         normalizedIntegrations.amoCrm?.subdomain || defaults.amoCrm.subdomain || '',
-      ).trim(),
+      ),
       accessToken: String(
         normalizedIntegrations.amoCrm?.accessToken || defaults.amoCrm.accessToken || '',
       ).trim(),

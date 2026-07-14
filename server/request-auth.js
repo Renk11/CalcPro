@@ -21,33 +21,6 @@ function normalizeHost(hostHeader) {
     .toLowerCase();
 }
 
-function getConfiguredAppHosts() {
-  const configuredHosts = String(process.env.CALCPRO_APP_HOSTS || '')
-    .split(',')
-    .map((host) => normalizeHost(host))
-    .filter(Boolean);
-
-  const publicAppUrl = String(process.env.PUBLIC_APP_URL || '').trim();
-  if (publicAppUrl) {
-    try {
-      configuredHosts.push(normalizeHost(new URL(publicAppUrl).host));
-    } catch {
-      configuredHosts.push(normalizeHost(publicAppUrl));
-    }
-  }
-
-  return new Set(configuredHosts.filter(Boolean));
-}
-
-function isSelfHostedAppHost(hostHeader) {
-  const host = normalizeHost(hostHeader);
-  if (!host || host.endsWith('vercel.app')) {
-    return false;
-  }
-
-  return getConfiguredAppHosts().has(host);
-}
-
 function shouldBypassLaunchParamsVerification(request) {
   if (String(process.env.CALCPRO_ALLOW_UNTRUSTED_VK_LAUNCH_PARAMS || '').trim() === '1') {
     return true;
@@ -58,14 +31,20 @@ function shouldBypassLaunchParamsVerification(request) {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    // Self-hosted VK Mini App deployments can lose a valid signature because of
-    // proxy/iframe specifics outside Vercel. Keep compatibility on the
-    // configured production host and allow opting back into strict validation
-    // with CALCPRO_ENFORCE_VK_SIGNATURE=1.
-    if (isSelfHostedAppHost(request?.headers?.host)) {
-      return true;
-    }
+    return false;
+  }
 
+  const hostHeader = String(request?.headers?.host || '').trim().toLowerCase();
+  const hostname = hostHeader.includes(':') ? hostHeader.slice(0, hostHeader.indexOf(':')) : hostHeader;
+  return isLocalDevHost(hostname);
+}
+
+function shouldAllowLaunchParamsFallback(request) {
+  if (String(process.env.CALCPRO_ALLOW_UNTRUSTED_VK_LAUNCH_PARAMS || '').trim() === '1') {
+    return true;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
     return false;
   }
 
@@ -177,6 +156,10 @@ function parseLaunchParamsFallback(request) {
 function parseLaunchParams(request) {
   const headerResult = parseLaunchParamsHeader(request);
   if (headerResult.launchParams) {
+    return headerResult;
+  }
+
+  if (!shouldAllowLaunchParamsFallback(request)) {
     return headerResult;
   }
 
