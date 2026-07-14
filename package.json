@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "check:formulas": "node scripts/check-formulas.mjs",
     "preview": "vite preview",
     "start": "node server/index.js"
   },

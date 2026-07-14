@@ -117,25 +117,25 @@ class FormulaSyntaxError extends Error {
 }
 
 const normalizeFormula = (formula: string, fields: CalculatorField[]) => {
-  let nextFormula = formula;
+  let nextFormula = formula
+    .replace(createFormulaAliasPattern(BASE_PRICE_FORMULA_LABEL), 'basePrice')
+    .replace(
+      createFormulaAliasPattern(GLOBAL_COEFFICIENT_FORMULA_LABEL),
+      'globalCoefficient',
+    );
 
-  const sortedFields = [...fields].sort((left, right) => right.label.length - left.label.length);
+  const sortedFields = fields
+    .map((field, index) => ({ field, index }))
+    .sort((left, right) => right.field.label.length - left.field.label.length);
 
-  sortedFields.forEach((field, index) => {
+  sortedFields.forEach(({ field, index }) => {
     const token = `field_${index + 1}`;
     const trimmedLabel = field.label.trim();
 
     if (trimmedLabel) {
-      nextFormula = nextFormula.replace(new RegExp(escapeRegExp(trimmedLabel), 'g'), token);
+      nextFormula = nextFormula.replace(createFormulaAliasPattern(trimmedLabel), token);
     }
   });
-
-  nextFormula = nextFormula
-    .replace(new RegExp(escapeRegExp(BASE_PRICE_FORMULA_LABEL), 'g'), 'basePrice')
-    .replace(
-      new RegExp(escapeRegExp(GLOBAL_COEFFICIENT_FORMULA_LABEL), 'g'),
-      'globalCoefficient',
-    );
 
   FORMULA_FUNCTION_ALIASES.forEach(({ aliases, target }) => {
     aliases.forEach((alias) => {

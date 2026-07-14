@@ -7700,6 +7700,13 @@ body,
   overflow-wrap: anywhere;
 }
 
+.builder-formula__preview-substitution {
+  color: #7a6a5a;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .builder-formula__preview-error {
   padding: 10px 12px;
   border-radius: 14px;

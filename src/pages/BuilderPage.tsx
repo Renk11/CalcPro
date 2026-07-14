@@ -597,6 +597,63 @@ const getCheckboxPriceLabel = (field: CalculatorField) => {
   return Number.isFinite(numericValue) ? String(numericValue) + ' \u20bd' : 'true / false';
 };
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const createFormulaTokenPattern = (token: string) =>
+  new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegExp(token)}(?![\\p{L}\\p{N}_])`, 'giu');
+
+const formatFormulaSubstitutionValue = (value: number) => {
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+
+  return formatResultNumber(value, 2, 'plain').replace(/\.?0+$/, '');
+};
+
+const buildFormulaSubstitution = (
+  expression: string,
+  fields: CalculatorField[],
+  context: Record<string, number>,
+  result: number,
+) => {
+  const trimmedExpression = expression.trim();
+  if (!trimmedExpression) {
+    return '';
+  }
+
+  let substitutedExpression = trimmedExpression
+    .replace(createFormulaTokenPattern('basePrice'), formatFormulaSubstitutionValue(context.basePrice ?? 0))
+    .replace(
+      createFormulaTokenPattern('globalCoefficient'),
+      formatFormulaSubstitutionValue(context.globalCoefficient ?? 0),
+    )
+    .replace(createFormulaTokenPattern('\u0411\u0430\u0437\u043e\u0432\u0430\u044f \u0446\u0435\u043d\u0430'), formatFormulaSubstitutionValue(context.basePrice ?? 0))
+    .replace(
+      createFormulaTokenPattern('\u041e\u0431\u0449\u0438\u0439 \u043a\u043e\u044d\u0444\u0444\u0438\u0446\u0438\u0435\u043d\u0442'),
+      formatFormulaSubstitutionValue(context.globalCoefficient ?? 0),
+    );
+
+  const sortedFields = [...fields].sort((left, right) => right.label.length - left.label.length);
+  sortedFields.forEach((field, index) => {
+    const trimmedLabel = field.label.trim();
+    const fieldValue = context[`field_${index + 1}`] ?? context[field.key] ?? 0;
+
+    if (trimmedLabel) {
+      substitutedExpression = substitutedExpression.replace(
+        createFormulaTokenPattern(trimmedLabel),
+        formatFormulaSubstitutionValue(fieldValue),
+      );
+    }
+
+    substitutedExpression = substitutedExpression.replace(
+      createFormulaTokenPattern(field.key),
+      formatFormulaSubstitutionValue(fieldValue),
+    );
+  });
+
+  substitutedExpression = substitutedExpression.replace(/\s+/g, ' ').trim();
+  return `${substitutedExpression} = ${formatFormulaSubstitutionValue(result)}`;
+};
+
 const getFormulaReference = (field: CalculatorField) => field.label.trim() || '\u0411\u0435\u0437 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f';
 const formulaOperatorChips = ['+', '-', '*', '/', '(', ')'] as const;
 const formulaComparatorChips = ['>', '<', '>=', '<=', '==', '!='] as const;
@@ -1212,6 +1269,30 @@ export const BuilderPage = ({
     visualFormulaExpression,
   ]);
   const previewFormulaContext = useMemo(() => buildFormulaContext(template, previewValues), [previewValues, template]);
+  const previewFormulaSubstitution = useMemo(() => {
+    const activeFormulaExpression =
+      template.formulaEditorMode === 'visual' ? visualFormulaExpression : template.customFormula;
+
+    if (template.formulaMode !== 'custom' || !activeFormulaExpression.trim() || previewFormulaState.error) {
+      return '';
+    }
+
+    return buildFormulaSubstitution(
+      activeFormulaExpression,
+      template.fields,
+      previewFormulaContext,
+      previewFormulaState.value,
+    );
+  }, [
+    previewFormulaContext,
+    previewFormulaState.error,
+    previewFormulaState.value,
+    template.customFormula,
+    template.fields,
+    template.formulaEditorMode,
+    template.formulaMode,
+    visualFormulaExpression,
+  ]);
   const previewValueEntries = useMemo(
     () =>
       template.fields
@@ -3025,6 +3106,11 @@ export const BuilderPage = ({
                               <span>Результат</span>
                               <strong>{formatResultNumber(previewFormulaState.value)} ₽</strong>
                             </div>
+                            {previewFormulaSubstitution ? (
+                              <div className="builder-formula__preview-substitution">
+                                {previewFormulaSubstitution}
+                              </div>
+                            ) : null}
                             {previewFormulaState.error ? (
                               <div className="builder-formula__preview-error">{previewFormulaState.error}</div>
                             ) : null}
@@ -3192,6 +3278,11 @@ export const BuilderPage = ({
                             <span>Результат</span>
                             <strong>{formatResultNumber(previewFormulaState.value)} ₽</strong>
                           </div>
+                          {previewFormulaSubstitution ? (
+                            <div className="builder-formula__preview-substitution">
+                              {previewFormulaSubstitution}
+                            </div>
+                          ) : null}
                           {previewFormulaState.error ? (
                             <div className="builder-formula__preview-error">{previewFormulaState.error}</div>
                           ) : null}
