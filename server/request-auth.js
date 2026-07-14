@@ -21,29 +21,6 @@ function normalizeHost(hostHeader) {
     .toLowerCase();
 }
 
-function getConfiguredAppHosts() {
-  const configuredHosts = String(process.env.CALCPRO_APP_HOSTS || '')
-    .split(',')
-    .map((host) => normalizeHost(host))
-    .filter(Boolean);
-
-  const publicAppUrl = String(process.env.PUBLIC_APP_URL || '').trim();
-  if (publicAppUrl) {
-    try {
-      configuredHosts.push(normalizeHost(new URL(publicAppUrl).host));
-    } catch {
-      configuredHosts.push(normalizeHost(publicAppUrl));
-    }
-  }
-
-  return new Set(configuredHosts.filter(Boolean));
-}
-
-function isConfiguredAppHost(hostHeader) {
-  const host = normalizeHost(hostHeader);
-  return Boolean(host) && getConfiguredAppHosts().has(host);
-}
-
 function shouldBypassLaunchParamsVerification(request) {
   if (String(process.env.CALCPRO_ALLOW_UNTRUSTED_VK_LAUNCH_PARAMS || '').trim() === '1') {
     return true;
@@ -68,7 +45,7 @@ function shouldAllowLaunchParamsFallback(request) {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    return isConfiguredAppHost(request?.headers?.host);
+    return false;
   }
 
   const hostHeader = String(request?.headers?.host || '').trim().toLowerCase();
@@ -151,17 +128,7 @@ function extractLaunchParamsFromSource(source) {
   return Object.keys(launchParams).length > 0 ? launchParams : null;
 }
 
-function parseLaunchParamsFallback(request) {
-  const bodyPayload =
-    extractLaunchParamsFromSource(request.body?.launchParams) ||
-    extractLaunchParamsFromSource(request.body);
-  if (bodyPayload) {
-    return {
-      launchParams: bodyPayload,
-      errorCode: null,
-    };
-  }
-
+function parseLaunchParamsQueryFallback(request) {
   const queryPayload = extractLaunchParamsFromSource(request.query);
   if (queryPayload) {
     return {
@@ -176,14 +143,35 @@ function parseLaunchParamsFallback(request) {
   };
 }
 
+function parseLaunchParamsBodyFallback(request) {
+  const bodyPayload =
+    extractLaunchParamsFromSource(request.body?.launchParams) ||
+    extractLaunchParamsFromSource(request.body);
+  if (bodyPayload) {
+    return {
+      launchParams: bodyPayload,
+      errorCode: null,
+    };
+  }
+
+  return {
+    launchParams: null,
+    errorCode: 'missing_launch_params',
+  };
+}
+
 function parseLaunchParams(request) {
   const headerResult = parseLaunchParamsHeader(request);
-  const fallbackResult = shouldAllowLaunchParamsFallback(request)
-    ? parseLaunchParamsFallback(request)
+  const queryFallbackResult = parseLaunchParamsQueryFallback(request);
+  const bodyFallbackResult = shouldAllowLaunchParamsFallback(request)
+    ? parseLaunchParamsBodyFallback(request)
     : {
         launchParams: null,
-        errorCode: headerResult.errorCode || 'missing_launch_params',
+        errorCode: 'missing_launch_params',
       };
+  const fallbackResult = bodyFallbackResult.launchParams
+    ? bodyFallbackResult
+    : queryFallbackResult;
 
   if (headerResult.launchParams && fallbackResult.launchParams) {
     return {
