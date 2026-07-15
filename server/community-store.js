@@ -274,6 +274,7 @@ export async function connectViewerCommunity(viewerId, community, workspacePlanI
   const latestList = await getViewerCommunities(normalizedViewerId);
   const existingCommunity =
     latestList.find((item) => item.groupId === baseCommunity.groupId) || null;
+  const explicitCustomName = String(community?.name || '').trim();
   let normalizedCommunity = normalizeCommunityEntry({
     ...baseCommunity,
     name: pickCommunityName(baseCommunity.groupId, baseCommunity.name, existingCommunity?.name),
@@ -288,9 +289,10 @@ export async function connectViewerCommunity(viewerId, community, workspacePlanI
         ...normalizedCommunity,
         name: pickCommunityName(
           baseCommunity.groupId,
-          vkCommunity.name,
+          explicitCustomName,
           normalizedCommunity?.name,
           existingCommunity?.name,
+          vkCommunity.name,
         ),
         screenName:
           vkCommunity.screenName || normalizedCommunity?.screenName || existingCommunity?.screenName,
@@ -315,11 +317,18 @@ export async function connectViewerCommunity(viewerId, community, workspacePlanI
   }
 
   const nextList = [...latestList];
+  const isRenameOnly =
+    existingIndex >= 0 &&
+    Boolean(explicitCustomName) &&
+    explicitCustomName !== String(existingCommunity?.name || '').trim();
   const merged = {
     ...normalizedCommunity,
     addedAt:
       existingIndex >= 0 ? nextList[existingIndex].addedAt : normalizedCommunity.addedAt,
-    lastUsedAt: new Date().toISOString(),
+    lastUsedAt:
+      existingIndex >= 0 && isRenameOnly
+        ? nextList[existingIndex].lastUsedAt
+        : new Date().toISOString(),
   };
 
   if (existingIndex >= 0) {

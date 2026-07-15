@@ -2223,11 +2223,11 @@ const App = () => {
 
     const now = new Date().toISOString();
     const normalizedBaseTitle = clampTemplateTitle(template.title).replace(
-      /\s+\(РєРѕРїРёСЏ(?:\s+\d+)?\)$/u,
+      /\s+\(копия(?:\s+\d+)?\)$/u,
       '',
     );
     const duplicatePattern = new RegExp(
-      `^${normalizedBaseTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\(РєРѕРїРёСЏ(?: (\\d+))?\\)$`,
+      `^${normalizedBaseTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\(копия(?: (\\d+))?\\)$`,
       'u',
     );
     const highestCopyNumber = templates.reduce((max, item) => {
@@ -2241,7 +2241,7 @@ const App = () => {
     }, 0);
     const nextCopyNumber = highestCopyNumber + 1;
     const duplicateSuffix =
-      nextCopyNumber === 1 ? ' (РєРѕРїРёСЏ)' : ` (РєРѕРїРёСЏ ${nextCopyNumber})`;
+      nextCopyNumber === 1 ? ' (копия)' : ` (копия ${nextCopyNumber})`;
     const trimmedBaseTitle = normalizedBaseTitle.slice(
       0,
       Math.max(0, MAX_TEMPLATE_TITLE_LENGTH - duplicateSuffix.length),

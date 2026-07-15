@@ -385,7 +385,7 @@ export default async function handler(request, response) {
         return sendJson(response, 200, {
           ok: false,
           error: 'MONTHLY_REQUEST_LIMIT_REACHED',
-          message: `?????????? ???????????? ???? ???????? ?????????? ????????????????: ${submission.usedRequests} ???? ${submission.requestLimit}.`,
+          message: `Ежемесячный лимит заявок для вашего тарифа исчерпан: ${submission.usedRequests} из ${submission.requestLimit}.`,
         });
       }
 
@@ -441,7 +441,7 @@ export default async function handler(request, response) {
         return sendJson(response, 200, {
           ok: true,
           message:
-            'Р—Р°СЏРІРєР° СЃРѕС…СЂР°РЅРµРЅР°. РњРµРЅРµРґР¶РµСЂ РµС‰С‘ РЅРµ РїРѕРґС‚РІРµСЂРґРёР» РґРёР°Р»РѕРі СЃ CalcPro.',
+            'Заявка сохранена. Менеджер ещё не подтвердил диалог с CalcPro.',
           data: savedRequests,
         });
       }
