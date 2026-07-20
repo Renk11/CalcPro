@@ -6860,6 +6860,8 @@ body,
 .builder-field-card__label {
   font-size: 20px;
   font-weight: 700;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .builder-preview,
@@ -7790,11 +7792,15 @@ body,
   color: #2f261f;
   font-size: 30px;
   font-weight: 700;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .builder-preview__description {
   margin: 0;
   color: #7c6b5d;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .builder-preview__fields {
@@ -8700,6 +8706,8 @@ body::-webkit-scrollbar-thumb:hover,
   color: #f7f0e5;
   font-size: 24px;
   font-weight: 700;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .builder-inspector__text {
@@ -8899,6 +8907,8 @@ body::-webkit-scrollbar-thumb:hover,
   color: #2e2620;
   font-size: 34px;
   font-weight: 700;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   transition: font-size 0.28s ease;
 }
 
@@ -8908,6 +8918,8 @@ body::-webkit-scrollbar-thumb:hover,
   color: #7c6b5d;
   font-size: 17px;
   line-height: 1.55;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   transition: font-size 0.28s ease;
 }
 
@@ -9066,12 +9078,16 @@ body::-webkit-scrollbar-thumb:hover,
   color: #2f261f;
   font-size: 24px;
   font-weight: 800;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .calculator-panel__caption {
   color: #7c6b5d;
   font-size: 14px;
   line-height: 1.5;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .calculator-fields,

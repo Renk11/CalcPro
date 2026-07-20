@@ -71,6 +71,57 @@ const PREVIEW_DEVICE_CONFIG = {
   tablet: { label: 'Планшет', width: 834, height: 1112 },
   mobile: { label: 'Телефон', width: 360, height: 780 },
 } as const;
+const MAX_FIELD_LABEL_LENGTH = 48;
+const MAX_FIELD_DESCRIPTION_LENGTH = 120;
+const MAX_FIELD_PLACEHOLDER_LENGTH = 64;
+const MAX_FIELD_HINT_LENGTH = 80;
+const MAX_OPTION_LABEL_LENGTH = 48;
+const MAX_OPTION_DESCRIPTION_LENGTH = 80;
+const MAX_CHECKBOX_LABEL_LENGTH = 80;
+
+const clampTextValue = (value: string, maxLength: number) => value.slice(0, maxLength);
+
+const sanitizeFieldPatch = (patch: Partial<CalculatorField>): Partial<CalculatorField> => {
+  const nextPatch = { ...patch };
+
+  if (typeof nextPatch.label === 'string') {
+    nextPatch.label = clampTextValue(nextPatch.label, MAX_FIELD_LABEL_LENGTH);
+  }
+
+  if (typeof nextPatch.description === 'string') {
+    nextPatch.description = clampTextValue(nextPatch.description, MAX_FIELD_DESCRIPTION_LENGTH);
+  }
+
+  if (typeof nextPatch.placeholder === 'string') {
+    nextPatch.placeholder = clampTextValue(nextPatch.placeholder, MAX_FIELD_PLACEHOLDER_LENGTH);
+  }
+
+  if (typeof nextPatch.hint === 'string') {
+    nextPatch.hint = clampTextValue(nextPatch.hint, MAX_FIELD_HINT_LENGTH);
+  }
+
+  if (typeof nextPatch.checkboxLabel === 'string') {
+    nextPatch.checkboxLabel = clampTextValue(nextPatch.checkboxLabel, MAX_CHECKBOX_LABEL_LENGTH);
+  }
+
+  return nextPatch;
+};
+
+const sanitizeOptionPatch = (
+  patch: Partial<CalculatorFieldOption>,
+): Partial<CalculatorFieldOption> => {
+  const nextPatch = { ...patch };
+
+  if (typeof nextPatch.label === 'string') {
+    nextPatch.label = clampTextValue(nextPatch.label, MAX_OPTION_LABEL_LENGTH);
+  }
+
+  if (typeof nextPatch.description === 'string') {
+    nextPatch.description = clampTextValue(nextPatch.description, MAX_OPTION_DESCRIPTION_LENGTH);
+  }
+
+  return nextPatch;
+};
 
 const copyTextToClipboard = async (value: string) => {
   if (navigator.clipboard?.writeText) {
@@ -1769,20 +1820,23 @@ export const BuilderPage = ({
       return;
     }
 
-    const nextField = { ...sourceField, ...patch };
+    const sanitizedPatch = sanitizeFieldPatch(patch);
+    const nextField = { ...sourceField, ...sanitizedPatch };
     const sourcePreviewKey = sourceField.key;
     const nextPreviewKey = nextField.key;
     const shouldSyncPreviewValue =
-      patch.defaultValue !== undefined ||
-      patch.min !== undefined ||
-      patch.max !== undefined ||
-      patch.step !== undefined ||
-      patch.inputSubtype !== undefined ||
-      patch.type !== undefined;
+      sanitizedPatch.defaultValue !== undefined ||
+      sanitizedPatch.min !== undefined ||
+      sanitizedPatch.max !== undefined ||
+      sanitizedPatch.step !== undefined ||
+      sanitizedPatch.inputSubtype !== undefined ||
+      sanitizedPatch.type !== undefined;
 
     setTemplate((current) => ({
       ...current,
-      fields: current.fields.map((field) => (field.id === fieldId ? { ...field, ...patch } : field)),
+      fields: current.fields.map((field) =>
+        field.id === fieldId ? { ...field, ...sanitizedPatch } : field,
+      ),
       updatedAt: new Date().toISOString(),
     }));
 
@@ -1857,9 +1911,11 @@ export const BuilderPage = ({
       return;
     }
 
+    const sanitizedPatch = sanitizeOptionPatch(patch);
+
     updateField(fieldId, {
       options: (field.options ?? []).map((option) =>
-        option.id === optionId ? { ...option, ...patch } : option,
+        option.id === optionId ? { ...option, ...sanitizedPatch } : option,
       ),
     });
   };
@@ -3760,8 +3816,14 @@ export const BuilderPage = ({
                   <span>{'\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435'}</span>
                   <input
                     value={selectedField.label}
-                    onChange={(event) => updateField(selectedField.id, { label: event.target.value })}
+                    maxLength={MAX_FIELD_LABEL_LENGTH}
+                    onChange={(event) =>
+                      updateField(selectedField.id, { label: event.target.value })
+                    }
                   />
+                  <span className="builder-inspector__field-hint">
+                    {selectedField.label.length}/{MAX_FIELD_LABEL_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__field builder-inspector__field_hidden">
@@ -3777,8 +3839,14 @@ export const BuilderPage = ({
                   <span>{'\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435'}</span>
                   <input
                     value={selectedField.description ?? ''}
-                    onChange={(event) => updateField(selectedField.id, { description: event.target.value })}
+                    maxLength={MAX_FIELD_DESCRIPTION_LENGTH}
+                    onChange={(event) =>
+                      updateField(selectedField.id, { description: event.target.value })
+                    }
                   />
+                  <span className="builder-inspector__field-hint">
+                    {(selectedField.description ?? '').length}/{MAX_FIELD_DESCRIPTION_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__checkbox">
@@ -3865,8 +3933,14 @@ export const BuilderPage = ({
                       <span>{'\u041f\u043e\u0434\u0441\u043a\u0430\u0437\u043a\u0430'}</span>
                       <input
                         value={selectedField.placeholder ?? ''}
-                        onChange={(event) => updateField(selectedField.id, { placeholder: event.target.value })}
+                        maxLength={MAX_FIELD_PLACEHOLDER_LENGTH}
+                        onChange={(event) =>
+                          updateField(selectedField.id, { placeholder: event.target.value })
+                        }
                       />
+                      <span className="builder-inspector__field-hint">
+                        {(selectedField.placeholder ?? '').length}/{MAX_FIELD_PLACEHOLDER_LENGTH} {'симв.'}
+                      </span>
                     </label>
 
                     <label className="builder-inspector__field">
@@ -3899,6 +3973,7 @@ export const BuilderPage = ({
                             <input
                               value={option.label}
                               placeholder={'\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435'}
+                              maxLength={MAX_OPTION_LABEL_LENGTH}
                               onChange={(event) =>
                                 updateSelectOption(selectedField.id, option.id, {
                                   label: event.target.value,
@@ -3918,6 +3993,7 @@ export const BuilderPage = ({
                             <input
                               value={option.description ?? ''}
                               placeholder={'\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435'}
+                              maxLength={MAX_OPTION_DESCRIPTION_LENGTH}
                               disabled={!canUseProFeatures}
                               onChange={(event) =>
                                 updateSelectOption(selectedField.id, option.id, {
@@ -4035,16 +4111,26 @@ export const BuilderPage = ({
                       <span>{'\u041f\u043e\u0434\u0441\u043a\u0430\u0437\u043a\u0430'}</span>
                       <input
                         value={selectedField.placeholder ?? ''}
-                        onChange={(event) => updateField(selectedField.id, { placeholder: event.target.value })}
+                        maxLength={MAX_FIELD_PLACEHOLDER_LENGTH}
+                        onChange={(event) =>
+                          updateField(selectedField.id, { placeholder: event.target.value })
+                        }
                       />
+                      <span className="builder-inspector__field-hint">
+                        {(selectedField.placeholder ?? '').length}/{MAX_FIELD_PLACEHOLDER_LENGTH} {'симв.'}
+                      </span>
                     </label>
 
                     <label className="builder-inspector__field">
                       <span>{'\u041f\u043e\u0434\u0441\u043a\u0430\u0437\u043a\u0430 \u043f\u043e\u0434 \u043f\u043e\u043b\u0435\u043c'}</span>
                       <input
                         value={selectedField.hint ?? ''}
+                        maxLength={MAX_FIELD_HINT_LENGTH}
                         onChange={(event) => updateField(selectedField.id, { hint: event.target.value })}
                       />
+                      <span className="builder-inspector__field-hint">
+                        {(selectedField.hint ?? '').length}/{MAX_FIELD_HINT_LENGTH} {'симв.'}
+                      </span>
                     </label>
 
                     <label className="builder-inspector__field">
@@ -4181,8 +4267,14 @@ export const BuilderPage = ({
                       <span>{'\u041f\u043e\u0434\u0441\u043a\u0430\u0437\u043a\u0430'}</span>
                       <input
                         value={selectedField.placeholder ?? ''}
-                        onChange={(event) => updateField(selectedField.id, { placeholder: event.target.value })}
+                        maxLength={MAX_FIELD_PLACEHOLDER_LENGTH}
+                        onChange={(event) =>
+                          updateField(selectedField.id, { placeholder: event.target.value })
+                        }
                       />
+                      <span className="builder-inspector__field-hint">
+                        {(selectedField.placeholder ?? '').length}/{MAX_FIELD_PLACEHOLDER_LENGTH} {'симв.'}
+                      </span>
                     </label>
 
                     <div className="builder-inspector__grid">
@@ -4328,18 +4420,28 @@ export const BuilderPage = ({
                       <span>{'\u041f\u043e\u0434\u0441\u043a\u0430\u0437\u043a\u0430'}</span>
                       <input
                         value={selectedField.placeholder ?? ''}
-                        onChange={(event) => updateField(selectedField.id, { placeholder: event.target.value })}
+                        maxLength={MAX_FIELD_PLACEHOLDER_LENGTH}
+                        onChange={(event) =>
+                          updateField(selectedField.id, { placeholder: event.target.value })
+                        }
                       />
+                      <span className="builder-inspector__field-hint">
+                        {(selectedField.placeholder ?? '').length}/{MAX_FIELD_PLACEHOLDER_LENGTH} {'симв.'}
+                      </span>
                     </label>
 
                     <label className="builder-inspector__field">
                       <span>{'\u0422\u0435\u043a\u0441\u0442 \u043e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u0442\u0440\u043e\u043a\u0438'}</span>
                       <input
                         value={selectedField.checkboxLabel ?? ''}
+                        maxLength={MAX_CHECKBOX_LABEL_LENGTH}
                         onChange={(event) =>
                           updateField(selectedField.id, { checkboxLabel: event.target.value })
                         }
                       />
+                      <span className="builder-inspector__field-hint">
+                        {(selectedField.checkboxLabel ?? '').length}/{MAX_CHECKBOX_LABEL_LENGTH} {'симв.'}
+                      </span>
                     </label>
 
                     <div className="builder-inspector__grid">
@@ -4404,6 +4506,7 @@ export const BuilderPage = ({
                               className="builder-option-row__label-input"
                               value={option.label}
                               placeholder={'\u0422\u0435\u043a\u0441\u0442 \u0441\u0442\u0440\u043e\u043a\u0438'}
+                              maxLength={MAX_OPTION_LABEL_LENGTH}
                               onChange={(event) =>
                                 updateSelectOption(selectedField.id, option.id, {
                                   label: event.target.value,
@@ -4425,6 +4528,7 @@ export const BuilderPage = ({
                               className="builder-option-row__meta-input"
                               value={option.description ?? ''}
                               placeholder={'\u041f\u043e\u0434\u043f\u0438\u0441\u044c'}
+                              maxLength={MAX_OPTION_DESCRIPTION_LENGTH}
                               disabled={!canUseProFeatures}
                               onChange={(event) =>
                                 updateSelectOption(selectedField.id, option.id, {
