@@ -5451,20 +5451,20 @@ export const BuilderPage = ({
         {isJsonModalOpen ? (
           <div className="admin-modal" role="dialog" aria-modal="true">
             <div className="admin-modal__backdrop" onClick={() => setIsJsonModalOpen(false)} />
-            <div className="admin-modal__card admin-modal__card_wide">
+            <div className="admin-modal__card admin-modal__card_wide builder-json-modal">
               <div className="admin-modal__eyebrow">{'JSON-хранилище'}</div>
               <h3 className="admin-modal__title">{'Проект калькулятора'}</h3>
               <p className="admin-modal__text">
                 {'Здесь можно посмотреть JSON шаблона, отредактировать его и применить обратно в конструктор.'}
               </p>
               <textarea
-                className="admin-modal__textarea"
+                className="admin-modal__textarea builder-json-modal__textarea"
                 value={jsonDraft}
                 onChange={(event) => setJsonDraft(event.target.value)}
                 spellCheck={false}
               />
               {jsonError ? <div className="admin-modal__error">{jsonError}</div> : null}
-              <div className="admin-modal__actions">
+              <div className="admin-modal__actions builder-json-modal__actions">
                 <button
                   className="admin-modal__button admin-modal__button_secondary"
                   type="button"
