@@ -90,7 +90,7 @@ export async function getServerTemplates(groupId) {
   }
 
   if (normalizeGroupId(groupId)) {
-    return normalizeTemplates((await readSettingRow(TEMPLATES_KEY)) || []);
+    return normalizeTemplates([]);
   }
 
   return normalizeTemplates([]);

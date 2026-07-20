@@ -98,10 +98,7 @@ const ensureScopedStorageInitialized = (groupId = activeStorageGroupId) => {
 
   if (normalizedGroupId > 0) {
     if (!getStorageItem(templatesKey)) {
-      setStorageItem(
-        templatesKey,
-        getStorageItem(getLegacyStorageKey('templates')) ?? JSON.stringify(defaults.templates),
-      );
+      setStorageItem(templatesKey, JSON.stringify(defaults.templates));
     }
 
     if (!getStorageItem(foldersKey)) {
