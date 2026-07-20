@@ -799,6 +799,22 @@ body,
   transform: translateY(-1px);
 }
 
+.admin-nav__toggle,
+.admin-nav__backtrack,
+.admin-nav__community-manage,
+.admin-nav__superadmin-toggle,
+.admin-nav__superadmin-tab,
+.admin-nav__item,
+.admin-nav__plan-button,
+.admin-home__icon-button,
+.admin-modal__button {
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  tap-highlight-color: transparent;
+  background-clip: padding-box;
+}
+
 .admin-nav__toggle_open {
   left: 286px;
 }
