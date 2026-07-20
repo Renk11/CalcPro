@@ -998,12 +998,290 @@ const normalizeFieldLayouts = (fields: CalculatorField[]) =>
   });
 
 const hasMojibake = (value?: string) =>
-  Boolean(value) &&
-  (value!.includes('Р') ||
-    value!.includes('Ð') ||
-    value!.includes('Ñ') ||
-    value!.includes('вЂ') ||
-    value!.includes('Â'));
+  typeof value === 'string' &&
+  value.length > 0 &&
+  (value.includes('Р') ||
+    value.includes('Ð') ||
+    value.includes('Ñ') ||
+    value.includes('вЂ') ||
+    value.includes('Â'));
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const getJsonValueTypeLabel = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return 'массив';
+  }
+
+  if (value === null) {
+    return 'null';
+  }
+
+  switch (typeof value) {
+    case 'string':
+      return 'строку';
+    case 'number':
+      return 'число';
+    case 'boolean':
+      return 'булево значение';
+    case 'object':
+      return 'объект';
+    default:
+      return 'значение';
+  }
+};
+
+const throwJsonTypeError = (path: string, expected: string, actual: unknown, fieldLabel?: string): never => {
+  const fieldSuffix = fieldLabel ? ` для поля "${fieldLabel}"` : '';
+  throw new Error(
+    `${path}${fieldSuffix} должно содержать ${expected}. Сейчас передан ${getJsonValueTypeLabel(actual)}.`,
+  );
+};
+
+const assertOptionalString = (
+  value: unknown,
+  path: string,
+  fieldLabel?: string,
+): void => {
+  if (value !== undefined && typeof value !== 'string') {
+    throwJsonTypeError(path, 'строку', value, fieldLabel);
+  }
+};
+
+const assertOptionalNumber = (
+  value: unknown,
+  path: string,
+  fieldLabel?: string,
+): void => {
+  if (value !== undefined && typeof value !== 'number') {
+    throwJsonTypeError(path, 'число', value, fieldLabel);
+  }
+};
+
+const assertOptionalBoolean = (
+  value: unknown,
+  path: string,
+  fieldLabel?: string,
+): void => {
+  if (value !== undefined && typeof value !== 'boolean') {
+    throwJsonTypeError(path, 'булево значение', value, fieldLabel);
+  }
+};
+
+const assertStringArray = (value: unknown, path: string, fieldLabel?: string): void => {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+    throw new Error(
+      `${path}${fieldLabel ? ` для поля "${fieldLabel}"` : ''} должно содержать массив строк.`,
+    );
+  }
+};
+
+const validateFieldDefaultValue = (
+  field: Record<string, unknown>,
+  path: string,
+  fieldLabel?: string,
+) => {
+  const defaultValue = field.defaultValue;
+
+  if (defaultValue === undefined) {
+    return;
+  }
+
+  const fieldType = field.type;
+  const hasOptions = Array.isArray(field.options) && field.options.length > 0;
+
+  if (fieldType === 'checkbox') {
+    if (hasOptions) {
+      if (typeof defaultValue === 'boolean') {
+        return;
+      }
+
+      assertStringArray(defaultValue, path, fieldLabel);
+      return;
+    }
+
+    assertOptionalBoolean(defaultValue, path, fieldLabel);
+    return;
+  }
+
+  if (fieldType === 'number' || fieldType === 'slider') {
+    assertOptionalNumber(defaultValue, path, fieldLabel);
+    return;
+  }
+
+  if (fieldType === 'radio' || fieldType === 'select') {
+    if (typeof defaultValue !== 'string' && typeof defaultValue !== 'number') {
+      throwJsonTypeError(path, 'строку или число', defaultValue, fieldLabel);
+    }
+    return;
+  }
+
+  if (typeof defaultValue !== 'string') {
+    throwJsonTypeError(path, 'строку', defaultValue, fieldLabel);
+  }
+};
+
+function validateImportedTemplate(value: unknown): asserts value is CalculatorTemplate {
+  if (!isRecord(value)) {
+    throw new Error('Корень JSON должен содержать объект шаблона.');
+  }
+
+  if (value.fields !== undefined && !Array.isArray(value.fields)) {
+    throw new Error('fields должно содержать массив полей.');
+  }
+
+  const requestForm = value.requestForm;
+  if (requestForm !== undefined) {
+    if (!isRecord(requestForm)) {
+      throw new Error('requestForm должно содержать объект настроек формы.');
+    }
+
+    assertOptionalString(requestForm.title, 'requestForm.title');
+    assertOptionalString(requestForm.description, 'requestForm.description');
+    assertOptionalString(requestForm.nameLabel, 'requestForm.nameLabel');
+    assertOptionalString(requestForm.namePlaceholder, 'requestForm.namePlaceholder');
+    assertOptionalString(requestForm.phoneLabel, 'requestForm.phoneLabel');
+    assertOptionalString(requestForm.phonePlaceholder, 'requestForm.phonePlaceholder');
+    assertOptionalString(requestForm.commentLabel, 'requestForm.commentLabel');
+    assertOptionalString(requestForm.commentPlaceholder, 'requestForm.commentPlaceholder');
+    assertOptionalString(requestForm.submitButtonText, 'requestForm.submitButtonText');
+    assertOptionalBoolean(requestForm.enabled, 'requestForm.enabled');
+  }
+
+  (value.fields ?? []).forEach((field, index) => {
+    if (!isRecord(field)) {
+      throw new Error(`fields[${index}] должно содержать объект поля.`);
+    }
+
+    const fieldLabel = typeof field.label === 'string' && field.label.trim() ? field.label : undefined;
+    const fieldPath = `fields[${index}]`;
+    const stringProps = [
+      'id',
+      'key',
+      'label',
+      'description',
+      'placeholder',
+      'hint',
+      'htmlContent',
+      'content',
+      'visibilityCondition',
+      'checkboxLabel',
+      'buttonText',
+      'buttonUrl',
+      'resultFormula',
+      'resultPrefix',
+      'resultSuffix',
+      'resultVisibilityCondition',
+      'imageUrl',
+      'imageAlt',
+      'imageCaption',
+      'bookingStartTime',
+      'bookingEndTime',
+      'bookingMinDate',
+      'bookingMaxDate',
+    ] as const;
+    const numericProps = [
+      'unitPrice',
+      'coefficient',
+      'min',
+      'max',
+      'step',
+      'minLength',
+      'maxLength',
+      'fontSize',
+      'fontWeight',
+      'maxFileSizeMb',
+      'resultDecimals',
+      'bookingSlotDuration',
+      'bookingSlotBreak',
+      'bookingMaxRequestsPerSlot',
+      'bookingUrgentSurcharge',
+      'bookingUrgentThresholdHours',
+      'marginTop',
+      'marginBottom',
+      'marginLeft',
+      'marginRight',
+      'buttonRadius',
+      'imageRadius',
+    ] as const;
+    const booleanProps = [
+      'required',
+      'hidden',
+      'showPriceInline',
+      'showOptionPrices',
+      'showOptionDetails',
+      'showOptionDescription',
+      'showOptionPrice',
+      'useValueInFormula',
+      'validatePhone',
+      'validateEmail',
+      'showCurrentValue',
+      'showScale',
+      'hideScaleNumbers',
+      'allowManualInput',
+      'resultRounding',
+      'buttonShowWhenValid',
+    ] as const;
+
+    stringProps.forEach((prop) => assertOptionalString(field[prop], `${fieldPath}.${prop}`, fieldLabel));
+    numericProps.forEach((prop) => assertOptionalNumber(field[prop], `${fieldPath}.${prop}`, fieldLabel));
+    booleanProps.forEach((prop) => assertOptionalBoolean(field[prop], `${fieldPath}.${prop}`, fieldLabel));
+
+    if (field.onValue !== undefined && typeof field.onValue !== 'string' && typeof field.onValue !== 'number') {
+      throwJsonTypeError(`${fieldPath}.onValue`, 'строку или число', field.onValue, fieldLabel);
+    }
+
+    if (field.offValue !== undefined && typeof field.offValue !== 'string' && typeof field.offValue !== 'number') {
+      throwJsonTypeError(`${fieldPath}.offValue`, 'строку или число', field.offValue, fieldLabel);
+    }
+
+    if (field.options !== undefined) {
+      if (!Array.isArray(field.options)) {
+        throw new Error(`${fieldPath}.options${fieldLabel ? ` для поля "${fieldLabel}"` : ''} должно содержать массив.`);
+      }
+
+      field.options.forEach((option, optionIndex) => {
+        if (!isRecord(option)) {
+          throw new Error(`${fieldPath}.options[${optionIndex}] должно содержать объект варианта.`);
+        }
+
+        assertOptionalString(option.id, `${fieldPath}.options[${optionIndex}].id`, fieldLabel);
+        assertOptionalString(option.label, `${fieldPath}.options[${optionIndex}].label`, fieldLabel);
+        assertOptionalString(
+          option.description,
+          `${fieldPath}.options[${optionIndex}].description`,
+          fieldLabel,
+        );
+        assertOptionalString(option.image, `${fieldPath}.options[${optionIndex}].image`, fieldLabel);
+        if (option.value !== undefined && typeof option.value !== 'string' && typeof option.value !== 'number') {
+          throwJsonTypeError(
+            `${fieldPath}.options[${optionIndex}].value`,
+            'строку или число',
+            option.value,
+            fieldLabel,
+          );
+        }
+      });
+    }
+
+    if (field.bookingWeekdays !== undefined) {
+      if (!Array.isArray(field.bookingWeekdays) || field.bookingWeekdays.some((day) => typeof day !== 'number')) {
+        throw new Error(`${fieldPath}.bookingWeekdays${fieldLabel ? ` для поля "${fieldLabel}"` : ''} должно содержать массив чисел.`);
+      }
+    }
+
+    if (field.bookingCustomSlots !== undefined) {
+      assertStringArray(field.bookingCustomSlots, `${fieldPath}.bookingCustomSlots`, fieldLabel);
+    }
+
+    if (field.bookingExcludedDates !== undefined) {
+      assertStringArray(field.bookingExcludedDates, `${fieldPath}.bookingExcludedDates`, fieldLabel);
+    }
+
+    validateFieldDefaultValue(field, `${fieldPath}.defaultValue`, fieldLabel);
+  });
+}
 
 const getCleanFieldLabel = (field: CalculatorField) => {
   const inputSubtype = getInputSubtype(field);
@@ -2380,7 +2658,8 @@ export const BuilderPage = ({
 
   const applyJsonStorage = () => {
     try {
-      const parsedTemplate = JSON.parse(jsonDraft) as CalculatorTemplate;
+      const parsedTemplate = JSON.parse(jsonDraft) as unknown;
+      validateImportedTemplate(parsedTemplate);
       const normalizedTemplate = normalizeTemplateContent({
         ...createEmptyTemplate(),
         ...parsedTemplate,
