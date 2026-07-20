@@ -1451,6 +1451,7 @@ body,
 }
 
 .admin-nav__profile-card {
+  min-width: 0;
   align-items: center;
   gap: 12px;
 }
@@ -1476,21 +1477,31 @@ body,
 }
 
 .admin-nav__profile-copy {
+  flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
 }
 
 .admin-nav__profile-name {
+  display: block;
   color: #f7f0e5;
   font-size: 14px;
   font-weight: 700;
   line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-nav__profile-nick {
+  display: block;
   margin-top: 4px;
   color: #9ea497;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-home__sidebar {

@@ -5712,10 +5712,15 @@ export const HomePage = ({
               )}
             </div>
             <div className="admin-nav__profile-copy">
-              <div className="admin-nav__profile-name">
+              <div
+                className="admin-nav__profile-name"
+                title={`${adminProfile.firstName} ${adminProfile.lastName}`.trim()}
+              >
                 {adminProfile.firstName} {adminProfile.lastName}
               </div>
-              <div className="admin-nav__profile-nick">{adminProfile.nickname}</div>
+              <div className="admin-nav__profile-nick" title={adminProfile.nickname}>
+                {adminProfile.nickname}
+              </div>
             </div>
           </div>
         </div>
