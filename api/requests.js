@@ -4,7 +4,7 @@ import {
   requireTrustedViewerContext,
   sendTrustedViewerContextError,
 } from '../server/request-auth.js';
-import { getViewerCommunities } from '../server/community-store.js';
+import { getVerifiedViewerCommunityGroupIds } from '../server/community-store.js';
 import {
   addServerRequest,
   deleteServerRequest,
@@ -182,9 +182,8 @@ async function resolveAvailableGroupIds(auth) {
   }
 
   if (auth?.viewerId > 0) {
-    const connectedCommunities = await getViewerCommunities(auth.viewerId);
-    connectedCommunities.forEach((community) => {
-      const communityGroupId = parseGroupId(community.groupId);
+    const connectedGroupIds = await getVerifiedViewerCommunityGroupIds(auth.viewerId);
+    connectedGroupIds.forEach((communityGroupId) => {
       if (communityGroupId > 0) {
         availableGroupIds.add(communityGroupId);
       }

@@ -6,7 +6,7 @@ import {
   saveServerTemplates,
   transferServerTemplate,
 } from '../server/template-store.js';
-import { getViewerCommunities } from '../server/community-store.js';
+import { getVerifiedViewerCommunityGroupIds } from '../server/community-store.js';
 
 function parseGroupId(rawValue) {
   const groupId = Number(rawValue);
@@ -21,9 +21,8 @@ async function resolveAvailableGroupIds(auth) {
   }
 
   if (auth?.viewerId > 0) {
-    const connectedCommunities = await getViewerCommunities(auth.viewerId);
-    connectedCommunities.forEach((community) => {
-      const communityGroupId = parseGroupId(community.groupId);
+    const connectedGroupIds = await getVerifiedViewerCommunityGroupIds(auth.viewerId);
+    connectedGroupIds.forEach((communityGroupId) => {
       if (communityGroupId > 0) {
         availableGroupIds.add(communityGroupId);
       }
@@ -143,10 +142,7 @@ export default async function handler(request, response) {
         const fromGroupId = parseGroupId(request.body?.fromGroupId);
         const toGroupId = parseGroupId(request.body?.toGroupId);
 
-        const connectedCommunities = await getViewerCommunities(auth.viewerId);
-        const availableGroupIds = new Set(
-          connectedCommunities.map((community) => parseGroupId(community.groupId)),
-        );
+        const availableGroupIds = new Set(await getVerifiedViewerCommunityGroupIds(auth.viewerId));
 
         if (auth.groupId > 0) {
           availableGroupIds.add(auth.groupId);

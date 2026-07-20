@@ -15,7 +15,11 @@ import {
   createDefaultSubscriptionSettings,
   getSubscriptionPlanConfig,
 } from '../server/subscription-config.js';
-import { getViewerCommunities, listAllConnectedCommunities } from '../server/community-store.js';
+import {
+  getVerifiedViewerCommunityGroupIds,
+  getViewerCommunities,
+  listAllConnectedCommunities,
+} from '../server/community-store.js';
 import { resetAllGroupsData, resetSingleGroupData } from '../server/group-reset.js';
 import { getVkUserInfo, hasVkGroupToken, sendVkMessage, sendVkMessageWithOptions } from '../server/vk.js';
 
@@ -58,9 +62,8 @@ async function resolveAvailableGroupIds(auth) {
   }
 
   if (auth?.viewerId > 0) {
-    const connectedCommunities = await getViewerCommunities(auth.viewerId);
-    connectedCommunities.forEach((community) => {
-      const communityGroupId = parseGroupId(community.groupId);
+    const connectedGroupIds = await getVerifiedViewerCommunityGroupIds(auth.viewerId);
+    connectedGroupIds.forEach((communityGroupId) => {
       if (communityGroupId > 0) {
         availableGroupIds.add(communityGroupId);
       }

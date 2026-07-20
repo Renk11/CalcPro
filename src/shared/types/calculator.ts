@@ -295,6 +295,7 @@ export interface CalculatorConnectedCommunity {
   screenName?: string;
   photoUrl?: string;
   role?: string;
+  verifiedAt?: string;
   addedAt: string;
   lastUsedAt: string;
 }

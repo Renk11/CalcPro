@@ -1,10 +1,11 @@
 import { getServerAdminSettings } from './settings-store.js';
-import { getSubscriptionPlanConfig } from './subscription-config.js';
+import { getEffectiveSubscriptionPlan } from './subscription-config.js';
 import { supabaseSelect, supabaseUpsert } from './supabase.js';
 import { getVkCommunityInfo, hasVkGroupToken } from './vk.js';
 
 const COMMUNITIES_KEY_PREFIX = 'calcpro:communities:viewer:';
 const GENERIC_COMMUNITY_NAME_PREFIX = 'Сообщество ';
+const COMMUNITY_ADMIN_ROLES = new Set(['admin', 'editor', 'moder']);
 const MASKED_COMMUNITY_NAMES = new Set([
   'частное сообщество',
   'private community',
@@ -41,9 +42,19 @@ function normalizeCommunityEntry(entry = {}) {
     screenName: String(entry.screenName || ''),
     photoUrl: String(entry.photoUrl || ''),
     role: String(entry.role || ''),
+    verifiedAt: String(entry.verifiedAt || ''),
     addedAt: String(entry.addedAt || timestamp),
     lastUsedAt: String(entry.lastUsedAt || entry.addedAt || timestamp),
   };
+}
+
+function isVerifiedCommunityEntry(entry) {
+  return Boolean(
+    entry &&
+      Number(entry.groupId) > 0 &&
+      String(entry.verifiedAt || '').trim() &&
+      COMMUNITY_ADMIN_ROLES.has(String(entry.role || '').trim().toLowerCase()),
+  );
 }
 
 function isGenericCommunityName(name, groupId) {
@@ -259,7 +270,19 @@ export async function saveViewerCommunities(viewerId, communities) {
   return normalized;
 }
 
-export async function connectViewerCommunity(viewerId, community, workspacePlanId) {
+export async function getVerifiedViewerCommunities(viewerId) {
+  const communities = await getViewerCommunities(viewerId);
+  return communities.filter(isVerifiedCommunityEntry);
+}
+
+export async function getVerifiedViewerCommunityGroupIds(viewerId) {
+  const communities = await getVerifiedViewerCommunities(viewerId);
+  return communities
+    .map((community) => normalizeGroupId(community.groupId))
+    .filter((groupId) => groupId > 0);
+}
+
+export async function connectViewerCommunity(viewerId, community) {
   const normalizedViewerId = normalizeViewerId(viewerId);
   const baseCommunity = normalizeCommunityEntry(community);
 
@@ -275,11 +298,15 @@ export async function connectViewerCommunity(viewerId, community, workspacePlanI
   const existingCommunity =
     latestList.find((item) => item.groupId === baseCommunity.groupId) || null;
   const explicitCustomName = String(community?.name || '').trim();
+  const normalizedRole = String(community?.role || '').trim().toLowerCase();
+  const verifiedAt = String(community?.verifiedAt || '').trim() || new Date().toISOString();
   let normalizedCommunity = normalizeCommunityEntry({
     ...baseCommunity,
     name: pickCommunityName(baseCommunity.groupId, baseCommunity.name, existingCommunity?.name),
     screenName: baseCommunity.screenName || existingCommunity?.screenName || '',
     photoUrl: baseCommunity.photoUrl || existingCommunity?.photoUrl || '',
+    role: normalizedRole,
+    verifiedAt,
   });
 
   if (hasVkGroupToken()) {
@@ -304,9 +331,7 @@ export async function connectViewerCommunity(viewerId, community, workspacePlanI
   }
 
   const groupSettings = await getServerAdminSettings(normalizedCommunity.groupId);
-  const activePlan = workspacePlanId
-    ? getSubscriptionPlanConfig(workspacePlanId)
-    : getSubscriptionPlanConfig(groupSettings.subscription.plan);
+  const activePlan = getEffectiveSubscriptionPlan(groupSettings.subscription);
   const communityLimit = activePlan.communityLimit;
   const existingIndex = latestList.findIndex(
     (item) => item.groupId === normalizedCommunity.groupId,

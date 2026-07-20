@@ -22,10 +22,6 @@ function parseViewerId(rawValue) {
   return viewerId ? viewerId : '';
 }
 
-function parseWorkspacePlan(rawValue) {
-  return rawValue === 'free' || rawValue === 'start' || rawValue === 'pro' ? rawValue : undefined;
-}
-
 export default async function handler(request, response) {
   try {
     const action = String(request.query?.action || request.body?.action || '').toLowerCase();
@@ -86,11 +82,25 @@ export default async function handler(request, response) {
         name: request.body?.name,
         screenName: request.body?.screenName,
         photoUrl: request.body?.photoUrl,
-        role: request.body?.role,
+        role: auth.viewerRole,
+        verifiedAt: new Date().toISOString(),
       };
-      const workspacePlan = parseWorkspacePlan(request.body?.workspacePlan);
 
-      const communities = await connectViewerCommunity(viewerId, community, workspacePlan);
+      if (!auth.isCommunityAdmin) {
+        return sendJson(response, 403, {
+          ok: false,
+          error: 'Community admin access required',
+        });
+      }
+
+      if (community.groupId <= 0 || auth.groupId <= 0 || community.groupId !== auth.groupId) {
+        return sendJson(response, 403, {
+          ok: false,
+          error: 'Community can be connected only from the current VK community context',
+        });
+      }
+
+      const communities = await connectViewerCommunity(viewerId, community);
 
       if (request.body?.notifyConnect === true) {
         await notifyCommunityConnected({
