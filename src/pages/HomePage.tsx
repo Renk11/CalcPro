@@ -53,6 +53,25 @@ import type {
   CalculatorTemplate,
 } from '../shared/types/calculator';
 
+const formatCalculatorLimitLabel = (limit: number) => {
+  const absLimit = Math.abs(limit) % 100;
+  const lastDigit = absLimit % 10;
+
+  if (absLimit > 10 && absLimit < 20) {
+    return `${limit} калькуляторов`;
+  }
+
+  if (lastDigit === 1) {
+    return `${limit} калькулятор`;
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return `${limit} калькулятора`;
+  }
+
+  return `${limit} калькуляторов`;
+};
+
 interface HomePageProps {
   connectedCommunities: CalculatorConnectedCommunity[];
   folders: CalculatorFolder[];
@@ -3408,7 +3427,7 @@ export const HomePage = ({
                 <div className="create-calculator-tile__tooltip">
                   {currentPlan.calculatorLimit == null
                     ? 'Лимит по калькуляторам снят.'
-                    : `${currentPlan.name}: до ${currentPlan.calculatorLimit} калькуляторов`}
+                    : `${currentPlan.name}: до ${formatCalculatorLimitLabel(currentPlan.calculatorLimit)}`}
                 </div>
               ) : null}
             </div>
