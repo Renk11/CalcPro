@@ -72,6 +72,38 @@ const PREVIEW_DEVICE_CONFIG = {
   mobile: { label: 'Телефон', width: 360, height: 780 },
 } as const;
 
+const copyTextToClipboard = async (value: string) => {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '0';
+  textarea.style.left = '0';
+  textarea.style.width = '1px';
+  textarea.style.height = '1px';
+  textarea.style.padding = '0';
+  textarea.style.border = '0';
+  textarea.style.opacity = '0';
+  textarea.style.pointerEvents = 'none';
+
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  const isCopied = document.execCommand('copy');
+  document.body.removeChild(textarea);
+
+  if (!isCopied) {
+    throw new Error('Copy command is unavailable');
+  }
+};
+
 type PreviewDevice = keyof typeof PREVIEW_DEVICE_CONFIG;
 
 type BuilderLibraryItem = {
@@ -2318,7 +2350,7 @@ export const BuilderPage = ({
 
   const copyJsonStorage = async () => {
     try {
-      await navigator.clipboard.writeText(jsonDraft);
+      await copyTextToClipboard(jsonDraft);
       setJsonError('');
       showSaveToast('JSON скопирован');
     } catch {
