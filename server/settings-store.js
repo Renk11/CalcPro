@@ -272,11 +272,7 @@ async function writeSettingRow(key, value) {
 export async function getServerAdminSettings(groupId) {
   const scopedKey = getAdminSettingsKey(groupId);
   const scopedSettings = await readSettingRow(scopedKey);
-  const settings =
-    scopedSettings ||
-    (normalizeGroupId(groupId)
-      ? (await readSettingRow(ADMIN_SETTINGS_KEY)) || createDefaultAdminSettings()
-      : createDefaultAdminSettings());
+  const settings = scopedSettings || createDefaultAdminSettings();
   return normalizeAdminSettings(settings);
 }
 

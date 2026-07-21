@@ -398,7 +398,13 @@ const scopeCommunitiesToContext = (
   communities: CalculatorConnectedCommunity[],
   launchGroupId: number,
   fallbackCommunity: CalculatorConnectedCommunity | null,
+  communityLimit?: number | null,
 ) => {
+  if (communityLimit === 1 && launchGroupId > 0) {
+    const currentCommunity = communities.find((community) => community.groupId === launchGroupId);
+    return currentCommunity ? [currentCommunity] : fallbackCommunity ? [fallbackCommunity] : [];
+  }
+
   if (communities.length > 0) {
     const unique = new Map<number, CalculatorConnectedCommunity>();
     communities.forEach((community) => {
@@ -813,7 +819,12 @@ const App = () => {
 
           if (!isCancelled && connectedResponse.ok && connectedPayload?.ok && Array.isArray(connectedPayload.data)) {
             setConnectedCommunities(
-              scopeCommunitiesToContext(connectedPayload.data, currentGroupId, fallbackCommunity),
+              scopeCommunitiesToContext(
+                connectedPayload.data,
+                currentGroupId,
+                fallbackCommunity,
+                currentPlan.communityLimit,
+              ),
             );
             return;
           }
@@ -839,6 +850,7 @@ const App = () => {
               payload.data.length === 0 && fallbackCommunity ? [fallbackCommunity] : payload.data,
               currentGroupId,
               fallbackCommunity,
+              currentPlan.communityLimit,
             ),
           );
         }
@@ -1959,7 +1971,12 @@ const App = () => {
         }
 
         setConnectedCommunities(
-          scopeCommunitiesToContext(payload.data, currentGroupId, fallbackCommunity),
+          scopeCommunitiesToContext(
+            payload.data,
+            currentGroupId,
+            fallbackCommunity,
+            currentPlan.communityLimit,
+          ),
         );
       }
 
@@ -2541,7 +2558,12 @@ const App = () => {
       .then((payload: { ok?: boolean; data?: CalculatorConnectedCommunity[] } | null) => {
         if (payload?.ok && Array.isArray(payload.data)) {
           setConnectedCommunities(
-            scopeCommunitiesToContext(payload.data, currentGroupId, fallbackCommunity),
+            scopeCommunitiesToContext(
+              payload.data,
+              currentGroupId,
+              fallbackCommunity,
+              currentPlan.communityLimit,
+            ),
           );
         }
       })
@@ -2582,7 +2604,12 @@ const App = () => {
       .then((payload: { ok?: boolean; data?: CalculatorConnectedCommunity[] } | null) => {
         if (payload?.ok && Array.isArray(payload.data)) {
           setConnectedCommunities(
-            scopeCommunitiesToContext(payload.data, currentGroupId, fallbackCommunity),
+            scopeCommunitiesToContext(
+              payload.data,
+              currentGroupId,
+              fallbackCommunity,
+              currentPlan.communityLimit,
+            ),
           );
           return;
         }
