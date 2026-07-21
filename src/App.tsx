@@ -511,6 +511,7 @@ const App = () => {
   const [liveSyncRevision, setLiveSyncRevision] = useState(0);
   const [isCommunitiesLoading, setIsCommunitiesLoading] = useState(true);
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
+  const [suppressedCurrentCommunityGroupId, setSuppressedCurrentCommunityGroupId] = useState(0);
   const [isStartupSplashVisible, setIsStartupSplashVisible] = useState(true);
   const [hasStartupDelayElapsed, setHasStartupDelayElapsed] = useState(false);
   const [isLaunchParamsResolved, setIsLaunchParamsResolved] = useState(false);
@@ -798,6 +799,15 @@ const App = () => {
 
     const syncCommunities = async () => {
       try {
+        if (suppressedCurrentCommunityGroupId > 0 && suppressedCurrentCommunityGroupId === currentGroupId) {
+          if (!isCancelled) {
+            setConnectedCommunities((current) =>
+              current.filter((community) => community.groupId !== suppressedCurrentCommunityGroupId),
+            );
+          }
+          return;
+        }
+
         if (currentGroupId > 0) {
           let resolvedCurrentCommunity = fallbackCommunity;
 
@@ -938,11 +948,13 @@ const App = () => {
   }, [
     currentGroupId,
     currentPlan.id,
+    currentPlan.communityLimit,
     viewerGroupRole,
     fallbackCommunity,
     isLaunchParamsResolved,
     isPublicViewer,
     liveSyncRevision,
+    suppressedCurrentCommunityGroupId,
   ]);
 
   useEffect(() => {
@@ -1616,6 +1628,7 @@ const App = () => {
 
       resetAllCalcProStorage();
       setConnectedCommunities([]);
+      setSuppressedCurrentCommunityGroupId(currentGroupId > 0 ? currentGroupId : 0);
       setTemplates([]);
       setFolders([]);
       setRequests([]);
@@ -1676,6 +1689,9 @@ const App = () => {
       );
 
       if (targetGroupId === effectiveAdminGroupId) {
+        if (targetGroupId === currentGroupId) {
+          setSuppressedCurrentCommunityGroupId(targetGroupId);
+        }
         resetCalcProStorageForGroup(targetGroupId);
         setTemplates(getTemplates());
         setFolders(getFolders());

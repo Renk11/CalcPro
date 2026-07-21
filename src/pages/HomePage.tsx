@@ -1268,6 +1268,7 @@ type SuperAdminPlansTabProps = {
 };
 
 type SuperAdminResetTabProps = {
+  status: string;
   resetGroupIdValue: string;
   resetGroupCommandValue: string;
   resetCommandValue: string;
@@ -1460,6 +1461,7 @@ const SuperAdminPlansTab = ({
 );
 
 const SuperAdminResetTab = ({
+  status,
   resetGroupIdValue,
   resetGroupCommandValue,
   resetCommandValue,
@@ -1536,6 +1538,8 @@ const SuperAdminResetTab = ({
     >
       Reset all groups
     </button>
+
+    {status ? <div className="superadmin-card__status superadmin-card__status_toast">{status}</div> : null}
   </section>
 );
 
@@ -5952,6 +5956,7 @@ export const HomePage = ({
 
               {activeSuperAdminTab === 'reset' ? (
                 <SuperAdminResetTab
+                  status={superAdminStatus}
                   resetGroupIdValue={resetGroupIdValue}
                   resetGroupCommandValue={resetGroupCommandValue}
                   resetCommandValue={resetCommandValue}
