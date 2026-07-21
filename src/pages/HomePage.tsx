@@ -195,7 +195,7 @@ const restrictedMonetizationFaqPattern =
   /\b(?:free|start|pro)\b|тариф|тарифах|оплат|подписк|апгрейд/iu;
 const BILLING_REMINDER_CONTACT_LABEL = 'сообществу CalcPro';
 const BILLING_REMINDER_CONTACT_LINK = 'https://vk.com/im?sel=-180574723';
-const MAX_COMMUNITY_NAME_LENGTH = 120;
+const MAX_COMMUNITY_NAME_LENGTH = 48;
 
 const formatSubscriptionCountdown = (diffMs: number) => {
   if (diffMs <= 0) {
@@ -3254,7 +3254,7 @@ export const HomePage = ({
 
   const openRenameCommunityModal = (groupId: number, currentName: string) => {
     setPendingRenameCommunity({ groupId, currentName });
-    setCommunityNameDraft(currentName);
+    setCommunityNameDraft(currentName.slice(0, MAX_COMMUNITY_NAME_LENGTH));
   };
 
   const closeRenameCommunityModal = () => {
@@ -5799,7 +5799,9 @@ export const HomePage = ({
                 value={communityNameDraft}
                 maxLength={MAX_COMMUNITY_NAME_LENGTH}
                 autoFocus
-                onChange={(event) => setCommunityNameDraft(event.target.value)}
+                onChange={(event) =>
+                  setCommunityNameDraft(event.target.value.slice(0, MAX_COMMUNITY_NAME_LENGTH))
+                }
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
                     event.preventDefault();
@@ -5807,6 +5809,9 @@ export const HomePage = ({
                   }
                 }}
               />
+              <div className="admin-modal__hint">
+                {communityNameDraft.length}/{MAX_COMMUNITY_NAME_LENGTH}
+              </div>
             </div>
             <div className="admin-modal__actions">
               <button
