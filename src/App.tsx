@@ -400,11 +400,6 @@ const scopeCommunitiesToContext = (
   fallbackCommunity: CalculatorConnectedCommunity | null,
   communityLimit?: number | null,
 ) => {
-  if (communityLimit === 1 && launchGroupId > 0) {
-    const currentCommunity = communities.find((community) => community.groupId === launchGroupId);
-    return currentCommunity ? [currentCommunity] : fallbackCommunity ? [fallbackCommunity] : [];
-  }
-
   if (communities.length > 0) {
     const unique = new Map<number, CalculatorConnectedCommunity>();
     communities.forEach((community) => {
@@ -415,10 +410,27 @@ const scopeCommunitiesToContext = (
       unique.set(launchGroupId, fallbackCommunity);
     }
 
-    return [...unique.values()].sort(
+    const sortedCommunities = [...unique.values()].sort(
       (left, right) =>
         new Date(right.lastUsedAt).getTime() - new Date(left.lastUsedAt).getTime(),
     );
+
+    if (communityLimit === 1) {
+      if (launchGroupId > 0) {
+        const currentCommunity = sortedCommunities.find(
+          (community) => community.groupId === launchGroupId,
+        );
+        return currentCommunity
+          ? [currentCommunity]
+          : fallbackCommunity
+            ? [fallbackCommunity]
+            : sortedCommunities.slice(0, 1);
+      }
+
+      return sortedCommunities.slice(0, 1);
+    }
+
+    return sortedCommunities;
   }
 
   return fallbackCommunity ? [fallbackCommunity] : [];
@@ -643,6 +655,27 @@ const App = () => {
       setActiveAdminGroupId(currentGroupId);
     }
   }, [activeAdminGroupId, currentGroupId]);
+
+  useEffect(() => {
+    if (activeAdminGroupId <= 0) {
+      return;
+    }
+
+    const hasActiveCommunity = connectedCommunities.some(
+      (community) => community.groupId === activeAdminGroupId,
+    );
+
+    if (hasActiveCommunity) {
+      return;
+    }
+
+    if (currentGroupId > 0) {
+      setActiveAdminGroupId(currentGroupId);
+      return;
+    }
+
+    setActiveAdminGroupId(connectedCommunities[0]?.groupId || 0);
+  }, [activeAdminGroupId, connectedCommunities, currentGroupId]);
 
   useEffect(() => {
     if (isViewerGroupAdmin) {
