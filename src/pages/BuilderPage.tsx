@@ -2873,7 +2873,7 @@ export const BuilderPage = ({
           </div>
         </aside>
 
-        {mode !== 'formula' && !isLivePreview ? (
+        {mode !== 'formula' && !isLivePreview && !(isOverlayViewport && isLibraryOpen) ? (
         <button
           className={`builder-library__toggle builder-floating-toggle_legacy ${isLibraryOpen ? 'builder-library__toggle_open' : ''}`}
           type="button"
@@ -4050,7 +4050,7 @@ export const BuilderPage = ({
           </div>
         ) : null}
 
-        {mode !== 'formula' && !isLivePreview ? (
+        {mode !== 'formula' && !isLivePreview && !(isOverlayViewport && isInspectorVisible) ? (
           <button
             className={`builder-inspector__toggle builder-floating-toggle_legacy ${isInspectorVisible ? 'builder-inspector__toggle_open' : ''} ${!selectedField && !isRequestFormSelected && !isResultCardSelected ? 'builder-inspector__toggle_muted' : ''}`}
             type="button"
