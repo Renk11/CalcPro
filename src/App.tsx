@@ -424,6 +424,9 @@ const scopeCommunitiesToContext = (
   return fallbackCommunity ? [fallbackCommunity] : [];
 };
 
+const isGenericCommunityName = (name: string, groupId: number) =>
+  String(name || '').trim() === `Сообщество ${groupId}`;
+
 const getMonthRequestCount = (
   requests: CalculatorRequest[],
   quotaStartedAt?: string,
@@ -796,12 +799,74 @@ const App = () => {
     const syncCommunities = async () => {
       try {
         if (currentGroupId > 0) {
+          let resolvedCurrentCommunity = fallbackCommunity;
+
+          try {
+            const bridgeCommunity = parseCommunityPayload(
+              await bridge.send('VKWebAppGetGroupInfo' as never, { group_id: currentGroupId } as never),
+            );
+
+            if (bridgeCommunity?.groupId === currentGroupId) {
+              resolvedCurrentCommunity = {
+                groupId: currentGroupId,
+                name: bridgeCommunity.name || fallbackCommunity?.name || `Сообщество ${currentGroupId}`,
+                screenName: bridgeCommunity.screenName || '',
+                photoUrl: bridgeCommunity.photoUrl || '',
+                role: viewerGroupRole,
+                addedAt: fallbackCommunity?.addedAt || new Date().toISOString(),
+                lastUsedAt: new Date().toISOString(),
+              };
+            }
+          } catch {
+            if (
+              !resolvedCurrentCommunity ||
+              isGenericCommunityName(resolvedCurrentCommunity.name, currentGroupId)
+            ) {
+              try {
+                const resolveResponse = await fetch(createApiUrl('/api/communities?action=resolve'), {
+                  method: 'POST',
+                  headers: createJsonHeaders(),
+                  body: JSON.stringify({
+                    groupId: currentGroupId,
+                    community: currentGroupId,
+                  }),
+                });
+                const resolvePayload = (await resolveResponse.json().catch(() => null)) as
+                  | {
+                      ok?: boolean;
+                      data?: { groupId?: number; name?: string; screenName?: string; photoUrl?: string };
+                    }
+                  | null;
+
+                if (
+                  resolveResponse.ok &&
+                  resolvePayload?.ok &&
+                  Number(resolvePayload.data?.groupId) === currentGroupId
+                ) {
+                  resolvedCurrentCommunity = {
+                    groupId: currentGroupId,
+                    name: String(resolvePayload.data?.name || '').trim() || `Сообщество ${currentGroupId}`,
+                    screenName: String(resolvePayload.data?.screenName || '').trim(),
+                    photoUrl: String(resolvePayload.data?.photoUrl || '').trim(),
+                    role: viewerGroupRole,
+                    addedAt: fallbackCommunity?.addedAt || new Date().toISOString(),
+                    lastUsedAt: new Date().toISOString(),
+                  };
+                }
+              } catch {
+                // Keep fallback community name when external resolution is unavailable.
+              }
+            }
+          }
+
           const connectedResponse = await fetch(createApiUrl('/api/communities'), {
             method: 'POST',
             headers: createJsonHeaders(),
             body: JSON.stringify({
               groupId: currentGroupId,
-              name: `Сообщество ${currentGroupId}`,
+              name: resolvedCurrentCommunity?.name || `Сообщество ${currentGroupId}`,
+              screenName: resolvedCurrentCommunity?.screenName || '',
+              photoUrl: resolvedCurrentCommunity?.photoUrl || '',
               role: viewerGroupRole,
               workspacePlan: currentPlan.id,
             }),
