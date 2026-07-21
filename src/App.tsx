@@ -2675,6 +2675,7 @@ const App = () => {
       body: JSON.stringify({
         groupId,
         name: normalizedName,
+        customName: true,
         screenName: currentCommunity?.screenName,
         photoUrl: currentCommunity?.photoUrl,
         role: currentCommunity?.role || viewerGroupRole,

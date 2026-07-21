@@ -39,6 +39,7 @@ function normalizeCommunityEntry(entry = {}) {
   return {
     groupId,
     name: String(entry.name || `${GENERIC_COMMUNITY_NAME_PREFIX}${groupId}`),
+    customName: String(entry.customName || '').trim(),
     screenName: String(entry.screenName || ''),
     photoUrl: String(entry.photoUrl || ''),
     role: String(entry.role || ''),
@@ -101,7 +102,8 @@ function shouldRefreshCommunityFromVk(community) {
   }
 
   return (
-    isGenericCommunityName(community.name, community.groupId) ||
+    (!String(community.customName || '').trim() &&
+      isGenericCommunityName(community.name, community.groupId)) ||
     isMaskedCommunityName(community.name) ||
     !String(community.screenName || '').trim() ||
     !String(community.photoUrl || '').trim()
@@ -124,9 +126,10 @@ async function enrichCommunitiesWithVkData(communities) {
 
     try {
       const vkCommunity = await getVkCommunityInfo(community.groupId);
+      const preservedCustomName = String(community.customName || '').trim();
       const enrichedCommunity = normalizeCommunityEntry({
         ...community,
-        name: pickCommunityName(community.groupId, vkCommunity.name, community.name),
+        name: preservedCustomName || pickCommunityName(community.groupId, vkCommunity.name, community.name),
         screenName: vkCommunity.screenName || community.screenName || '',
         photoUrl: vkCommunity.photoUrl || community.photoUrl || '',
       });
@@ -298,11 +301,19 @@ export async function connectViewerCommunity(viewerId, community) {
   const existingCommunity =
     latestList.find((item) => item.groupId === baseCommunity.groupId) || null;
   const explicitCustomName = String(community?.name || '').trim();
+  const requestedCustomName = Boolean(community?.customName && explicitCustomName);
+  const preservedCustomName =
+    requestedCustomName
+      ? explicitCustomName
+      : String(existingCommunity?.customName || '').trim();
   const normalizedRole = String(community?.role || '').trim().toLowerCase();
   const verifiedAt = String(community?.verifiedAt || '').trim() || new Date().toISOString();
   let normalizedCommunity = normalizeCommunityEntry({
     ...baseCommunity,
-    name: pickCommunityName(baseCommunity.groupId, baseCommunity.name, existingCommunity?.name),
+    name:
+      preservedCustomName ||
+      pickCommunityName(baseCommunity.groupId, baseCommunity.name, existingCommunity?.name),
+    customName: preservedCustomName,
     screenName: baseCommunity.screenName || existingCommunity?.screenName || '',
     photoUrl: baseCommunity.photoUrl || existingCommunity?.photoUrl || '',
     role: normalizedRole,
@@ -314,13 +325,15 @@ export async function connectViewerCommunity(viewerId, community) {
       const vkCommunity = await getVkCommunityInfo(baseCommunity.groupId);
       normalizedCommunity = normalizeCommunityEntry({
         ...normalizedCommunity,
-        name: pickCommunityName(
-          baseCommunity.groupId,
-          explicitCustomName,
-          normalizedCommunity?.name,
-          existingCommunity?.name,
-          vkCommunity.name,
-        ),
+        name:
+          preservedCustomName ||
+          pickCommunityName(
+            baseCommunity.groupId,
+            normalizedCommunity?.name,
+            existingCommunity?.name,
+            vkCommunity.name,
+          ),
+        customName: preservedCustomName,
         screenName:
           vkCommunity.screenName || normalizedCommunity?.screenName || existingCommunity?.screenName,
         photoUrl: vkCommunity.photoUrl || normalizedCommunity?.photoUrl || existingCommunity?.photoUrl,
