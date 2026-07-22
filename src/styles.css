@@ -4941,6 +4941,10 @@ body,
   padding: 24px;
 }
 
+.builder-admin-modal {
+  z-index: 80;
+}
+
 .admin-modal__backdrop {
   position: absolute;
   inset: 0;

@@ -5832,7 +5832,7 @@ export const BuilderPage = ({
         </aside>
 
         {isJsonModalOpen ? (
-          <div className="admin-modal" role="dialog" aria-modal="true">
+          <div className="admin-modal builder-admin-modal" role="dialog" aria-modal="true">
             <div className="admin-modal__backdrop" onClick={() => setIsJsonModalOpen(false)} />
             <div className="admin-modal__card admin-modal__card_wide builder-json-modal">
               <div className="admin-modal__eyebrow">{'JSON-хранилище'}</div>
@@ -5875,7 +5875,7 @@ export const BuilderPage = ({
         ) : null}
 
         {activeLegalDoc ? (
-          <div className="admin-modal" role="dialog" aria-modal="true">
+          <div className="admin-modal builder-admin-modal" role="dialog" aria-modal="true">
             <div className="admin-modal__backdrop" onClick={() => setActiveLegalDoc(null)} />
             <div className="admin-modal__card admin-modal__card_wide calculator-legal-modal">
               <div className="admin-modal__eyebrow">{legalDocs[activeLegalDoc].caption}</div>
@@ -5907,7 +5907,7 @@ export const BuilderPage = ({
         ) : null}
 
         {pendingDeleteFieldId ? (
-          <div className="admin-modal" role="dialog" aria-modal="true">
+          <div className="admin-modal builder-admin-modal" role="dialog" aria-modal="true">
             <div className="admin-modal__backdrop" onClick={() => setPendingDeleteFieldId(null)} />
             <div className="admin-modal__card">
               <div className='admin-modal__eyebrow'>{'\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u0435'}</div>
@@ -5939,7 +5939,7 @@ export const BuilderPage = ({
         ) : null}
 
         {pendingDeleteOption ? (
-          <div className="admin-modal" role="dialog" aria-modal="true">
+          <div className="admin-modal builder-admin-modal" role="dialog" aria-modal="true">
             <div className="admin-modal__backdrop" onClick={() => setPendingDeleteOption(null)} />
             <div className="admin-modal__card">
               <div className='admin-modal__eyebrow'>{'\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u0435'}</div>
