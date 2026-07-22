@@ -196,6 +196,27 @@ const restrictedMonetizationFaqPattern =
 const BILLING_REMINDER_CONTACT_LABEL = 'сообществу CalcPro';
 const BILLING_REMINDER_CONTACT_LINK = 'https://vk.com/im?sel=-180574723';
 const MAX_COMMUNITY_NAME_LENGTH = 48;
+const ADMIN_NAV_COMMUNITY_LABEL_MAX_LENGTH = 28;
+
+const truncateWithEllipsis = (value: string, maxLength: number) => {
+  const normalized = String(value || '').trim();
+  if (!normalized || normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+};
+
+const formatAdminNavCommunityLabel = (community: CalculatorConnectedCommunity) => {
+  const normalizedName = String(community.name || '').trim();
+  const fallbackName = community.groupId > 0 ? `ID ${community.groupId}` : 'Группа';
+
+  if (!normalizedName) {
+    return fallbackName;
+  }
+
+  return `${truncateWithEllipsis(normalizedName, ADMIN_NAV_COMMUNITY_LABEL_MAX_LENGTH)} · ID ${community.groupId}`;
+};
 
 const formatSubscriptionCountdown = (diffMs: number) => {
   if (diffMs <= 0) {
@@ -5611,7 +5632,7 @@ export const HomePage = ({
             {connectedCommunities.length ? (
               connectedCommunities.map((community) => (
                 <option key={community.groupId} value={community.groupId}>
-                  {community.name} · ID {community.groupId}
+                  {formatAdminNavCommunityLabel(community)}
                 </option>
               ))
             ) : (
