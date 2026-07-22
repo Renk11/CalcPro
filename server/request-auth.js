@@ -68,7 +68,7 @@ function shouldBypassLaunchParamsVerification(request) {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    return isConfiguredAppHost(request?.headers?.host) && hasQueryLaunchParams(request);
+    return false;
   }
 
   const hostHeader = String(request?.headers?.host || '').trim().toLowerCase();
@@ -287,6 +287,14 @@ export function getTrustedViewerContextError(request) {
         errorCode: 'invalid_signature',
       };
     }
+
+    return null;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return {
+      errorCode: 'missing_vk_app_secret',
+    };
   }
 
   return null;

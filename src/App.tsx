@@ -911,7 +911,6 @@ const App = () => {
               screenName: resolvedCurrentCommunity?.screenName || '',
               photoUrl: resolvedCurrentCommunity?.photoUrl || '',
               role: viewerGroupRole,
-              workspacePlan: currentPlan.id,
             }),
           });
           const connectedPayload = (await connectedResponse.json().catch(() => null)) as
@@ -2063,7 +2062,6 @@ const App = () => {
             screenName: resolvedCommunity?.screenName,
             photoUrl: resolvedCommunity?.photoUrl,
             role: viewerGroupRole,
-            workspacePlan: currentPlan.id,
             platform: launchParams?.vk_platform ?? '',
             notifyConnect: true,
           }),
@@ -2712,7 +2710,6 @@ const App = () => {
         screenName: currentCommunity?.screenName,
         photoUrl: currentCommunity?.photoUrl,
         role: currentCommunity?.role || viewerGroupRole,
-        workspacePlan: currentPlan.id,
       }),
     })
       .then((response) => response.json().catch(() => null))
