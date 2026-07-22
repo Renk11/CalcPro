@@ -1586,6 +1586,31 @@ export const BuilderPage = ({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!activeLegalDoc) {
+      return;
+    }
+
+    const body = document.body;
+    const root = document.getElementById('root');
+    const previousBodyOverflow = body.style.overflow;
+    const previousRootOverflow = root?.style.overflow ?? '';
+
+    body.style.overflow = 'hidden';
+
+    if (root) {
+      root.style.overflow = 'hidden';
+    }
+
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+
+      if (root) {
+        root.style.overflow = previousRootOverflow;
+      }
+    };
+  }, [activeLegalDoc]);
   const [formulaDrafts, setFormulaDrafts] = useState(() => ({
     basePrice: String((initialTemplate ?? createEmptyTemplate()).basePrice),
     discount: String((initialTemplate ?? createEmptyTemplate()).discount),
