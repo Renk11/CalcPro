@@ -3282,15 +3282,16 @@ export const HomePage = ({
         <div className="admin-home__sidebar-top">
           <div className="admin-home__sidebar-head">
             <h2 className="admin-home__sidebar-title">Папки</h2>
-            <button
-              className="admin-home__icon-button"
-              type="button"
-              aria-label="Создать папку"
-              disabled={!canUseFolders}
-              onClick={onCreateFolder}
-            >
-              <Icon20Add />
-            </button>
+            {canUseFolders ? (
+              <button
+                className="admin-home__icon-button"
+                type="button"
+                aria-label="Создать папку"
+                onClick={onCreateFolder}
+              >
+                <Icon20Add />
+              </button>
+            ) : null}
           </div>
           {!canUseFolders ? (
             <div className="create-calculator-tile__tooltip">
