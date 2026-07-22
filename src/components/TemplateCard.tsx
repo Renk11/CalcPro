@@ -60,6 +60,10 @@ export const TemplateCard = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const isPublished = template.publicationStatus === 'published';
+  const isDraft = template.publicationStatus === 'draft';
+  const isHidden = template.publicationStatus === 'hidden';
+  const isArchived = template.publicationStatus === 'archived';
   const safeTitle = hasMojibake(template.title) ? 'Новый калькулятор' : template.title;
   const safeDescription = hasMojibake(template.description) ? '' : template.description;
   const safeLastModifiedBy = hasMojibake(template.lastModifiedBy)
@@ -114,6 +118,7 @@ export const TemplateCard = ({
                   <button
                     className="template-card__menu-action"
                     type="button"
+                    disabled={isPublished}
                     onClick={() => {
                       onUpdateStatus(template, 'published');
                       setIsMenuOpen(false);
@@ -124,6 +129,7 @@ export const TemplateCard = ({
                   <button
                     className="template-card__menu-action"
                     type="button"
+                    disabled={isDraft}
                     onClick={() => {
                       onUpdateStatus(template, 'draft');
                       setIsMenuOpen(false);
@@ -134,6 +140,7 @@ export const TemplateCard = ({
                   <button
                     className="template-card__menu-action"
                     type="button"
+                    disabled={isHidden}
                     onClick={() => {
                       onUpdateStatus(template, 'hidden');
                       setIsMenuOpen(false);
@@ -144,6 +151,7 @@ export const TemplateCard = ({
                   <button
                     className="template-card__menu-action"
                     type="button"
+                    disabled={isArchived}
                     onClick={() => {
                       onUpdateStatus(template, 'archived');
                       setIsMenuOpen(false);
