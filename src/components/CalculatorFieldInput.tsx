@@ -91,6 +91,15 @@ const getInputSubtype = (field: CalculatorField): InputFieldSubtype | null => {
   return null;
 };
 
+const stopDesignModePropagation = (
+  event: { stopPropagation: () => void },
+  isDesignMode?: boolean,
+) => {
+  if (isDesignMode) {
+    event.stopPropagation();
+  }
+};
+
 const getDefaultInputPlaceholder = (inputSubtype: InputFieldSubtype) => {
   switch (inputSubtype) {
     case 'number':
@@ -1060,6 +1069,9 @@ export const CalculatorFieldInput = ({
               max={max}
               step={step}
               value={sliderValue}
+              onPointerDown={(event) => stopDesignModePropagation(event, isDesignMode)}
+              onClick={(event) => stopDesignModePropagation(event, isDesignMode)}
+              onFocus={(event) => stopDesignModePropagation(event, isDesignMode)}
               onChange={(event) => onChange(Number(event.target.value))}
             />
           ) : null}
@@ -1073,6 +1085,9 @@ export const CalculatorFieldInput = ({
               step={step}
               value={sliderValue}
               placeholder={field.placeholder || 'Введите число'}
+              onPointerDown={(event) => stopDesignModePropagation(event, isDesignMode)}
+              onClick={(event) => stopDesignModePropagation(event, isDesignMode)}
+              onFocus={(event) => stopDesignModePropagation(event, isDesignMode)}
               onChange={(event) =>
                 onChange(event.target.value === '' ? min : Number(event.target.value))
               }
