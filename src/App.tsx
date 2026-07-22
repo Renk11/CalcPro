@@ -1415,11 +1415,12 @@ const App = () => {
     resolve?.(value);
   };
 
-  const openAdminHome = () => {
+  const openAdminHome = async () => {
     if (!isViewerGroupAdmin) {
       return;
     }
 
+    await preloadHomePage().catch(() => undefined);
     setActiveView('home');
   };
 
