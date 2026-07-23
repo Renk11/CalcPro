@@ -77,13 +77,19 @@ export default async function handler(request, response) {
         return sendJson(response, 200, { ok: true, data: community });
       }
 
+      const customNameRequested = request.body?.customName === true;
+      const isCurrentCommunityContext =
+        parseGroupId(request.body?.groupId) > 0 &&
+        auth.groupId > 0 &&
+        parseGroupId(request.body?.groupId) === auth.groupId;
       const community = {
         groupId: parseGroupId(request.body?.groupId),
         name: request.body?.name,
+        customName: customNameRequested,
         screenName: request.body?.screenName,
         photoUrl: request.body?.photoUrl,
-        role: auth.viewerRole,
-        verifiedAt: new Date().toISOString(),
+        role: isCurrentCommunityContext ? auth.viewerRole : request.body?.role,
+        verifiedAt: isCurrentCommunityContext ? new Date().toISOString() : '',
       };
 
       if (!auth.isCommunityAdmin) {
@@ -93,7 +99,27 @@ export default async function handler(request, response) {
         });
       }
 
-      if (community.groupId <= 0 || auth.groupId <= 0 || community.groupId !== auth.groupId) {
+      if (community.groupId <= 0) {
+        return sendJson(response, 400, {
+          ok: false,
+          error: 'groupId is required',
+        });
+      }
+
+      if (customNameRequested) {
+        const existingCommunities = await getViewerCommunities(viewerId);
+        const existingCommunity = existingCommunities.find((item) => item.groupId === community.groupId);
+
+        if (!existingCommunity) {
+          return sendJson(response, 404, {
+            ok: false,
+            error: 'Community is not connected to the current workspace',
+          });
+        }
+      } else if (
+        auth.groupId <= 0 ||
+        (community.groupId !== auth.groupId && request.body?.notifyConnect !== true)
+      ) {
         return sendJson(response, 403, {
           ok: false,
           error: 'Community can be connected only from the current VK community context',

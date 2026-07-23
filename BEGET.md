@@ -26,8 +26,11 @@ CALCPRO_APP_HOSTS=app.example.com,www.app.example.com
 CALCPRO_ENFORCE_VK_SIGNATURE=0
 VK_APP_SECRET=replace_with_vk_app_secret
 VK_GROUP_TOKEN=replace_with_vk_group_token
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=replace_with_supabase_service_role_key
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DATABASE=calcpro
+MYSQL_USER=calcpro_user
+MYSQL_PASSWORD=replace_with_mysql_password
 YOOKASSA_SHOP_ID=replace_with_shop_id
 YOOKASSA_SECRET_KEY=replace_with_secret_key
 VK_CALLBACK_CONFIRMATION_TOKEN=replace_with_vk_callback_confirmation_token
@@ -117,4 +120,27 @@ Check these symptoms first:
 - YooKassa returns to the wrong domain
   - wrong `PUBLIC_APP_URL`
 - API errors for templates/requests/support
-  - missing `SUPABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY`
+  - missing MySQL credentials for Beget storage
+  - if you still use the old mode during transition: missing `SUPABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY`
+
+## MySQL On Beget
+
+The project now supports Beget MySQL/MariaDB directly.
+
+- If `MYSQL_HOST`, `MYSQL_DATABASE`, `MYSQL_USER` are configured, CalcPro uses Beget MySQL as the primary storage.
+- If MySQL vars are absent, the app falls back to Supabase mode for backward compatibility.
+- The MySQL schema for Beget is ready in [beget-mysql-schema.sql](./beget-mysql-schema.sql).
+
+Recommended migration order:
+
+1. Create a MySQL database in Beget.
+2. Import [beget-mysql-schema.sql](./beget-mysql-schema.sql).
+3. Fill `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`.
+4. Keep Supabase vars only as a temporary fallback if you want a cautious switch.
+5. If you need to move existing data, run:
+
+```bash
+npm run migrate:supabase-to-mysql
+```
+
+6. Restart the Node app after env changes.

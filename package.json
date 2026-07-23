@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "check:formulas": "node scripts/check-formulas.mjs",
+    "migrate:supabase-to-mysql": "node scripts/migrate-supabase-to-mysql.mjs",
     "preview": "vite preview",
     "start": "node server/index.js"
   },
@@ -14,6 +15,7 @@
     "@vkontakte/icons": "^2.76.0",
     "@vkontakte/vk-bridge": "^2.15.9",
     "@vkontakte/vkui": "^6.7.2",
+    "mysql2": "^3.23.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

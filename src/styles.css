@@ -1830,6 +1830,28 @@ body,
   letter-spacing: 0.18em;
 }
 
+.admin-sync-banner {
+  position: fixed;
+  top: 18px;
+  right: 22px;
+  z-index: 32;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 14px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 166, 102, 0.24);
+  background: rgba(31, 37, 44, 0.92);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+  color: #f7f0e5;
+  font-size: 13px;
+  line-height: 1.5;
+  backdrop-filter: blur(18px);
+}
+
+.admin-sync-banner_error {
+  border-color: rgba(255, 120, 102, 0.38);
+  background: rgba(53, 24, 24, 0.92);
+}
+
 .templates-hub {
   display: grid;
   gap: 22px;
@@ -10360,6 +10382,13 @@ body::-webkit-scrollbar-thumb:hover,
   .admin-home__content_wide {
     padding-left: 28px;
     padding-right: 28px;
+  }
+
+  .admin-sync-banner {
+    top: 62px;
+    right: 12px;
+    left: 12px;
+    max-width: none;
   }
 
   .admin-home__content-head {

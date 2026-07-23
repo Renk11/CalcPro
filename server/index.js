@@ -122,13 +122,79 @@ function getRequestQuery(url) {
   return query;
 }
 
+function sanitizeJsonControlCharacters(rawBody) {
+  let sanitized = '';
+  let isInsideString = false;
+  let isEscaped = false;
+
+  for (let index = 0; index < rawBody.length; index += 1) {
+    const char = rawBody[index];
+
+    if (!isEscaped && char === '"') {
+      isInsideString = !isInsideString;
+      sanitized += char;
+      continue;
+    }
+
+    if (isInsideString) {
+      if (!isEscaped) {
+        const code = char.charCodeAt(0);
+
+        if (code <= 0x1f) {
+          switch (char) {
+            case '\n':
+              sanitized += '\\n';
+              break;
+            case '\r':
+              sanitized += '\\r';
+              break;
+            case '\t':
+              sanitized += '\\t';
+              break;
+            case '\b':
+              sanitized += '\\b';
+              break;
+            case '\f':
+              sanitized += '\\f';
+              break;
+            default:
+              sanitized += `\\u${code.toString(16).padStart(4, '0')}`;
+              break;
+          }
+          continue;
+        }
+      }
+
+      sanitized += char;
+      isEscaped = !isEscaped && char === '\\';
+      continue;
+    }
+
+    sanitized += char;
+    isEscaped = false;
+  }
+
+  return sanitized;
+}
+
 function parseRequestBody(rawBody, contentType) {
   if (!rawBody) {
     return {};
   }
 
   if (contentType.includes('application/json')) {
-    return JSON.parse(rawBody);
+    try {
+      return JSON.parse(rawBody);
+    } catch (error) {
+      if (
+        error instanceof SyntaxError &&
+        String(error.message || '').includes('control character')
+      ) {
+        return JSON.parse(sanitizeJsonControlCharacters(rawBody));
+      }
+
+      throw error;
+    }
   }
 
   if (contentType.includes('application/x-www-form-urlencoded')) {

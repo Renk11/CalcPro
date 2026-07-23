@@ -168,6 +168,10 @@ interface HomePageProps {
     tone: 'neutral' | 'success' | 'error';
     message: string;
   } | null;
+  serverSyncStatus: {
+    tone: 'neutral' | 'success' | 'error';
+    message: string;
+  } | null;
   canManageMonetization: boolean;
   isDesktopClient: boolean;
   isCompactViewport: boolean;
@@ -1953,6 +1957,7 @@ export const HomePage = ({
   onResetGroup,
   isProcessingPayment,
   paymentStatus,
+  serverSyncStatus,
   canManageMonetization,
   isDesktopClient,
   isCompactViewport,
@@ -5770,6 +5775,16 @@ export const HomePage = ({
           </div>
         </div>
       </aside>
+
+      {serverSyncStatus ? (
+        <div
+          className={`admin-sync-banner admin-sync-banner_${serverSyncStatus.tone}`}
+          role="status"
+          aria-live="polite"
+        >
+          {serverSyncStatus.message}
+        </div>
+      ) : null}
 
       {currentSection === 'communities'
         ? renderCommunitiesSection()

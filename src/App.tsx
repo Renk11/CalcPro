@@ -121,6 +121,53 @@ type PaymentStatus = {
   message: string;
 };
 
+const createEmptyAdminSettings = (): CalculatorAdminSettings => ({
+  managerVkId: '',
+  managerVkConfirmedAt: '',
+  billingReminderVkId: '',
+  billingReminderConfirmedAt: '',
+  updatesBroadcastUnsubscribedAt: '',
+  integrations: {
+    telegram: {
+      botToken: '',
+      chatId: '',
+      enabled: false,
+    },
+    googleSheets: {
+      webhookUrl: '',
+      enabled: false,
+      lastExportAt: '',
+    },
+    amoCrm: {
+      subdomain: '',
+      accessToken: '',
+      pipelineId: '',
+      statusId: '',
+      responsibleUserId: '',
+      enabled: false,
+    },
+    bitrix24: {
+      webhookUrl: '',
+      assignedById: '',
+      sourceId: '',
+      enabled: false,
+    },
+    webhook: {
+      url: '',
+      enabled: false,
+    },
+  },
+  googleSheetsWebhookUrl: '',
+  googleSheetsLastExportAt: '',
+  billingReminderState: {
+    cycleId: '',
+    sentStages: {},
+    lastCheckedAt: '',
+    lastSentAt: '',
+  },
+  subscription: createDefaultSubscriptionSettings(),
+});
+
 const MAX_COMMUNITY_NAME_LENGTH = 120;
 const MANUAL_COMMUNITY_PROMPT_TEXT =
   'VK не вернул ID выбранного сообщества. Вставьте ссылку на группу или её ID, чтобы добавить сообщество в кабинет.';
@@ -521,6 +568,7 @@ const App = () => {
   const [isManualCommunityPromptOpen, setIsManualCommunityPromptOpen] = useState(false);
   const [manualCommunityInput, setManualCommunityInput] = useState('');
   const [liveSyncRevision, setLiveSyncRevision] = useState(0);
+  const [serverSyncStatus, setServerSyncStatus] = useState<PaymentStatus | null>(null);
   const [isCommunitiesLoading, setIsCommunitiesLoading] = useState(true);
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
   const [suppressedCurrentCommunityGroupId, setSuppressedCurrentCommunityGroupId] = useState(0);
@@ -616,15 +664,23 @@ const App = () => {
 
   useEffect(() => {
     setStorageGroupScope(effectiveAdminGroupId);
-    setTemplates(getTemplates());
-    setFolders(getFolders());
-    setRequests(getRequests());
+    if (isLaunchParamsResolved && isViewerGroupAdmin) {
+      setTemplates([]);
+      setFolders(getFolders());
+      setRequests([]);
+      setAdminSettings(createEmptyAdminSettings());
+      setServerSyncStatus(null);
+    } else {
+      setTemplates(getTemplates());
+      setFolders(getFolders());
+      setRequests(getRequests());
+      setAdminSettings(getAdminSettings());
+    }
     setAnalyticsEvents([]);
-    setAdminSettings(getAdminSettings());
     setSelectedTemplate(undefined);
     setActiveFolderId('all');
     templatesSyncVersionRef.current += 1;
-  }, [effectiveAdminGroupId]);
+  }, [effectiveAdminGroupId, isLaunchParamsResolved, isViewerGroupAdmin]);
 
   useEffect(() => {
     if (!isLaunchParamsResolved || isPublicViewer) {
@@ -1011,17 +1067,40 @@ const App = () => {
           | null;
 
         if (isProtectedApiUnavailable(payload, response.status)) {
+          if (!isCancelled) {
+            setServerSyncStatus({
+              tone: 'error',
+              message:
+                getVkLaunchParamsErrorMessage(payload, response.status) ||
+                'Сервер не подтвердил VK-контекст. Данные этого устройства не синхронизированы.',
+            });
+          }
           return;
         }
 
         if (!response.ok || !payload?.ok || !payload.data || isCancelled) {
+          if (!isCancelled) {
+            setServerSyncStatus({
+              tone: 'error',
+              message:
+                payload?.error ||
+                'Не удалось загрузить настройки сообщества с сервера. Проверьте синхронизацию этого устройства.',
+            });
+          }
           return;
         }
 
         saveAdminSettings(payload.data);
         setAdminSettings(payload.data);
+        setServerSyncStatus(null);
       } catch {
-        // Keep local settings as a fallback when API is unavailable.
+        if (!isCancelled) {
+          setServerSyncStatus({
+            tone: 'error',
+            message:
+              'Не удалось связаться с сервером. На этом устройстве могут отображаться неактуальные данные.',
+          });
+        }
       }
     };
 
@@ -1057,6 +1136,14 @@ const App = () => {
           | null;
 
         if (isProtectedApiUnavailable(payload, response.status)) {
+          if (!isCancelled) {
+            setServerSyncStatus({
+              tone: 'error',
+              message:
+                getVkLaunchParamsErrorMessage(payload, response.status) ||
+                'Сервер не подтвердил VK-контекст. Шаблоны этого устройства не синхронизированы.',
+            });
+          }
           return;
         }
 
@@ -1094,7 +1181,13 @@ const App = () => {
           });
         }
       } catch {
-        // Keep local templates as a fallback when API is unavailable.
+        if (!isCancelled && !serverSyncStatus) {
+          setServerSyncStatus({
+            tone: 'error',
+            message:
+              'Не удалось получить шаблоны с сервера. Проверьте соединение и откройте приложение заново.',
+          });
+        }
       } finally {
         if (!isCancelled && templatesSyncVersionRef.current === syncVersion) {
           setIsTemplatesLoading(false);
@@ -1132,6 +1225,14 @@ const App = () => {
           | null;
 
         if (isProtectedApiUnavailable(payload, response.status)) {
+          if (!isCancelled && !serverSyncStatus) {
+            setServerSyncStatus({
+              tone: 'error',
+              message:
+                getVkLaunchParamsErrorMessage(payload, response.status) ||
+                'Сервер не подтвердил VK-контекст. Заявки этого устройства не синхронизированы.',
+            });
+          }
           return;
         }
 
@@ -1172,7 +1273,13 @@ const App = () => {
 
         persistRequests(serverRequests);
       } catch {
-        // Keep local requests as a fallback when API is unavailable.
+        if (!isCancelled && !serverSyncStatus) {
+          setServerSyncStatus({
+            tone: 'error',
+            message:
+              'Не удалось получить заявки с сервера. На этом устройстве данные могут быть неполными.',
+          });
+        }
       }
     };
 
@@ -1974,6 +2081,19 @@ const App = () => {
     let resolvedCommunity: Partial<CalculatorConnectedCommunity> | null = null;
 
     try {
+      fetch(createApiUrl('/api/communities?action=notify-connect-start'), {
+        method: 'POST',
+        headers: createJsonHeaders(),
+        body: JSON.stringify({
+          groupId: currentGroupId,
+          fallbackGroupId: currentGroupId,
+          platform: launchParams?.vk_platform ?? '',
+          pathname: typeof window !== 'undefined' ? window.location.pathname : '',
+        }),
+      }).catch(() => {
+        // Installation can continue even if the notification request fails.
+      });
+
       const result = (await bridge.send('VKWebAppAddToCommunity' as never, {
         hide_success_modal: false,
       } as never)) as unknown;
@@ -2814,6 +2934,7 @@ const App = () => {
                     onResetGroup={handleResetGroup}
                     isProcessingPayment={isProcessingPayment}
                     paymentStatus={paymentStatus}
+                    serverSyncStatus={serverSyncStatus}
                     canManageMonetization={isWebMonetizationPlatform}
                     isDesktopClient={isDesktopClient}
                     isCompactViewport={isCompactViewport}
