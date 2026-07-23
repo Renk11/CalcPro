@@ -21,6 +21,11 @@ const BASE_PREFIX = 'vk-community-calculator';
 const DEMO_TEMPLATE_IDS = ['manicure', 'delivery', 'apartment-repair', 'printing'];
 const SUPPORT_TICKET_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const MOJIBAKE_PATTERN = /(?:Р.|С.){2,}|[\uFFFD]/u;
+const MAX_REQUEST_FORM_TITLE_LENGTH = 48;
+const MAX_REQUEST_FORM_DESCRIPTION_LENGTH = 120;
+const MAX_REQUEST_FORM_LABEL_LENGTH = 48;
+const MAX_REQUEST_FORM_PLACEHOLDER_LENGTH = 64;
+const MAX_REQUEST_FORM_BUTTON_TEXT_LENGTH = 24;
 
 type StorageBucketKey =
   | 'templates'
@@ -31,6 +36,8 @@ type StorageBucketKey =
   | 'seeded';
 
 let activeStorageGroupId = 0;
+
+const clampTextValue = (value: string, maxLength: number) => value.slice(0, maxLength);
 
 const isSupportTicketExpired = (ticket: CalculatorSupportTicket) => {
   const createdAt = Date.parse(ticket.createdAt || '');
@@ -279,31 +286,53 @@ const migrateTemplateRecord = (template: CalculatorTemplate): CalculatorTemplate
     schemaVersion: CURRENT_TEMPLATE_SCHEMA_VERSION,
     requestForm: {
       ...requestForm,
-      title: hasMojibake(requestForm.title) ? requestFormDefaults.title : requestForm.title,
+      title: clampTextValue(
+        hasMojibake(requestForm.title) ? requestFormDefaults.title : requestForm.title,
+        MAX_REQUEST_FORM_TITLE_LENGTH,
+      ),
       description: hasMojibake(requestForm.description)
-        ? requestFormDefaults.description
-        : requestForm.description,
-      nameLabel: hasMojibake(requestForm.nameLabel)
-        ? requestFormDefaults.nameLabel
-        : requestForm.nameLabel,
-      namePlaceholder: hasMojibake(requestForm.namePlaceholder)
-        ? requestFormDefaults.namePlaceholder
-        : requestForm.namePlaceholder,
-      phoneLabel: hasMojibake(requestForm.phoneLabel)
-        ? requestFormDefaults.phoneLabel
-        : requestForm.phoneLabel,
-      phonePlaceholder: hasMojibake(requestForm.phonePlaceholder)
-        ? requestFormDefaults.phonePlaceholder
-        : requestForm.phonePlaceholder,
-      commentLabel: hasMojibake(requestForm.commentLabel)
-        ? requestFormDefaults.commentLabel
-        : requestForm.commentLabel,
-      commentPlaceholder: hasMojibake(requestForm.commentPlaceholder)
-        ? requestFormDefaults.commentPlaceholder
-        : requestForm.commentPlaceholder,
-      submitButtonText: hasMojibake(requestForm.submitButtonText)
-        ? requestFormDefaults.submitButtonText
-        : requestForm.submitButtonText,
+        ? clampTextValue(requestFormDefaults.description, MAX_REQUEST_FORM_DESCRIPTION_LENGTH)
+        : clampTextValue(requestForm.description, MAX_REQUEST_FORM_DESCRIPTION_LENGTH),
+      nameLabel: clampTextValue(
+        hasMojibake(requestForm.nameLabel) ? requestFormDefaults.nameLabel : requestForm.nameLabel,
+        MAX_REQUEST_FORM_LABEL_LENGTH,
+      ),
+      namePlaceholder: clampTextValue(
+        hasMojibake(requestForm.namePlaceholder)
+          ? requestFormDefaults.namePlaceholder
+          : requestForm.namePlaceholder,
+        MAX_REQUEST_FORM_PLACEHOLDER_LENGTH,
+      ),
+      phoneLabel: clampTextValue(
+        hasMojibake(requestForm.phoneLabel)
+          ? requestFormDefaults.phoneLabel
+          : requestForm.phoneLabel,
+        MAX_REQUEST_FORM_LABEL_LENGTH,
+      ),
+      phonePlaceholder: clampTextValue(
+        hasMojibake(requestForm.phonePlaceholder)
+          ? requestFormDefaults.phonePlaceholder
+          : requestForm.phonePlaceholder,
+        MAX_REQUEST_FORM_PLACEHOLDER_LENGTH,
+      ),
+      commentLabel: clampTextValue(
+        hasMojibake(requestForm.commentLabel)
+          ? requestFormDefaults.commentLabel
+          : requestForm.commentLabel,
+        MAX_REQUEST_FORM_LABEL_LENGTH,
+      ),
+      commentPlaceholder: clampTextValue(
+        hasMojibake(requestForm.commentPlaceholder)
+          ? requestFormDefaults.commentPlaceholder
+          : requestForm.commentPlaceholder,
+        MAX_REQUEST_FORM_PLACEHOLDER_LENGTH,
+      ),
+      submitButtonText: clampTextValue(
+        hasMojibake(requestForm.submitButtonText)
+          ? requestFormDefaults.submitButtonText
+          : requestForm.submitButtonText,
+        MAX_REQUEST_FORM_BUTTON_TEXT_LENGTH,
+      ),
     },
     publicationStatus: template.publicationStatus ?? 'draft',
     publicId: template.publicId ?? createTemplatePublicId(template.id.slice(0, 8)),

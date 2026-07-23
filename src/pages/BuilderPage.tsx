@@ -1471,29 +1471,49 @@ const normalizeRequestFormContent = (
 
   return {
     ...requestForm,
-    title: hasMojibake(requestForm.title) ? defaults.title : requestForm.title,
+    title: clampTextValue(
+      hasMojibake(requestForm.title) ? defaults.title : requestForm.title,
+      MAX_REQUEST_FORM_TITLE_LENGTH,
+    ),
     description: hasMojibake(requestForm.description)
-      ? defaults.description
-      : requestForm.description,
-    nameLabel: hasMojibake(requestForm.nameLabel) ? defaults.nameLabel : requestForm.nameLabel,
-    namePlaceholder: hasMojibake(requestForm.namePlaceholder)
-      ? defaults.namePlaceholder
-      : requestForm.namePlaceholder,
-    phoneLabel: hasMojibake(requestForm.phoneLabel)
-      ? defaults.phoneLabel
-      : requestForm.phoneLabel,
-    phonePlaceholder: hasMojibake(requestForm.phonePlaceholder)
-      ? defaults.phonePlaceholder
-      : requestForm.phonePlaceholder,
-    commentLabel: hasMojibake(requestForm.commentLabel)
-      ? defaults.commentLabel
-      : requestForm.commentLabel,
-    commentPlaceholder: hasMojibake(requestForm.commentPlaceholder)
-      ? defaults.commentPlaceholder
-      : requestForm.commentPlaceholder,
-    submitButtonText: hasMojibake(requestForm.submitButtonText)
-      ? defaults.submitButtonText
-      : requestForm.submitButtonText,
+      ? clampTextValue(defaults.description, MAX_REQUEST_FORM_DESCRIPTION_LENGTH)
+      : clampTextValue(requestForm.description, MAX_REQUEST_FORM_DESCRIPTION_LENGTH),
+    nameLabel: clampTextValue(
+      hasMojibake(requestForm.nameLabel) ? defaults.nameLabel : requestForm.nameLabel,
+      MAX_REQUEST_FORM_LABEL_LENGTH,
+    ),
+    namePlaceholder: clampTextValue(
+      hasMojibake(requestForm.namePlaceholder)
+        ? defaults.namePlaceholder
+        : requestForm.namePlaceholder,
+      MAX_REQUEST_FORM_PLACEHOLDER_LENGTH,
+    ),
+    phoneLabel: clampTextValue(
+      hasMojibake(requestForm.phoneLabel) ? defaults.phoneLabel : requestForm.phoneLabel,
+      MAX_REQUEST_FORM_LABEL_LENGTH,
+    ),
+    phonePlaceholder: clampTextValue(
+      hasMojibake(requestForm.phonePlaceholder)
+        ? defaults.phonePlaceholder
+        : requestForm.phonePlaceholder,
+      MAX_REQUEST_FORM_PLACEHOLDER_LENGTH,
+    ),
+    commentLabel: clampTextValue(
+      hasMojibake(requestForm.commentLabel) ? defaults.commentLabel : requestForm.commentLabel,
+      MAX_REQUEST_FORM_LABEL_LENGTH,
+    ),
+    commentPlaceholder: clampTextValue(
+      hasMojibake(requestForm.commentPlaceholder)
+        ? defaults.commentPlaceholder
+        : requestForm.commentPlaceholder,
+      MAX_REQUEST_FORM_PLACEHOLDER_LENGTH,
+    ),
+    submitButtonText: clampTextValue(
+      hasMojibake(requestForm.submitButtonText)
+        ? defaults.submitButtonText
+        : requestForm.submitButtonText,
+      MAX_BUTTON_TEXT_LENGTH,
+    ),
   };
 };
 
