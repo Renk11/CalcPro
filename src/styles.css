@@ -2646,7 +2646,7 @@ body,
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr);
   gap: 14px;
-  align-items: start;
+  align-items: center;
 }
 
 .payments-guide__step-index {
