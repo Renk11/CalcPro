@@ -24,6 +24,7 @@ import {
   createEmptyTemplate,
   evaluateFormulaExpression,
   formatResultNumber,
+  MAX_FORMULA_EXPRESSION_LENGTH,
   MAX_TEMPLATE_DESCRIPTION_LENGTH,
   MAX_TEMPLATE_TITLE_LENGTH,
 } from '../entities/calculator/model';
@@ -84,6 +85,10 @@ const MAX_REQUEST_FORM_TITLE_LENGTH = 48;
 const MAX_REQUEST_FORM_DESCRIPTION_LENGTH = 120;
 const MAX_REQUEST_FORM_LABEL_LENGTH = 48;
 const MAX_REQUEST_FORM_PLACEHOLDER_LENGTH = 64;
+const MAX_CALCULATION_PRICE = 1_000_000_000;
+const MAX_CALCULATION_DISCOUNT = 100;
+const MAX_CALCULATION_COEFFICIENT = 1_000;
+const MAX_CALCULATION_FIELD_LENGTH = 16;
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/;
 
 const clampTextValue = (value: string, maxLength: number) => value.slice(0, maxLength);
@@ -121,6 +126,42 @@ const formatBlockCountLabel = (count: number) => {
 
   return `${count} блоков`;
 };
+
+const clampCalculationParameterValue = (
+  key: 'basePrice' | 'discount' | 'minPrice' | 'globalCoefficient',
+  value: number,
+) => {
+  const safeValue = Number.isFinite(value) ? value : 0;
+
+  if (key === 'discount') {
+    return Math.min(MAX_CALCULATION_DISCOUNT, Math.max(0, safeValue));
+  }
+
+  if (key === 'globalCoefficient') {
+    return Math.min(MAX_CALCULATION_COEFFICIENT, Math.max(0, safeValue));
+  }
+
+  return Math.min(MAX_CALCULATION_PRICE, Math.max(0, safeValue));
+};
+
+const getCalculationParameterHint = (
+  key: 'basePrice' | 'discount' | 'minPrice' | 'globalCoefficient',
+) => {
+  if (key === 'discount') {
+    return `От 0 до ${MAX_CALCULATION_DISCOUNT}%`;
+  }
+
+  if (key === 'globalCoefficient') {
+    return `От 0 до ${MAX_CALCULATION_COEFFICIENT}`;
+  }
+
+  return `От 0 до ${MAX_CALCULATION_PRICE.toLocaleString('ru-RU')}`;
+};
+
+const getCalculationParameterCorrectionMessage = (
+  key: 'basePrice' | 'discount' | 'minPrice' | 'globalCoefficient',
+  nextValue: number,
+) => `${getCalculationParameterHint(key)}. Значение скорректировано до ${String(nextValue)}.`;
 
 const sanitizeFieldPatch = (
   patch: Partial<CalculatorField>,
@@ -1758,6 +1799,14 @@ export const BuilderPage = ({
     minPrice: String((initialTemplate ?? createEmptyTemplate()).minPrice),
     globalCoefficient: String((initialTemplate ?? createEmptyTemplate()).globalCoefficient),
   }));
+  const [formulaDraftErrors, setFormulaDraftErrors] = useState<
+    Record<'basePrice' | 'discount' | 'minPrice' | 'globalCoefficient', string>
+  >({
+    basePrice: '',
+    discount: '',
+    minPrice: '',
+    globalCoefficient: '',
+  });
   const [formulaNumberDraft, setFormulaNumberDraft] = useState('');
   const [isFormulaExamplesOpen, setIsFormulaExamplesOpen] = useState(false);
   const canvasRef = useRef<HTMLElement | null>(null);
@@ -1820,6 +1869,22 @@ export const BuilderPage = ({
     template.formulaMode,
     visualFormulaExpression,
   ]);
+  const resultFieldFormulaErrors = useMemo(
+    () =>
+      template.fields.reduce<Record<string, string>>((acc, field) => {
+        if (field.type !== 'result' || !field.resultFormula?.trim()) {
+          return acc;
+        }
+
+        const evaluation = evaluateFormulaExpression(field.resultFormula, template, previewValues);
+        if (evaluation.error) {
+          acc[field.id] = evaluation.error;
+        }
+
+        return acc;
+      }, {}),
+    [previewValues, template],
+  );
   const previewValueEntries = useMemo(
     () =>
       template.fields
@@ -2195,22 +2260,29 @@ export const BuilderPage = ({
     key: 'basePrice' | 'discount' | 'minPrice' | 'globalCoefficient',
     rawValue: string,
   ) => {
+    const normalizedRawValue = rawValue.slice(0, MAX_CALCULATION_FIELD_LENGTH);
+
     setFormulaDrafts((current) => ({
       ...current,
-      [key]: rawValue,
+      [key]: normalizedRawValue,
+    }));
+    setFormulaDraftErrors((current) => ({
+      ...current,
+      [key]: '',
     }));
 
-    if (rawValue === '') {
+    if (normalizedRawValue === '') {
       return;
     }
 
-    const numericValue = Number(rawValue);
+    const numericValue = Number(normalizedRawValue);
     if (!Number.isFinite(numericValue)) {
       return;
     }
 
+    const nextValue = clampCalculationParameterValue(key, numericValue);
     updateTemplate({
-      [key]: key === 'globalCoefficient' ? numericValue || 1 : numericValue,
+      [key]: nextValue,
     } as Partial<CalculatorTemplate>);
   };
 
@@ -2220,11 +2292,17 @@ export const BuilderPage = ({
   ) => {
     const draftValue = formulaDrafts[key].trim();
     const numericValue = draftValue === '' ? fallbackValue : Number(draftValue);
-    const nextValue = Number.isFinite(numericValue) ? numericValue : fallbackValue;
+    const safeValue = Number.isFinite(numericValue) ? numericValue : fallbackValue;
+    const nextValue = clampCalculationParameterValue(key, safeValue);
+    const wasCorrected = draftValue !== '' && (!Number.isFinite(numericValue) || nextValue !== numericValue);
 
     setFormulaDrafts((current) => ({
       ...current,
       [key]: String(nextValue),
+    }));
+    setFormulaDraftErrors((current) => ({
+      ...current,
+      [key]: wasCorrected ? getCalculationParameterCorrectionMessage(key, nextValue) : '',
     }));
 
     updateTemplate({
@@ -3468,42 +3546,59 @@ export const BuilderPage = ({
                       <input
                         type="text"
                         inputMode="decimal"
+                        maxLength={MAX_CALCULATION_FIELD_LENGTH}
                         value={formulaDrafts.basePrice}
                         onChange={(event) => updateFormulaDraft('basePrice', event.target.value)}
                         onBlur={() => commitFormulaDraft('basePrice', 0)}
                       />
+                      <span className="builder-inspector__field-hint">
+                        {formulaDraftErrors.basePrice || getCalculationParameterHint('basePrice')}
+                      </span>
                     </label>
                     <label className="builder-formula__field">
                       <span>{'\u0421\u043a\u0438\u0434\u043a\u0430, %'}</span>
                       <input
                         type="text"
                         inputMode="decimal"
+                        maxLength={MAX_CALCULATION_FIELD_LENGTH}
                         value={formulaDrafts.discount}
                         onChange={(event) => updateFormulaDraft('discount', event.target.value)}
                         onBlur={() => commitFormulaDraft('discount', 0)}
                       />
+                      <span className="builder-inspector__field-hint">
+                        {formulaDraftErrors.discount || getCalculationParameterHint('discount')}
+                      </span>
                     </label>
                     <label className="builder-formula__field">
                       <span>{'\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0446\u0435\u043d\u0430'}</span>
                       <input
                         type="text"
                         inputMode="decimal"
+                        maxLength={MAX_CALCULATION_FIELD_LENGTH}
                         value={formulaDrafts.minPrice}
                         onChange={(event) => updateFormulaDraft('minPrice', event.target.value)}
                         onBlur={() => commitFormulaDraft('minPrice', 0)}
                       />
+                      <span className="builder-inspector__field-hint">
+                        {formulaDraftErrors.minPrice || getCalculationParameterHint('minPrice')}
+                      </span>
                     </label>
                     <label className="builder-formula__field">
                       <span>{'\u041a\u043e\u044d\u0444\u0444\u0438\u0446\u0438\u0435\u043d\u0442'}</span>
                       <input
                         type="text"
                         inputMode="decimal"
+                        maxLength={MAX_CALCULATION_FIELD_LENGTH}
                         value={formulaDrafts.globalCoefficient}
                         onChange={(event) =>
                           updateFormulaDraft('globalCoefficient', event.target.value)
                         }
                         onBlur={() => commitFormulaDraft('globalCoefficient', 1)}
                       />
+                      <span className="builder-inspector__field-hint">
+                        {formulaDraftErrors.globalCoefficient ||
+                          getCalculationParameterHint('globalCoefficient')}
+                      </span>
                     </label>
                     </div>
                   </section>
@@ -3801,6 +3896,7 @@ export const BuilderPage = ({
                           <textarea
                             ref={customFormulaRef}
                             value={template.customFormula}
+                            maxLength={MAX_FORMULA_EXPRESSION_LENGTH}
                             onChange={(event) =>
                               canUseProFeatures
                                 ? updateTemplate({ customFormula: event.target.value })
@@ -3809,6 +3905,9 @@ export const BuilderPage = ({
                             disabled={!canUseProFeatures}
                             placeholder={'Например: (Базовая цена + Количество) * Общий коэффициент'}
                           />
+                          <span className="builder-inspector__field-hint">
+                            До {MAX_FORMULA_EXPRESSION_LENGTH} символов. Используйте только доступные переменные ниже.
+                          </span>
                         </label>
                         <div className="builder-formula__preview-panel">
                           <div className="builder-formula__preview-row">
@@ -3846,11 +3945,16 @@ export const BuilderPage = ({
                         <span>Формула блока результата</span>
                         <textarea
                           value={field.resultFormula ?? ''}
+                          maxLength={MAX_FORMULA_EXPRESSION_LENGTH}
                           placeholder="area * price"
                           onChange={(event) =>
                             updateField(field.id, { resultFormula: event.target.value })
                           }
                         />
+                        <span className="builder-inspector__field-hint">
+                          {resultFieldFormulaErrors[field.id] ||
+                            `До ${MAX_FORMULA_EXPRESSION_LENGTH} символов. Используйте доступные переменные калькулятора.`}
+                        </span>
                       </label>
 
                       <div className="builder-formula__grid">

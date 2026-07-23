@@ -17,6 +17,7 @@ export const MAX_TEMPLATE_TITLE_LENGTH = 24;
 export const MAX_TEMPLATE_DESCRIPTION_LENGTH = 80;
 export const MAX_FOLDER_NAME_LENGTH = 20;
 export const CURRENT_TEMPLATE_SCHEMA_VERSION = 1;
+export const MAX_FORMULA_EXPRESSION_LENGTH = 500;
 
 export const clampTemplateTitle = (value: string) =>
   value.slice(0, MAX_TEMPLATE_TITLE_LENGTH);
@@ -98,6 +99,33 @@ const FORMULA_FUNCTION_ALIASES = [
   { aliases: ['round', 'ROUND', 'ОКРУГЛ'], target: 'round' },
   { aliases: ['abs', 'ABS', 'МОДУЛЬ'], target: 'abs' },
 ] as const;
+
+const buildAvailableFormulaReferences = (fields: CalculatorField[]) => {
+  const references = new Set<string>([BASE_PRICE_FORMULA_LABEL, GLOBAL_COEFFICIENT_FORMULA_LABEL]);
+
+  fields.forEach((field) => {
+    const label = field.label.trim();
+    if (label) {
+      references.add(label);
+    }
+  });
+
+  return [...references];
+};
+
+const formatFormulaErrorMessage = (message: string, fields: CalculatorField[]) => {
+  if (!message) {
+    return 'Ошибка формулы';
+  }
+
+  const missingVariableMatch = message.match(/^Переменная "(.+)" не найдена$/u);
+  if (missingVariableMatch) {
+    const availableVariables = buildAvailableFormulaReferences(fields).join(', ');
+    return `Переменная "${missingVariableMatch[1]}" не найдена. Доступные переменные: ${availableVariables}.`;
+  }
+
+  return message;
+};
 
 type FormulaRuntimeValue = number | boolean;
 
@@ -566,10 +594,21 @@ class FormulaParser {
   }
 }
 
-const evaluateNormalizedFormula = (formula: string, context: Record<string, number>) => {
+const evaluateNormalizedFormula = (
+  formula: string,
+  context: Record<string, number>,
+  fields: CalculatorField[] = [],
+) => {
   const trimmedFormula = formula.trim();
   if (!trimmedFormula) {
     return { value: 0, error: 'Формула не заполнена' };
+  }
+
+  if (trimmedFormula.length > MAX_FORMULA_EXPRESSION_LENGTH) {
+    return {
+      value: 0,
+      error: `Формула слишком длинная. Максимум ${MAX_FORMULA_EXPRESSION_LENGTH} символов.`,
+    };
   }
 
   try {
@@ -585,7 +624,7 @@ const evaluateNormalizedFormula = (formula: string, context: Record<string, numb
     return { value: numericResult, error: '' };
   } catch (error) {
     if (error instanceof FormulaSyntaxError) {
-      return { value: 0, error: error.message };
+      return { value: 0, error: formatFormulaErrorMessage(error.message, fields) };
     }
 
     return { value: 0, error: 'Ошибка формулы' };
@@ -727,7 +766,7 @@ export const evaluateFormulaExpression = (
 
   const normalizedExpression = normalizeFormula(trimmedExpression, template.fields);
   const context = buildFormulaContext(template, values);
-  return evaluateNormalizedFormula(normalizedExpression, context);
+  return evaluateNormalizedFormula(normalizedExpression, context, template.fields);
 };
 
 export const formatResultNumber = (
