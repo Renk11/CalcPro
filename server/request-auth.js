@@ -104,7 +104,7 @@ function hasVkAppSecret() {
 }
 
 function normalizeBase64Url(value) {
-  return value.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return value.replace(/\s+/g, '+').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
 function buildLaunchParamsSecrets(secret) {
