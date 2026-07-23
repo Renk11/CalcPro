@@ -80,6 +80,10 @@ const MAX_OPTION_DESCRIPTION_LENGTH = 80;
 const MAX_CHECKBOX_LABEL_LENGTH = 80;
 const MAX_RESULT_CARD_TITLE_LENGTH = 48;
 const MAX_RESULT_CARD_LABEL_LENGTH = 32;
+const MAX_REQUEST_FORM_TITLE_LENGTH = 48;
+const MAX_REQUEST_FORM_DESCRIPTION_LENGTH = 120;
+const MAX_REQUEST_FORM_LABEL_LENGTH = 48;
+const MAX_REQUEST_FORM_PLACEHOLDER_LENGTH = 64;
 
 const clampTextValue = (value: string, maxLength: number) => value.slice(0, maxLength);
 
@@ -156,6 +160,39 @@ const sanitizeTemplatePatch = (
       nextPatch.resultMinPriceLabel,
       MAX_RESULT_CARD_LABEL_LENGTH,
     );
+  }
+
+  if (nextPatch.requestForm) {
+    nextPatch.requestForm = {
+      ...nextPatch.requestForm,
+      title: clampTextValue(nextPatch.requestForm.title, MAX_REQUEST_FORM_TITLE_LENGTH),
+      description: clampTextValue(
+        nextPatch.requestForm.description,
+        MAX_REQUEST_FORM_DESCRIPTION_LENGTH,
+      ),
+      nameLabel: clampTextValue(nextPatch.requestForm.nameLabel, MAX_REQUEST_FORM_LABEL_LENGTH),
+      namePlaceholder: clampTextValue(
+        nextPatch.requestForm.namePlaceholder,
+        MAX_REQUEST_FORM_PLACEHOLDER_LENGTH,
+      ),
+      phoneLabel: clampTextValue(nextPatch.requestForm.phoneLabel, MAX_REQUEST_FORM_LABEL_LENGTH),
+      phonePlaceholder: clampTextValue(
+        nextPatch.requestForm.phonePlaceholder,
+        MAX_REQUEST_FORM_PLACEHOLDER_LENGTH,
+      ),
+      commentLabel: clampTextValue(
+        nextPatch.requestForm.commentLabel,
+        MAX_REQUEST_FORM_LABEL_LENGTH,
+      ),
+      commentPlaceholder: clampTextValue(
+        nextPatch.requestForm.commentPlaceholder,
+        MAX_REQUEST_FORM_PLACEHOLDER_LENGTH,
+      ),
+      submitButtonText: clampTextValue(
+        nextPatch.requestForm.submitButtonText,
+        MAX_BUTTON_TEXT_LENGTH,
+      ),
+    };
   }
 
   return nextPatch;
@@ -5790,135 +5827,171 @@ export const BuilderPage = ({
                   <span>Заголовок</span>
                   <input
                     value={template.requestForm.title}
+                    maxLength={MAX_REQUEST_FORM_TITLE_LENGTH}
                     onChange={(event) =>
                       updateTemplate({
                         requestForm: {
                           ...template.requestForm,
-                          title: event.target.value,
+                          title: event.target.value.slice(0, MAX_REQUEST_FORM_TITLE_LENGTH),
                         },
                       })
                     }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {template.requestForm.title.length}/{MAX_REQUEST_FORM_TITLE_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__field">
                   <span>Описание</span>
                   <input
                     value={template.requestForm.description}
+                    maxLength={MAX_REQUEST_FORM_DESCRIPTION_LENGTH}
                     onChange={(event) =>
                       updateTemplate({
                         requestForm: {
                           ...template.requestForm,
-                          description: event.target.value,
+                          description: event.target.value.slice(0, MAX_REQUEST_FORM_DESCRIPTION_LENGTH),
                         },
                       })
                     }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {template.requestForm.description.length}/{MAX_REQUEST_FORM_DESCRIPTION_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__field">
                   <span>Подпись поля имени</span>
                   <input
                     value={template.requestForm.nameLabel}
+                    maxLength={MAX_REQUEST_FORM_LABEL_LENGTH}
                     onChange={(event) =>
                       updateTemplate({
                         requestForm: {
                           ...template.requestForm,
-                          nameLabel: event.target.value,
+                          nameLabel: event.target.value.slice(0, MAX_REQUEST_FORM_LABEL_LENGTH),
                         },
                       })
                     }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {template.requestForm.nameLabel.length}/{MAX_REQUEST_FORM_LABEL_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__field">
                   <span>Плейсхолдер имени</span>
                   <input
                     value={template.requestForm.namePlaceholder}
+                    maxLength={MAX_REQUEST_FORM_PLACEHOLDER_LENGTH}
                     onChange={(event) =>
                       updateTemplate({
                         requestForm: {
                           ...template.requestForm,
-                          namePlaceholder: event.target.value,
+                          namePlaceholder: event.target.value.slice(0, MAX_REQUEST_FORM_PLACEHOLDER_LENGTH),
                         },
                       })
                     }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {template.requestForm.namePlaceholder.length}/{MAX_REQUEST_FORM_PLACEHOLDER_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__field">
                   <span>Подпись поля телефона</span>
                   <input
                     value={template.requestForm.phoneLabel}
+                    maxLength={MAX_REQUEST_FORM_LABEL_LENGTH}
                     onChange={(event) =>
                       updateTemplate({
                         requestForm: {
                           ...template.requestForm,
-                          phoneLabel: event.target.value,
+                          phoneLabel: event.target.value.slice(0, MAX_REQUEST_FORM_LABEL_LENGTH),
                         },
                       })
                     }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {template.requestForm.phoneLabel.length}/{MAX_REQUEST_FORM_LABEL_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__field">
                   <span>Плейсхолдер телефона</span>
                   <input
                     value={template.requestForm.phonePlaceholder}
+                    maxLength={MAX_REQUEST_FORM_PLACEHOLDER_LENGTH}
                     onChange={(event) =>
                       updateTemplate({
                         requestForm: {
                           ...template.requestForm,
-                          phonePlaceholder: event.target.value,
+                          phonePlaceholder: event.target.value.slice(0, MAX_REQUEST_FORM_PLACEHOLDER_LENGTH),
                         },
                       })
                     }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {template.requestForm.phonePlaceholder.length}/{MAX_REQUEST_FORM_PLACEHOLDER_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__field">
                   <span>Подпись поля комментария</span>
                   <input
                     value={template.requestForm.commentLabel}
+                    maxLength={MAX_REQUEST_FORM_LABEL_LENGTH}
                     onChange={(event) =>
                       updateTemplate({
                         requestForm: {
                           ...template.requestForm,
-                          commentLabel: event.target.value,
+                          commentLabel: event.target.value.slice(0, MAX_REQUEST_FORM_LABEL_LENGTH),
                         },
                       })
                     }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {template.requestForm.commentLabel.length}/{MAX_REQUEST_FORM_LABEL_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__field">
                   <span>Плейсхолдер комментария</span>
                   <input
                     value={template.requestForm.commentPlaceholder}
+                    maxLength={MAX_REQUEST_FORM_PLACEHOLDER_LENGTH}
                     onChange={(event) =>
                       updateTemplate({
                         requestForm: {
                           ...template.requestForm,
-                          commentPlaceholder: event.target.value,
+                          commentPlaceholder: event.target.value.slice(0, MAX_REQUEST_FORM_PLACEHOLDER_LENGTH),
                         },
                       })
                     }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {template.requestForm.commentPlaceholder.length}/{MAX_REQUEST_FORM_PLACEHOLDER_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__field">
                   <span>Текст кнопки</span>
                   <input
                     value={template.requestForm.submitButtonText}
+                    maxLength={MAX_BUTTON_TEXT_LENGTH}
                     onChange={(event) =>
                       updateTemplate({
                         requestForm: {
                           ...template.requestForm,
-                          submitButtonText: event.target.value,
+                          submitButtonText: event.target.value.slice(0, MAX_BUTTON_TEXT_LENGTH),
                         },
                       })
                     }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {template.requestForm.submitButtonText.length}/{MAX_BUTTON_TEXT_LENGTH} {'симв.'}
+                  </span>
                 </label>
               </div>
             </>
