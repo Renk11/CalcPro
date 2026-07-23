@@ -6,7 +6,7 @@ import {
   updateServerSupportTicketComment,
   updateServerSupportTicketStatus,
 } from '../server/support-store.js';
-import { hasVkGroupToken, sendVkMessageWithOptions } from '../server/vk.js';
+import { getVkUserInfo, hasVkGroupToken, sendVkMessageWithOptions } from '../server/vk.js';
 
 const SUPPORT_RECIPIENT_ID = '139346496';
 
@@ -102,6 +102,35 @@ function buildMessage(ticket, groupId) {
   ].join('\n');
 }
 
+async function resolveTrustedAuthor(auth) {
+  const fallbackLabel =
+    Number.isInteger(auth?.viewerId) && auth.viewerId > 0
+      ? `Администратор VK ID ${auth.viewerId}`
+      : 'Неизвестный администратор';
+
+  if (!hasVkGroupToken() || !Number.isInteger(auth?.viewerId) || auth.viewerId <= 0) {
+    return {
+      authorLabel: fallbackLabel,
+      authorVkId: Number.isInteger(auth?.viewerId) && auth.viewerId > 0 ? auth.viewerId : undefined,
+    };
+  }
+
+  try {
+    const profile = await getVkUserInfo(auth.viewerId);
+    const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim();
+
+    return {
+      authorLabel: fullName || fallbackLabel,
+      authorVkId: profile.id,
+    };
+  } catch {
+    return {
+      authorLabel: fallbackLabel,
+      authorVkId: auth.viewerId,
+    };
+  }
+}
+
 export default async function handler(request, response) {
   try {
     const groupId = parseGroupId(request.query?.groupId || request.body?.groupId);
@@ -145,11 +174,15 @@ export default async function handler(request, response) {
       return sendJson(response, 200, { ok: true, data: tickets });
     }
 
+    const trustedAuthor = await resolveTrustedAuthor(auth);
     const ticket = {
       ...(request.body || {}),
       status: normalizeSupportStatus(request.body?.status),
+      authorLabel: trustedAuthor.authorLabel,
+      authorVkId: trustedAuthor.authorVkId,
     };
     const tickets = await addServerSupportTicket(ticket, groupId);
+    const persistedTicket = Array.isArray(tickets) && tickets.length > 0 ? tickets[0] : ticket;
 
     if (!hasVkGroupToken()) {
       return sendJson(response, 200, {
@@ -159,8 +192,8 @@ export default async function handler(request, response) {
       });
     }
 
-    await sendVkMessageWithOptions(SUPPORT_RECIPIENT_ID, buildMessage(ticket, groupId), {
-      keyboard: buildStatusKeyboard(ticket.id, groupId),
+    await sendVkMessageWithOptions(SUPPORT_RECIPIENT_ID, buildMessage(persistedTicket, groupId), {
+      keyboard: buildStatusKeyboard(persistedTicket.id, groupId),
     });
 
     return sendJson(response, 200, {
