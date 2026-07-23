@@ -84,10 +84,28 @@ const MAX_REQUEST_FORM_TITLE_LENGTH = 48;
 const MAX_REQUEST_FORM_DESCRIPTION_LENGTH = 120;
 const MAX_REQUEST_FORM_LABEL_LENGTH = 48;
 const MAX_REQUEST_FORM_PLACEHOLDER_LENGTH = 64;
+const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/;
 
 const clampTextValue = (value: string, maxLength: number) => value.slice(0, maxLength);
 
-const sanitizeFieldPatch = (patch: Partial<CalculatorField>): Partial<CalculatorField> => {
+const normalizeHexColor = (value: string | undefined, fallback: string) => {
+  const normalizedValue = value?.trim();
+  if (!normalizedValue || !HEX_COLOR_PATTERN.test(normalizedValue)) {
+    return fallback;
+  }
+
+  if (normalizedValue.length === 4) {
+    const [, red, green, blue] = normalizedValue;
+    return `#${red}${red}${green}${green}${blue}${blue}`.toLowerCase();
+  }
+
+  return normalizedValue.toLowerCase();
+};
+
+const sanitizeFieldPatch = (
+  patch: Partial<CalculatorField>,
+  sourceField?: CalculatorField,
+): Partial<CalculatorField> => {
   const nextPatch = { ...patch };
 
   if (typeof nextPatch.label === 'string') {
@@ -108,6 +126,14 @@ const sanitizeFieldPatch = (patch: Partial<CalculatorField>): Partial<Calculator
 
   if (typeof nextPatch.checkboxLabel === 'string') {
     nextPatch.checkboxLabel = clampTextValue(nextPatch.checkboxLabel, MAX_CHECKBOX_LABEL_LENGTH);
+  }
+
+  if (typeof nextPatch.textColor === 'string') {
+    const fallbackColor =
+      sourceField?.textStyle != null
+        ? getTextStyleDefaults(sourceField.textStyle).textColor
+        : '#6f5d4e';
+    nextPatch.textColor = normalizeHexColor(nextPatch.textColor, fallbackColor);
   }
 
   return nextPatch;
@@ -2220,7 +2246,7 @@ export const BuilderPage = ({
       return;
     }
 
-    const sanitizedPatch = sanitizeFieldPatch(patch);
+    const sanitizedPatch = sanitizeFieldPatch(patch, sourceField);
     const nextField = { ...sourceField, ...sanitizedPatch };
     const sourcePreviewKey = sourceField.key;
     const nextPreviewKey = nextField.key;
@@ -5387,9 +5413,17 @@ export const BuilderPage = ({
                         <span>{'\u0426\u0432\u0435\u0442'}</span>
                         <input
                           type="color"
-                          value={selectedField.textColor ?? '#6f5d4e'}
+                          value={normalizeHexColor(
+                            selectedField.textColor,
+                            getTextStyleDefaults(selectedField.textStyle ?? 'description').textColor,
+                          )}
                           onChange={(event) =>
-                            updateField(selectedField.id, { textColor: event.target.value })
+                            updateField(selectedField.id, {
+                              textColor: normalizeHexColor(
+                                event.target.value,
+                                getTextStyleDefaults(selectedField.textStyle ?? 'description').textColor,
+                              ),
+                            })
                           }
                         />
                       </label>
