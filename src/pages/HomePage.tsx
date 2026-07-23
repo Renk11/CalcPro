@@ -2922,7 +2922,7 @@ export const HomePage = ({
         <div className="admin-home__title-wrap">
           <h1 className="admin-home__title">Мои сообщества</h1>
         </div>
-        <div className="admin-home__role-badge">WORKSPACE</div>
+        <div className="admin-home__role-badge">Кабинет</div>
       </div>
 
       <section className="communities-layout">
