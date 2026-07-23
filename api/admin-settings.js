@@ -16,7 +16,6 @@ import {
   getSubscriptionPlanConfig,
 } from '../server/subscription-config.js';
 import {
-  getVerifiedViewerCommunityGroupIds,
   getViewerCommunities,
   listAllConnectedCommunities,
 } from '../server/community-store.js';
@@ -54,25 +53,6 @@ function isSuperAdmin(viewerId) {
   );
 }
 
-async function resolveAvailableGroupIds(auth) {
-  const availableGroupIds = new Set();
-
-  if (auth?.groupId > 0) {
-    availableGroupIds.add(auth.groupId);
-  }
-
-  if (auth?.viewerId > 0) {
-    const connectedGroupIds = await getVerifiedViewerCommunityGroupIds(auth.viewerId);
-    connectedGroupIds.forEach((communityGroupId) => {
-      if (communityGroupId > 0) {
-        availableGroupIds.add(communityGroupId);
-      }
-    });
-  }
-
-  return availableGroupIds;
-}
-
 async function requireWorkspaceCommunityAdmin(request, response, groupId) {
   const auth = getTrustedViewerContext(request);
   if (!auth) {
@@ -89,11 +69,10 @@ async function requireWorkspaceCommunityAdmin(request, response, groupId) {
   }
 
   if (groupId > 0) {
-    const availableGroupIds = await resolveAvailableGroupIds(auth);
-    if (!availableGroupIds.has(groupId)) {
+    if (auth.groupId <= 0 || auth.groupId !== groupId) {
       sendJson(response, 403, {
         ok: false,
-        error: 'The requested group is not connected to the current workspace',
+        error: 'The requested group does not match the current VK context',
       });
       return null;
     }
