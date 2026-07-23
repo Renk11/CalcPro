@@ -78,6 +78,8 @@ const MAX_FIELD_HINT_LENGTH = 80;
 const MAX_OPTION_LABEL_LENGTH = 48;
 const MAX_OPTION_DESCRIPTION_LENGTH = 80;
 const MAX_CHECKBOX_LABEL_LENGTH = 80;
+const MAX_RESULT_CARD_TITLE_LENGTH = 48;
+const MAX_RESULT_CARD_LABEL_LENGTH = 32;
 
 const clampTextValue = (value: string, maxLength: number) => value.slice(0, maxLength);
 
@@ -118,6 +120,42 @@ const sanitizeOptionPatch = (
 
   if (typeof nextPatch.description === 'string') {
     nextPatch.description = clampTextValue(nextPatch.description, MAX_OPTION_DESCRIPTION_LENGTH);
+  }
+
+  return nextPatch;
+};
+
+const sanitizeTemplatePatch = (
+  patch: Partial<CalculatorTemplate>,
+): Partial<CalculatorTemplate> => {
+  const nextPatch = { ...patch };
+
+  if (typeof nextPatch.resultCardTitle === 'string') {
+    nextPatch.resultCardTitle = clampTextValue(
+      nextPatch.resultCardTitle,
+      MAX_RESULT_CARD_TITLE_LENGTH,
+    );
+  }
+
+  if (typeof nextPatch.resultSubtotalLabel === 'string') {
+    nextPatch.resultSubtotalLabel = clampTextValue(
+      nextPatch.resultSubtotalLabel,
+      MAX_RESULT_CARD_LABEL_LENGTH,
+    );
+  }
+
+  if (typeof nextPatch.resultDiscountLabel === 'string') {
+    nextPatch.resultDiscountLabel = clampTextValue(
+      nextPatch.resultDiscountLabel,
+      MAX_RESULT_CARD_LABEL_LENGTH,
+    );
+  }
+
+  if (typeof nextPatch.resultMinPriceLabel === 'string') {
+    nextPatch.resultMinPriceLabel = clampTextValue(
+      nextPatch.resultMinPriceLabel,
+      MAX_RESULT_CARD_LABEL_LENGTH,
+    );
   }
 
   return nextPatch;
@@ -2028,9 +2066,11 @@ export const BuilderPage = ({
   }, []);
 
   const updateTemplate = (patch: Partial<CalculatorTemplate>) => {
+    const sanitizedPatch = sanitizeTemplatePatch(patch);
+
     setTemplate((current) => ({
       ...current,
-      ...patch,
+      ...sanitizedPatch,
       updatedAt: new Date().toISOString(),
     }));
   };
@@ -5599,8 +5639,17 @@ export const BuilderPage = ({
                   <span>Заголовок</span>
                   <input
                     value={template.resultCardTitle ?? 'Итог расчета'}
-                    onChange={(event) => updateTemplate({ resultCardTitle: event.target.value })}
+                    maxLength={MAX_RESULT_CARD_TITLE_LENGTH}
+                    onChange={(event) =>
+                      updateTemplate({
+                        resultCardTitle: event.target.value.slice(0, MAX_RESULT_CARD_TITLE_LENGTH),
+                      })
+                    }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {(template.resultCardTitle ?? 'Итог расчета').length}/
+                    {MAX_RESULT_CARD_TITLE_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__checkbox">
@@ -5630,11 +5679,18 @@ export const BuilderPage = ({
                   <span>Подпись подытога</span>
                   <input
                     value={template.resultSubtotalLabel ?? 'Подытог'}
+                    maxLength={MAX_RESULT_CARD_LABEL_LENGTH}
                     disabled={!canUseProFeatures}
                     onChange={(event) =>
-                      updateTemplate({ resultSubtotalLabel: event.target.value })
+                      updateTemplate({
+                        resultSubtotalLabel: event.target.value.slice(0, MAX_RESULT_CARD_LABEL_LENGTH),
+                      })
                     }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {(template.resultSubtotalLabel ?? 'Подытог').length}/
+                    {MAX_RESULT_CARD_LABEL_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__checkbox">
@@ -5653,11 +5709,18 @@ export const BuilderPage = ({
                   <span>Подпись скидки</span>
                   <input
                     value={template.resultDiscountLabel ?? 'Скидка'}
+                    maxLength={MAX_RESULT_CARD_LABEL_LENGTH}
                     disabled={!canUseProFeatures}
                     onChange={(event) =>
-                      updateTemplate({ resultDiscountLabel: event.target.value })
+                      updateTemplate({
+                        resultDiscountLabel: event.target.value.slice(0, MAX_RESULT_CARD_LABEL_LENGTH),
+                      })
                     }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {(template.resultDiscountLabel ?? 'Скидка').length}/
+                    {MAX_RESULT_CARD_LABEL_LENGTH} {'симв.'}
+                  </span>
                 </label>
 
                 <label className="builder-inspector__checkbox">
@@ -5676,11 +5739,18 @@ export const BuilderPage = ({
                   <span>Подпись минимальной цены</span>
                   <input
                     value={template.resultMinPriceLabel ?? 'Минимальная цена'}
+                    maxLength={MAX_RESULT_CARD_LABEL_LENGTH}
                     disabled={!canUseProFeatures}
                     onChange={(event) =>
-                      updateTemplate({ resultMinPriceLabel: event.target.value })
+                      updateTemplate({
+                        resultMinPriceLabel: event.target.value.slice(0, MAX_RESULT_CARD_LABEL_LENGTH),
+                      })
                     }
                   />
+                  <span className="builder-inspector__field-counter">
+                    {(template.resultMinPriceLabel ?? 'Минимальная цена').length}/
+                    {MAX_RESULT_CARD_LABEL_LENGTH} {'симв.'}
+                  </span>
                 </label>
                 {!canUseProFeatures ? (
                   <div className="builder-inspector__field-hint">

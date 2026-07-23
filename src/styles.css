@@ -10209,6 +10209,8 @@ body::-webkit-scrollbar-thumb:hover,
   font-weight: 800;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .result-card__amount {
