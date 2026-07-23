@@ -59,20 +59,36 @@ const pad = (value: number) => String(value).padStart(2, '0');
 const toIsoDate = (date: Date) =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
+const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const normalizeSliderNumericValue = (field: CalculatorField, rawValue: unknown) => {
+  const min = Number.isFinite(field.min) ? Number(field.min) : 0;
+  const max = Number.isFinite(field.max) ? Number(field.max) : 100;
+  const normalizedMin = Math.min(min, max);
+  const normalizedMax = Math.max(min, max);
+  const numericValue = Number(rawValue);
+
+  if (!Number.isFinite(numericValue)) {
+    return normalizedMin;
+  }
+
+  return clampNumber(numericValue, normalizedMin, normalizedMax);
+};
+
 const getSliderValue = (field: CalculatorField, value: CalculatorFieldValue) => {
   if (typeof value === 'number') {
-    return value;
+    return normalizeSliderNumericValue(field, value);
   }
 
   if (typeof value === 'string' && value !== '') {
-    return Number(value);
+    return normalizeSliderNumericValue(field, value);
   }
 
   if (typeof field.defaultValue === 'number') {
-    return field.defaultValue;
+    return normalizeSliderNumericValue(field, field.defaultValue);
   }
 
-  return field.min ?? 0;
+  return normalizeSliderNumericValue(field, field.min ?? 0);
 };
 
 const getInputSubtype = (field: CalculatorField): InputFieldSubtype | null => {
@@ -1089,7 +1105,11 @@ export const CalculatorFieldInput = ({
               onClick={(event) => stopDesignModePropagation(event, isDesignMode)}
               onFocus={(event) => stopDesignModePropagation(event, isDesignMode)}
               onChange={(event) =>
-                onChange(event.target.value === '' ? min : Number(event.target.value))
+                onChange(
+                  event.target.value === ''
+                    ? min
+                    : normalizeSliderNumericValue(field, event.target.value),
+                )
               }
             />
           ) : null}
