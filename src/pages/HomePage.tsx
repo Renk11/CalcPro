@@ -2750,6 +2750,31 @@ export const HomePage = ({
     }
   };
 
+  const copyTextWithExecCommandFallback = async (value: string) => {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const isCopied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+
+    if (!isCopied) {
+      throw new Error('execCommand copy failed');
+    }
+  };
+
   const handleSaveManagerSettings = async (nextManagerVkId: string) => {
     const result = await onSaveAdminSettings({
       ...adminSettings,
@@ -6232,10 +6257,14 @@ export const HomePage = ({
                     type="button"
                     onClick={async () => {
                       try {
-                        await navigator.clipboard.writeText(GOOGLE_SHEETS_APPS_SCRIPT_TEMPLATE);
+                        await copyTextWithExecCommandFallback(
+                          GOOGLE_SHEETS_APPS_SCRIPT_TEMPLATE,
+                        );
                         setGoogleSheetsHelpStatus('Код Google Apps Script скопирован.');
                       } catch {
-                        setGoogleSheetsHelpStatus('Не удалось скопировать код автоматически.');
+                        setGoogleSheetsHelpStatus(
+                          'Автокопирование кода недоступно. Скопируйте его вручную из поля выше.',
+                        );
                       }
                     }}
                   >
@@ -6264,10 +6293,14 @@ export const HomePage = ({
                     type="button"
                     onClick={async () => {
                       try {
-                        await navigator.clipboard.writeText(GOOGLE_SHEETS_DEPLOYMENT_CHECKLIST);
+                        await copyTextWithExecCommandFallback(
+                          GOOGLE_SHEETS_DEPLOYMENT_CHECKLIST,
+                        );
                         setGoogleSheetsHelpStatus('Памятка по развертыванию скопирована.');
                       } catch {
-                        setGoogleSheetsHelpStatus('Не удалось скопировать памятку автоматически.');
+                        setGoogleSheetsHelpStatus(
+                          'Автокопирование параметров недоступно. Скопируйте памятку вручную из блока выше.',
+                        );
                       }
                     }}
                   >
