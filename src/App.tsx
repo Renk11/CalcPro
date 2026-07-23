@@ -2318,6 +2318,8 @@ const App = () => {
     const searchParams = new URLSearchParams(window.location.search);
     const paymentIdFromUrl = searchParams.get('paymentId');
     const pendingPayment = readPendingPayment();
+    const hasPaymentIdInUrl = paymentIdFromUrl != null && paymentIdFromUrl !== 'return';
+    const shouldVerifyPendingPayment = hasPaymentIdInUrl || homeSection === 'payments';
 
     if (hasActiveSubscription && currentPlan.id !== 'free') {
       if (paymentIdFromUrl || pendingPayment?.paymentId) {
@@ -2327,8 +2329,12 @@ const App = () => {
       return;
     }
 
+    if (!shouldVerifyPendingPayment) {
+      return;
+    }
+
     const paymentId =
-      paymentIdFromUrl && paymentIdFromUrl !== 'return'
+      hasPaymentIdInUrl
         ? paymentIdFromUrl
         : pendingPayment?.paymentId;
 
@@ -2429,6 +2435,7 @@ const App = () => {
     currentPlan.id,
     effectiveAdminGroupId,
     hasActiveSubscription,
+    homeSection,
     isWebMonetizationPlatform,
     paidPlanConfig.id,
   ]);
