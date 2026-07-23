@@ -102,6 +102,26 @@ const normalizeHexColor = (value: string | undefined, fallback: string) => {
   return normalizedValue.toLowerCase();
 };
 
+const formatBlockCountLabel = (count: number) => {
+  const normalizedCount = Math.abs(Math.trunc(count));
+  const mod10 = normalizedCount % 10;
+  const mod100 = normalizedCount % 100;
+
+  if (mod100 >= 11 && mod100 <= 14) {
+    return `${count} блоков`;
+  }
+
+  if (mod10 === 1) {
+    return `${count} блок`;
+  }
+
+  if (mod10 >= 2 && mod10 <= 4) {
+    return `${count} блока`;
+  }
+
+  return `${count} блоков`;
+};
+
 const sanitizeFieldPatch = (
   patch: Partial<CalculatorField>,
   sourceField?: CalculatorField,
@@ -3096,7 +3116,9 @@ export const BuilderPage = ({
                 <div className='builder-canvas__drag-hint'>{'\u0417\u0430\u0436\u043c\u0438\u0442\u0435 \u0438 \u043f\u0435\u0440\u0435\u0442\u0430\u0449\u0438\u0442\u0435 \u0431\u043b\u043e\u043a'}</div>
               ) : null}
               <div className="builder-canvas__status-row">
-                <span className='builder-canvas__pill'>{template.fields.length} {'\u0431\u043b\u043e\u043a\u043e\u0432'}</span>
+                <span className="builder-canvas__pill">
+                  {formatBlockCountLabel(template.fields.length)}
+                </span>
                 <span className="builder-canvas__pill builder-canvas__pill_soft">
                   {template.requestForm.enabled ? 'Заявка включена' : 'Заявка выключена'}
                 </span>
