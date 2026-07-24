@@ -8,6 +8,8 @@ import {
   addServerAnalyticsEvent,
   getServerAnalyticsEvents,
 } from '../server/analytics-store.js';
+import { getServerAdminSettings } from '../server/settings-store.js';
+import { getEffectiveSubscriptionPlan } from '../server/subscription-config.js';
 
 function parseGroupId(rawValue) {
   const groupId = Number(rawValue);
@@ -64,6 +66,15 @@ export default async function handler(request, response) {
         return undefined;
       }
 
+      const settings = await getServerAdminSettings(groupId);
+      const planConfig = getEffectiveSubscriptionPlan(settings.subscription);
+      if (!planConfig.features.analytics) {
+        return sendJson(response, 403, {
+          ok: false,
+          error: 'Analytics is available only on the Pro plan',
+        });
+      }
+
       const events = await getServerAnalyticsEvents(groupId);
       return sendJson(response, 200, { ok: true, data: events });
     }
@@ -78,6 +89,15 @@ export default async function handler(request, response) {
         return sendJson(response, 403, {
           ok: false,
           error: 'Analytics can be tracked only from the current VK community context',
+        });
+      }
+
+      const settings = await getServerAdminSettings(groupId);
+      const planConfig = getEffectiveSubscriptionPlan(settings.subscription);
+      if (!planConfig.features.analytics) {
+        return sendJson(response, 403, {
+          ok: false,
+          error: 'Analytics is available only on the Pro plan',
         });
       }
 

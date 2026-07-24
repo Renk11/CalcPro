@@ -1,6 +1,6 @@
 import { supabaseSelect, supabaseUpsert } from './supabase.js';
 import { getServerAdminSettings } from './settings-store.js';
-import { getSubscriptionPlanConfig } from './subscription-config.js';
+import { getEffectiveSubscriptionPlan, getSubscriptionPlanConfig } from './subscription-config.js';
 import { normalizeTemplateRecord } from '../src/shared/storage/localStorage.js';
 
 const TEMPLATES_KEY = 'calcpro:templates';
@@ -22,6 +22,64 @@ function normalizeTemplates(templates = []) {
         .filter((template) => template && typeof template === 'object')
         .map((template) => normalizeTemplateRecord(template))
     : [];
+}
+
+function restrictTemplateByPlan(template, planConfig) {
+  const nextTemplate = {
+    ...template,
+    fields: Array.isArray(template.fields) ? template.fields : [],
+  };
+
+  if (!planConfig.features.templates) {
+    nextTemplate.publicationStatus = 'draft';
+    nextTemplate.publishedAt = undefined;
+  }
+
+  if (!planConfig.features.folders) {
+    nextTemplate.folderId = undefined;
+  }
+
+  if (!planConfig.features.advancedFormulas) {
+    nextTemplate.formulaMode = 'simple';
+    nextTemplate.customFormula = '';
+    nextTemplate.visualFormulaTokens = [];
+  }
+
+  if (!planConfig.features.booking) {
+    nextTemplate.fields = nextTemplate.fields.filter((field) => field?.type !== 'booking');
+  }
+
+  delete nextTemplate.hideBranding;
+
+  return normalizeTemplateRecord(nextTemplate);
+}
+
+function normalizeTemplatesForPlan(templates, planConfig) {
+  const normalizedTemplates = normalizeTemplates(templates).map((template) =>
+    restrictTemplateByPlan(template, planConfig),
+  );
+  const limitedTemplates =
+    planConfig.calculatorLimit == null
+      ? normalizedTemplates
+      : normalizedTemplates.slice(0, Math.max(0, planConfig.calculatorLimit));
+
+  let hasPublishedTemplate = false;
+  return limitedTemplates.map((template) => {
+    if (template.publicationStatus !== 'published') {
+      return template;
+    }
+
+    if (!hasPublishedTemplate) {
+      hasPublishedTemplate = true;
+      return template;
+    }
+
+    return {
+      ...template,
+      publicationStatus: 'draft',
+      publishedAt: undefined,
+    };
+  });
 }
 
 function findPublishedTemplateInCollection(templates, publicId) {
@@ -125,7 +183,9 @@ export async function findPublishedTemplateByPublicId(publicId) {
 }
 
 export async function saveServerTemplates(templates, groupId) {
-  const normalized = normalizeTemplates(templates);
+  const settings = await getServerAdminSettings(groupId);
+  const planConfig = getEffectiveSubscriptionPlan(settings.subscription);
+  const normalized = normalizeTemplatesForPlan(templates, planConfig);
   await writeSettingRow(getTemplatesKey(groupId), normalized);
   return normalized;
 }
