@@ -3228,7 +3228,12 @@ export const BuilderPage = ({
             <button
               className={`builder-editor__mode-button ${mode === 'design' ? 'builder-editor__mode-button_active' : ''}`}
               type="button"
-              onClick={() => setMode('design')}
+              onClick={() => {
+                if (mode === 'formula') {
+                  setIsInspectorOpen(false);
+                }
+                setMode('design');
+              }}
             >
               {'\u0414\u0438\u0437\u0430\u0439\u043d'}
             </button>
