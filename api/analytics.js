@@ -109,8 +109,8 @@ export default async function handler(request, response) {
         });
       }
 
-      const events = await addServerAnalyticsEvent(eventPayload, groupId);
-      return sendJson(response, 200, { ok: true, data: events });
+      await addServerAnalyticsEvent(eventPayload, groupId);
+      return sendJson(response, 200, { ok: true });
     }
 
     return sendJson(response, 405, { ok: false, error: 'Method not allowed' });
