@@ -1841,6 +1841,7 @@ export const BuilderPage = ({
   const staggerTimeoutsRef = useRef<number[]>([]);
   const previousFieldCountRef = useRef(template.fields.length);
   const previousRequestFormEnabledRef = useRef(template.requestForm.enabled);
+  const hasHandledInitialCanvasSelectionRef = useRef(false);
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocKey | null>(null);
   const [previewConsentChecked, setPreviewConsentChecked] = useState(false);
   const [previewRequestFormValues, setPreviewRequestFormValues] = useState({
@@ -2219,6 +2220,11 @@ export const BuilderPage = ({
   useEffect(() => {
     const canvasElement = canvasRef.current;
     if (!canvasElement || mode === 'formula') {
+      return;
+    }
+
+    if (!hasHandledInitialCanvasSelectionRef.current) {
+      hasHandledInitialCanvasSelectionRef.current = true;
       return;
     }
 
