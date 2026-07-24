@@ -4579,7 +4579,10 @@ export const BuilderPage = ({
                                 <button
                                   className="calculator-request__consent-link"
                                   type="button"
-                                  onClick={() => setActiveLegalDoc('agreement')}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setActiveLegalDoc('agreement');
+                                  }}
                                 >
                                   пользовательское соглашение
                                 </button>{' '}
@@ -4587,7 +4590,10 @@ export const BuilderPage = ({
                                 <button
                                   className="calculator-request__consent-link"
                                   type="button"
-                                  onClick={() => setActiveLegalDoc('privacy')}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setActiveLegalDoc('privacy');
+                                  }}
                                 >
                                   политику конфиденциальности
                                 </button>
