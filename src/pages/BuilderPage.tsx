@@ -89,6 +89,7 @@ const MAX_CALCULATION_PRICE = 1_000_000_000;
 const MAX_CALCULATION_DISCOUNT = 100;
 const MAX_CALCULATION_COEFFICIENT = 1_000;
 const MAX_CALCULATION_FIELD_LENGTH = 16;
+const MAX_FIELD_MARGIN = 200;
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/;
 
 const clampTextValue = (value: string, maxLength: number) => value.slice(0, maxLength);
@@ -142,6 +143,11 @@ const clampCalculationParameterValue = (
   }
 
   return Math.min(MAX_CALCULATION_PRICE, Math.max(0, safeValue));
+};
+
+const clampFieldMarginValue = (value: number) => {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  return Math.min(MAX_FIELD_MARGIN, Math.max(0, safeValue));
 };
 
 const getCalculationParameterHint = (
@@ -217,6 +223,22 @@ const sanitizeFieldPatch = (
         ? getTextStyleDefaults(sourceField.textStyle).textColor
         : '#6f5d4e';
     nextPatch.textColor = normalizeHexColor(nextPatch.textColor, fallbackColor);
+  }
+
+  if (typeof nextPatch.marginTop === 'number') {
+    nextPatch.marginTop = clampFieldMarginValue(nextPatch.marginTop);
+  }
+
+  if (typeof nextPatch.marginBottom === 'number') {
+    nextPatch.marginBottom = clampFieldMarginValue(nextPatch.marginBottom);
+  }
+
+  if (typeof nextPatch.marginLeft === 'number') {
+    nextPatch.marginLeft = clampFieldMarginValue(nextPatch.marginLeft);
+  }
+
+  if (typeof nextPatch.marginRight === 'number') {
+    nextPatch.marginRight = clampFieldMarginValue(nextPatch.marginRight);
   }
 
   return nextPatch;
@@ -1186,10 +1208,10 @@ const parseVisualFormulaTokens = (
 };
 
 const getFieldSpacingStyle = (field: CalculatorField) => ({
-  marginTop: `${Math.max(0, field.marginTop ?? 0)}px`,
-  marginBottom: `${Math.max(0, field.marginBottom ?? 0)}px`,
-  marginLeft: `${Math.max(0, field.marginLeft ?? 0)}px`,
-  marginRight: `${Math.max(0, field.marginRight ?? 0)}px`,
+  marginTop: `${clampFieldMarginValue(field.marginTop ?? 0)}px`,
+  marginBottom: `${clampFieldMarginValue(field.marginBottom ?? 0)}px`,
+  marginLeft: `${clampFieldMarginValue(field.marginLeft ?? 0)}px`,
+  marginRight: `${clampFieldMarginValue(field.marginRight ?? 0)}px`,
 });
 
 const formatTestValue = (field: CalculatorField, value: unknown) => {
@@ -4679,6 +4701,7 @@ export const BuilderPage = ({
                           <input
                             type="number"
                             min="0"
+                            max={MAX_FIELD_MARGIN}
                             value={selectedField.marginTop ?? 0}
                             onChange={(event) =>
                               updateField(selectedField.id, { marginTop: Number(event.target.value) || 0 })
@@ -4691,6 +4714,7 @@ export const BuilderPage = ({
                           <input
                             type="number"
                             min="0"
+                            max={MAX_FIELD_MARGIN}
                             value={selectedField.marginBottom ?? 0}
                             onChange={(event) =>
                               updateField(selectedField.id, { marginBottom: Number(event.target.value) || 0 })
@@ -4703,6 +4727,7 @@ export const BuilderPage = ({
                           <input
                             type="number"
                             min="0"
+                            max={MAX_FIELD_MARGIN}
                             value={selectedField.marginLeft ?? 0}
                             onChange={(event) =>
                               updateField(selectedField.id, { marginLeft: Number(event.target.value) || 0 })
@@ -4715,6 +4740,7 @@ export const BuilderPage = ({
                           <input
                             type="number"
                             min="0"
+                            max={MAX_FIELD_MARGIN}
                             value={selectedField.marginRight ?? 0}
                             onChange={(event) =>
                               updateField(selectedField.id, { marginRight: Number(event.target.value) || 0 })

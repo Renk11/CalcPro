@@ -34,6 +34,13 @@ interface CalculatorPageProps {
   onRequestCreated: (request: CalculatorRequest) => void;
 }
 
+const MAX_FIELD_MARGIN = 200;
+
+const clampFieldMarginValue = (value: number) => {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  return Math.min(MAX_FIELD_MARGIN, Math.max(0, safeValue));
+};
+
 const getInputSubtype = (field: CalculatorField) => {
   if (field.type === 'input') {
     return field.inputSubtype ?? 'text';
@@ -692,10 +699,10 @@ export const CalculatorPage = ({
                     key={field.id}
                     className={`calculator-fields__item calculator-fields__item_${field.layout === 'half' ? 'half' : 'full'}`}
                     style={{
-                      marginTop: `${Math.max(0, field.marginTop ?? 0)}px`,
-                      marginBottom: `${Math.max(0, field.marginBottom ?? 0)}px`,
-                      marginLeft: `${Math.max(0, field.marginLeft ?? 0)}px`,
-                      marginRight: `${Math.max(0, field.marginRight ?? 0)}px`,
+                      marginTop: `${clampFieldMarginValue(field.marginTop ?? 0)}px`,
+                      marginBottom: `${clampFieldMarginValue(field.marginBottom ?? 0)}px`,
+                      marginLeft: `${clampFieldMarginValue(field.marginLeft ?? 0)}px`,
+                      marginRight: `${clampFieldMarginValue(field.marginRight ?? 0)}px`,
                     }}
                   >
                     <CalculatorFieldInput
