@@ -1537,9 +1537,7 @@ const App = () => {
       return;
     }
 
-    if (isViewerGroupAdmin) {
-      openAdminHome();
-    }
+    bridge.send('VKWebAppClose' as never, { status: 'success' } as never).catch(() => undefined);
   };
 
   const handleSaveAdminSettings = async (settings: CalculatorAdminSettings) => {
