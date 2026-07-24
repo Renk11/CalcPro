@@ -72,6 +72,10 @@ function normalizeRequest(request = {}) {
     createdAt,
     updatedAt,
     assignedTo: String(request.assignedTo || ''),
+    authorVkId:
+      Number.isInteger(Number(request.authorVkId)) && Number(request.authorVkId) > 0
+        ? Number(request.authorVkId)
+        : undefined,
     internalComments,
     history,
     values: request.values && typeof request.values === 'object' ? request.values : {},

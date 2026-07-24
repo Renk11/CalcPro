@@ -27,6 +27,8 @@ import {
 import { hasVkGroupToken, sendVkMessage } from '../server/vk.js';
 
 const groupSubmissionLocks = new Map();
+const REQUEST_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const REQUEST_RATE_LIMIT_MAX_PER_VIEWER = 3;
 
 function parseGroupId(rawValue) {
   const groupId = Number(rawValue);
@@ -150,6 +152,23 @@ function getMonthlyUsageFromSubscription(subscription, date = new Date()) {
   const cycleId = getSubscriptionQuotaCycleId(date);
   const rawValue = usage[cycleId];
   return Number.isFinite(rawValue) ? Math.max(0, Math.trunc(rawValue)) : 0;
+}
+
+function getRecentRequestCountForViewer(requests, viewerId) {
+  if (!Number.isInteger(viewerId) || viewerId <= 0) {
+    return 0;
+  }
+
+  const windowStart = Date.now() - REQUEST_RATE_LIMIT_WINDOW_MS;
+
+  return requests.filter((request) => {
+    const createdAt = Date.parse(String(request?.createdAt || ''));
+    return (
+      Number.isFinite(createdAt) &&
+      createdAt >= windowStart &&
+      Number(request?.authorVkId) === viewerId
+    );
+  }).length;
 }
 
 async function withGroupSubmissionLock(groupId, task) {
@@ -318,6 +337,16 @@ export default async function handler(request, response) {
       const requestPayload = request.body || {};
       const submission = await withGroupSubmissionLock(groupId, async () => {
         const settings = await getServerAdminSettings(groupId);
+        const currentRequests = await getServerRequests(groupId);
+        const recentRequestCount = getRecentRequestCountForViewer(currentRequests, auth.viewerId);
+
+        if (recentRequestCount >= REQUEST_RATE_LIMIT_MAX_PER_VIEWER) {
+          return {
+            blocked: true,
+            rateLimited: true,
+          };
+        }
+
         const currentPlan = hasSubscriptionBypassForViewer(auth.viewerId)
           ? getSubscriptionBypassPlan()
           : getEffectiveSubscriptionPlan(settings.subscription);
@@ -332,7 +361,13 @@ export default async function handler(request, response) {
           };
         }
 
-        const savedRequests = await addServerRequest(requestPayload, groupId);
+        const savedRequests = await addServerRequest(
+          {
+            ...requestPayload,
+            authorVkId: auth.viewerId,
+          },
+          groupId,
+        );
         let nextSettings = settings;
 
         if (requestLimit != null) {
@@ -358,6 +393,13 @@ export default async function handler(request, response) {
           settings: nextSettings,
         };
       });
+
+      if (submission.rateLimited) {
+        return sendJson(response, 429, {
+          ok: false,
+          error: `Слишком много заявок. Можно отправить не более ${REQUEST_RATE_LIMIT_MAX_PER_VIEWER} заявок в минуту.`,
+        });
+      }
 
       if (submission.blocked) {
         return sendJson(response, 200, {
