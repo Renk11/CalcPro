@@ -46,50 +46,56 @@ function parseManagerIds(rawValue) {
   ];
 }
 
-function parseRequestPatch(rawValue) {
+function parseRequestPatch(rawValue, planConfig) {
   const patch = rawValue && typeof rawValue === 'object' ? rawValue : {};
   const nextPatch = {};
-
-  if ('name' in patch) {
-    nextPatch.name = String(patch.name || '');
-  }
-
-  if ('phone' in patch) {
-    nextPatch.phone = String(patch.phone || '');
-  }
-
-  if ('comment' in patch) {
-    nextPatch.comment = String(patch.comment || '');
-  }
-
-  if ('amount' in patch) {
-    nextPatch.amount = Number(patch.amount) || 0;
-  }
-
-  if ('status' in patch) {
-    nextPatch.status =
-      patch.status === 'in_progress' ||
-      patch.status === 'done' ||
-      patch.status === 'rejected' ||
-      patch.status === 'new'
-        ? patch.status
-        : 'new';
-  }
-
-  if ('assignedTo' in patch) {
-    nextPatch.assignedTo = String(patch.assignedTo || '');
-  }
+  const canUseRequestStatuses = Boolean(planConfig?.features?.requestStatuses);
+  const canEditRequests = planConfig?.id === 'pro';
 
   if ('updatedAt' in patch) {
     nextPatch.updatedAt = String(patch.updatedAt || new Date().toISOString());
   }
 
-  if ('internalComments' in patch && Array.isArray(patch.internalComments)) {
-    nextPatch.internalComments = patch.internalComments;
+  if (canEditRequests) {
+    if ('name' in patch) {
+      nextPatch.name = String(patch.name || '');
+    }
+
+    if ('phone' in patch) {
+      nextPatch.phone = String(patch.phone || '');
+    }
+
+    if ('comment' in patch) {
+      nextPatch.comment = String(patch.comment || '');
+    }
+
+    if ('amount' in patch) {
+      nextPatch.amount = Number(patch.amount) || 0;
+    }
   }
 
-  if ('history' in patch && Array.isArray(patch.history)) {
-    nextPatch.history = patch.history;
+  if (canUseRequestStatuses) {
+    if ('status' in patch) {
+      nextPatch.status =
+        patch.status === 'in_progress' ||
+        patch.status === 'done' ||
+        patch.status === 'rejected' ||
+        patch.status === 'new'
+          ? patch.status
+          : 'new';
+    }
+
+    if ('assignedTo' in patch) {
+      nextPatch.assignedTo = String(patch.assignedTo || '');
+    }
+
+    if ('internalComments' in patch && Array.isArray(patch.internalComments)) {
+      nextPatch.internalComments = patch.internalComments;
+    }
+
+    if ('history' in patch && Array.isArray(patch.history)) {
+      nextPatch.history = patch.history;
+    }
   }
 
   return nextPatch;
@@ -259,7 +265,13 @@ export default async function handler(request, response) {
           return sendJson(response, 400, { ok: false, error: 'requestId is required' });
         }
 
-        const requests = await updateServerRequest(requestId, parseRequestPatch(request.body?.patch), groupId);
+        const settings = await getServerAdminSettings(groupId);
+        const planConfig = getEffectiveSubscriptionPlan(settings.subscription);
+        const requests = await updateServerRequest(
+          requestId,
+          parseRequestPatch(request.body?.patch, planConfig),
+          groupId,
+        );
         return sendJson(response, 200, { ok: true, data: requests });
       }
 

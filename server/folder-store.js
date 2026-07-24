@@ -1,4 +1,6 @@
 import { supabaseSelect, supabaseUpsert } from './supabase.js';
+import { getServerAdminSettings } from './settings-store.js';
+import { getEffectiveSubscriptionPlan } from './subscription-config.js';
 
 const FOLDERS_KEY_PREFIX = 'calcpro:folders:group:';
 
@@ -61,6 +63,12 @@ export async function getServerFolders(groupId) {
     return [];
   }
 
+  const settings = await getServerAdminSettings(groupId);
+  const planConfig = getEffectiveSubscriptionPlan(settings.subscription);
+  if (!planConfig.features.folders) {
+    return [];
+  }
+
   const folders = await readSettingRow(key);
   return normalizeFolders(folders);
 }
@@ -71,7 +79,9 @@ export async function saveServerFolders(folders, groupId) {
     return [];
   }
 
-  const normalized = normalizeFolders(folders);
+  const settings = await getServerAdminSettings(groupId);
+  const planConfig = getEffectiveSubscriptionPlan(settings.subscription);
+  const normalized = planConfig.features.folders ? normalizeFolders(folders) : [];
   await writeSettingRow(key, normalized);
   return normalized;
 }
