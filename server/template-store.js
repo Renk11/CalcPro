@@ -27,11 +27,6 @@ function restrictTemplateByPlan(template, planConfig) {
     fields: Array.isArray(template.fields) ? template.fields : [],
   };
 
-  if (!planConfig.features.templates) {
-    nextTemplate.publicationStatus = 'draft';
-    nextTemplate.publishedAt = undefined;
-  }
-
   if (!planConfig.features.folders) {
     nextTemplate.folderId = undefined;
   }
