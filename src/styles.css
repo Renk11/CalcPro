@@ -3266,7 +3266,7 @@ body,
 
 .settings-support__textarea {
   min-height: 120px;
-  resize: vertical;
+  resize: none;
 }
 
 .settings-support__textarea_compact {
