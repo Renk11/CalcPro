@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import analyticsHandler from '../api/analytics.js';
 import adminSettingsHandler from '../api/admin-settings.js';
 import communitiesHandler from '../api/communities.js';
+import foldersHandler from '../api/folders.js';
 import requestsHandler from '../api/requests.js';
 import supportHandler from '../api/support.js';
 import templatesHandler from '../api/templates.js';
@@ -24,6 +25,7 @@ const API_ROUTES = new Map([
   ['/api/analytics', analyticsHandler],
   ['/api/admin-settings', adminSettingsHandler],
   ['/api/communities', communitiesHandler],
+  ['/api/folders', foldersHandler],
   ['/api/requests', requestsHandler],
   ['/api/support', supportHandler],
   ['/api/templates', templatesHandler],

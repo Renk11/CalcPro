@@ -652,6 +652,7 @@ const App = () => {
     isVkLaunchParamsError(payload, status);
   const templatesSyncVersionRef = useRef(0);
   const templatesRef = useRef(templates);
+  const foldersSyncVersionRef = useRef(0);
   const selectedTemplateRef = useRef(selectedTemplate);
 
   useEffect(() => {
@@ -680,6 +681,7 @@ const App = () => {
     setSelectedTemplate(undefined);
     setActiveFolderId('all');
     templatesSyncVersionRef.current += 1;
+    foldersSyncVersionRef.current += 1;
   }, [effectiveAdminGroupId, isLaunchParamsResolved, isViewerGroupAdmin]);
 
   useEffect(() => {
@@ -1201,6 +1203,48 @@ const App = () => {
       isCancelled = true;
     };
   }, [effectiveAdminGroupId, isLaunchParamsResolved, publicCalculatorId, vkAuthHeaders]);
+
+  useEffect(() => {
+    if (!isLaunchParamsResolved || isPublicViewer || effectiveAdminGroupId <= 0) {
+      return;
+    }
+
+    let isCancelled = false;
+    const syncVersion = foldersSyncVersionRef.current;
+
+    const syncFoldersFromServer = async () => {
+      try {
+        const response = await fetch(
+          createApiUrl(`/api/folders?groupId=${effectiveAdminGroupId}`),
+          { headers: vkAuthHeaders },
+        );
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; data?: CalculatorFolder[]; error?: string }
+          | null;
+
+        if (
+          !response.ok ||
+          !payload?.ok ||
+          !Array.isArray(payload.data) ||
+          isCancelled ||
+          foldersSyncVersionRef.current !== syncVersion
+        ) {
+          return;
+        }
+
+        saveFolders(payload.data);
+        setFolders(payload.data);
+      } catch {
+        // Keep locally cached folders when the server request fails.
+      }
+    };
+
+    syncFoldersFromServer();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [effectiveAdminGroupId, isLaunchParamsResolved, isPublicViewer, vkAuthHeaders]);
 
   useEffect(() => {
     if (!isLaunchParamsResolved) {
@@ -1901,6 +1945,38 @@ const App = () => {
 
     syncTemplatesToServer(nextTemplates).catch(() => {
       // Local templates remain saved even if the API request fails.
+    });
+  };
+
+  const syncFoldersToServer = async (nextFolders: CalculatorFolder[]) => {
+    if (effectiveAdminGroupId <= 0) {
+      return;
+    }
+
+    const response = await fetch(
+      createApiUrl(`/api/folders?groupId=${effectiveAdminGroupId}`),
+      {
+        method: 'POST',
+        headers: createJsonHeaders(),
+        body: JSON.stringify({
+          groupId: effectiveAdminGroupId,
+          folders: nextFolders,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error('Не удалось сохранить папки на сервере.');
+    }
+  };
+
+  const persistFolders = (nextFolders: CalculatorFolder[]) => {
+    foldersSyncVersionRef.current += 1;
+    saveFolders(nextFolders);
+    setFolders(nextFolders);
+
+    syncFoldersToServer(nextFolders).catch(() => {
+      // Local folders remain saved even if the API request fails.
     });
   };
 
@@ -2716,7 +2792,7 @@ const App = () => {
     };
 
     const next = upsertFolder(folder);
-    setFolders(next);
+    persistFolders(next);
     setActiveFolderId(folder.id);
   };
 
@@ -2743,7 +2819,7 @@ const App = () => {
     };
 
     const next = upsertFolder(nextFolder);
-    setFolders(next);
+    persistFolders(next);
   };
 
   const deleteFolder = (folderId: string) => {
@@ -2762,8 +2838,7 @@ const App = () => {
       template.folderId === folderId ? { ...template, folderId: undefined } : template,
     );
 
-    saveFolders(nextFolders);
-    setFolders(nextFolders);
+    persistFolders(nextFolders);
     persistTemplates(nextTemplates);
 
     if (activeFolderId === folderId) {
