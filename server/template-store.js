@@ -179,10 +179,25 @@ export async function findPublishedTemplateByPublicId(publicId) {
   return findPublishedTemplateInCollection(legacyTemplates, normalizedPublicId);
 }
 
+function withStableTemplateIds(templates, existingTemplates) {
+  const existingByPublicId = new Map(
+    existingTemplates
+      .filter((template) => template?.publicId)
+      .map((template) => [String(template.publicId), template]),
+  );
+
+  return normalizeTemplates(templates).map((template) => {
+    const existing = template?.publicId ? existingByPublicId.get(String(template.publicId)) : undefined;
+    return existing ? { ...template, id: existing.id, createdAt: existing.createdAt } : template;
+  });
+}
+
 export async function saveServerTemplates(templates, groupId) {
   const settings = await getServerAdminSettings(groupId);
   const planConfig = getEffectiveSubscriptionPlan(settings.subscription);
-  const normalized = normalizeTemplatesForPlan(templates, planConfig);
+  const existingTemplates = await getServerTemplates(groupId);
+  const stableTemplates = withStableTemplateIds(templates, existingTemplates);
+  const normalized = normalizeTemplatesForPlan(stableTemplates, planConfig);
   await writeSettingRow(getTemplatesKey(groupId), normalized);
   return normalized;
 }
