@@ -1948,6 +1948,21 @@ export const BuilderPage = ({
   );
   const previewResultCardTitle = template.resultCardTitle ?? 'Итог расчета';
   const previewCalculation = useMemo(() => calculateTemplate(template, previewValues), [previewValues, template]);
+  const primaryResultField = useMemo(
+    () => template.fields.find((field) => field.type === 'result') ?? null,
+    [template.fields],
+  );
+  const formatPreviewMoneyValue = (value: number) => {
+    const decimals = Math.min(6, Math.max(0, primaryResultField?.resultDecimals ?? 0));
+    const shouldRound = primaryResultField?.resultRounding !== false;
+    const normalizedValue = shouldRound ? Number(value.toFixed(decimals)) : value;
+
+    return formatResultNumber(
+      normalizedValue,
+      shouldRound ? 0 : decimals,
+      primaryResultField?.resultFormat ?? 'space',
+    );
+  };
 
   useEffect(() => {
     if (!isOverlayViewport || mode === 'formula' || isLivePreview || (!isLibraryOpen && !isInspectorVisible)) {
@@ -2049,7 +2064,7 @@ export const BuilderPage = ({
   );
   const previewResultCardDescription = template.requestForm.enabled
     ? previewStatus ||
-      `Подытог: ${formatResultNumber(previewCalculation.subtotal)} ₽ · Скидка: ${formatResultNumber(previewCalculation.discountAmount)} ₽`
+      `Подытог: ${formatPreviewMoneyValue(previewCalculation.subtotal)} ₽ · Скидка: ${formatPreviewMoneyValue(previewCalculation.discountAmount)} ₽`
     : 'Результат и кнопка действия будут показаны здесь.';
   const autoSaveTimeoutRef = useRef<number | null>(null);
   const hasMountedRef = useRef(false);
@@ -2081,7 +2096,7 @@ export const BuilderPage = ({
       return;
     }
 
-    setPreviewStatus(`Итог: ${formatResultNumber(previewCalculation.total)} ₽`);
+    setPreviewStatus(`Итог: ${formatPreviewMoneyValue(previewCalculation.total)} ₽`);
   };
 
   useEffect(() => {
@@ -2329,7 +2344,7 @@ export const BuilderPage = ({
               ) : null}
               {template.resultCardShowTotal !== false ? (
                 <div className="result-card__amount result-card__amount_compact">
-                  {formatResultNumber(previewCalculation.total)} ₽
+                  {formatPreviewMoneyValue(previewCalculation.total)} ₽
                 </div>
               ) : null}
               <div className="result-card__description">{previewResultCardDescription}</div>
@@ -3674,7 +3689,7 @@ export const BuilderPage = ({
                           <div>
                             <span className="builder-test-panel__label">Итог</span>
                             <strong className="builder-test-panel__amount">
-                              {formatResultNumber(previewCalculation.total)} ₽
+                              {formatPreviewMoneyValue(previewCalculation.total)} ₽
                             </strong>
                           </div>
                           <span className="builder-test-panel__chip">
@@ -3684,15 +3699,15 @@ export const BuilderPage = ({
                         <div className="builder-test-panel__metrics">
                           <div className="builder-test-panel__metric">
                             <span>Подытог</span>
-                            <strong>{formatResultNumber(previewCalculation.subtotal)} ₽</strong>
+                            <strong>{formatPreviewMoneyValue(previewCalculation.subtotal)} ₽</strong>
                           </div>
                           <div className="builder-test-panel__metric">
                             <span>Скидка</span>
-                            <strong>{formatResultNumber(previewCalculation.discountAmount)} ₽</strong>
+                            <strong>{formatPreviewMoneyValue(previewCalculation.discountAmount)} ₽</strong>
                           </div>
                           <div className="builder-test-panel__metric">
                             <span>Мин. цена</span>
-                            <strong>{formatResultNumber(template.minPrice)} ₽</strong>
+                            <strong>{formatPreviewMoneyValue(template.minPrice)} ₽</strong>
                           </div>
                         </div>
                         {previewFormulaState.error ? (
