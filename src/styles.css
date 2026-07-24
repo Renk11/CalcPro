@@ -2360,6 +2360,7 @@ body,
 }
 
 .payments-reminder-card__command {
+  margin-top: 14px;
   padding: 16px 18px;
   border: 1px dashed rgba(255, 179, 107, 0.28);
   border-radius: 18px;
