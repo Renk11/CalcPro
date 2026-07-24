@@ -780,6 +780,7 @@ export const formatResultNumber = (
   return new Intl.NumberFormat(locale, {
     minimumFractionDigits: safeDecimals,
     maximumFractionDigits: safeDecimals,
+    useGrouping: format !== 'plain',
   }).format(value);
 };
 
