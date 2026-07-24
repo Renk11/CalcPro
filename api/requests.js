@@ -411,7 +411,6 @@ export default async function handler(request, response) {
         return sendJson(response, 200, {
           ok: true,
           message: 'Заявка сохранена. Менеджер VK ID пока не настроен.',
-          data: savedRequests,
         });
       }
 
@@ -420,7 +419,6 @@ export default async function handler(request, response) {
           ok: true,
           message:
             'Заявка сохранена. Менеджер ещё не подтвердил диалог с CalcPro.',
-          data: savedRequests,
         });
       }
 
@@ -428,7 +426,6 @@ export default async function handler(request, response) {
         return sendJson(response, 200, {
           ok: true,
           message: 'Заявка сохранена. Токен группы для отправки сообщений не настроен.',
-          data: savedRequests,
         });
       }
 
@@ -457,7 +454,6 @@ export default async function handler(request, response) {
           failedCount === 0
             ? `Заявка отправлена ${deliveredCount} менеджер(ам).`
             : `Заявка сохранена. Успешно отправлено: ${deliveredCount}, ошибок: ${failedCount}.`,
-        data: savedRequests,
         notifications: results,
       });
     }
