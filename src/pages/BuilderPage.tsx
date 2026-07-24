@@ -1522,6 +1522,15 @@ function validateImportedTemplate(value: unknown): asserts value is CalculatorTe
   });
 }
 
+function assertTemplateSystemFieldsUnchanged(
+  importedTemplate: CalculatorTemplate,
+  currentTemplate: CalculatorTemplate,
+) {
+  if (String(importedTemplate.id || '') !== String(currentTemplate.id)) {
+    throw new Error('Системное поле id нельзя изменять через JSON-хранилище.');
+  }
+}
+
 const getCleanFieldLabel = (field: CalculatorField) => {
   const inputSubtype = getInputSubtype(field);
 
@@ -3077,9 +3086,21 @@ export const BuilderPage = ({
     try {
       const parsedTemplate = JSON.parse(jsonDraft) as unknown;
       validateImportedTemplate(parsedTemplate);
+      assertTemplateSystemFieldsUnchanged(parsedTemplate, template);
+      const systemTemplateFields = {
+        id: template.id,
+        publicId: template.publicId,
+        groupId: template.groupId,
+        folderId: template.folderId,
+        createdAt: template.createdAt,
+        publicationStatus: template.publicationStatus,
+        publishedAt: template.publishedAt,
+        lastModifiedBy: template.lastModifiedBy,
+      };
       const normalizedTemplate = normalizeTemplateContent({
         ...createEmptyTemplate(),
         ...parsedTemplate,
+        ...systemTemplateFields,
         fields: Array.isArray(parsedTemplate.fields) ? parsedTemplate.fields : [],
         updatedAt: new Date().toISOString(),
       });
