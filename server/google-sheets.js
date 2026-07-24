@@ -1,3 +1,5 @@
+import { assertValidGoogleSheetsWebhookUrl } from './google-sheets-url.js';
+
 function stringifyRequestDetails(request = {}) {
   if (Array.isArray(request.details) && request.details.length > 0) {
     return request.details
@@ -36,10 +38,7 @@ export async function sendRequestsToGoogleSheets({
   mode = 'append',
   requests = [],
 }) {
-  const normalizedWebhookUrl = String(webhookUrl || '').trim();
-  if (!normalizedWebhookUrl) {
-    throw new Error('Google Sheets webhook URL is not configured');
-  }
+  const normalizedWebhookUrl = assertValidGoogleSheetsWebhookUrl(webhookUrl);
 
   const payload = {
     source: 'calcpro',

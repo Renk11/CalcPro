@@ -3,6 +3,7 @@ import {
   createDefaultSubscriptionSettings,
   getSubscriptionPlanConfig,
 } from './subscription-config.js';
+import { normalizeGoogleSheetsWebhookUrl } from './google-sheets-url.js';
 import { supabaseSelect, supabaseUpsert } from './supabase.js';
 
 const ADMIN_SETTINGS_KEY = 'calcpro:admin-settings';
@@ -116,7 +117,7 @@ function normalizeIntegrations(integrations = {}, defaults = createDefaultAdminS
       enabled: normalizeBoolean(normalizedIntegrations.telegram?.enabled),
     },
     googleSheets: {
-      webhookUrl: normalizeWebhookUrl(
+      webhookUrl: normalizeGoogleSheetsWebhookUrl(
         normalizedIntegrations.googleSheets?.webhookUrl || defaults.googleSheets.webhookUrl || '',
       ),
       enabled: normalizeBoolean(normalizedIntegrations.googleSheets?.enabled),
@@ -187,7 +188,7 @@ export function normalizeAdminSettings(settings = {}) {
   const defaults = createDefaultAdminSettings();
   const subscription = normalizeSubscription(settings.subscription);
   const normalizedIntegrations = normalizeIntegrations(settings.integrations, defaults.integrations);
-  const fallbackGoogleSheetsWebhookUrl = normalizeWebhookUrl(
+  const fallbackGoogleSheetsWebhookUrl = normalizeGoogleSheetsWebhookUrl(
     settings.googleSheetsWebhookUrl || normalizedIntegrations.googleSheets.webhookUrl,
   );
   const fallbackGoogleSheetsLastExportAt = String(
@@ -218,7 +219,7 @@ export function normalizeAdminSettings(settings = {}) {
       settings.updatesBroadcastUnsubscribedAt || defaults.updatesBroadcastUnsubscribedAt,
     ).trim(),
     integrations,
-    googleSheetsWebhookUrl: normalizeWebhookUrl(
+    googleSheetsWebhookUrl: normalizeGoogleSheetsWebhookUrl(
       fallbackGoogleSheetsWebhookUrl || defaults.googleSheetsWebhookUrl,
     ),
     googleSheetsLastExportAt: String(
