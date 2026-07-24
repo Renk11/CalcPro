@@ -868,6 +868,50 @@ const getPreviewFieldValue = (field: CalculatorField) => {
   return '';
 };
 
+const validatePreviewFieldValue = (field: CalculatorField, value: CalculatorValues[string]) => {
+  if (field.type === 'button' || field.type === 'result') {
+    return '';
+  }
+
+  if (field.required) {
+    const isEmpty =
+      field.type === 'checkbox'
+        ? false
+        : Array.isArray(value)
+          ? value.length === 0
+          : value === '' || value === undefined || value === null;
+
+    if (isEmpty) {
+      return 'Поле обязательно для заполнения';
+    }
+  }
+
+  if (field.type === 'booking') {
+    return value ? '' : field.required ? 'Выберите дату и время записи' : '';
+  }
+
+  if (field.type === 'slider' || field.type === 'number' || (field.type === 'input' && field.inputSubtype === 'number')) {
+    if (value === '' || value === undefined || value === null) {
+      return '';
+    }
+
+    const numericValue = Number(value);
+    if (Number.isNaN(numericValue)) {
+      return 'Введите корректное число';
+    }
+
+    if (field.min !== undefined && numericValue < field.min) {
+      return `Минимум: ${field.min}`;
+    }
+
+    if (field.max !== undefined && numericValue > field.max) {
+      return `Максимум: ${field.max}`;
+    }
+  }
+
+  return '';
+};
+
 const getCheckboxPriceLabel = (field: CalculatorField) => {
   const numericValue =
     typeof field.onValue === 'number' ? field.onValue : Number(field.onValue ?? 0);
@@ -1773,6 +1817,9 @@ export const BuilderPage = ({
     phone: '',
     comment: '',
   });
+  const [previewErrors, setPreviewErrors] = useState<Record<string, string>>({});
+  const [previewStatus, setPreviewStatus] = useState('');
+  const [isPreviewValidationTriggered, setIsPreviewValidationTriggered] = useState(false);
   const [previewValues, setPreviewValues] = useState<CalculatorValues>(() =>
     normalizeTemplateContent(initialTemplate ?? createEmptyTemplate()).fields.reduce<CalculatorValues>((acc, field) => {
       acc[field.key] = getPreviewFieldValue(field);
@@ -1961,11 +2008,49 @@ export const BuilderPage = ({
         })),
     [previewValues, template.fields],
   );
+  const isPreviewFormValid = useMemo(
+    () =>
+      template.fields.every(
+        (field) => !validatePreviewFieldValue(field, previewValues[field.key] ?? getPreviewFieldValue(field)),
+      ),
+    [previewValues, template.fields],
+  );
   const previewResultCardDescription = template.requestForm.enabled
-    ? `Подытог: ${formatResultNumber(previewCalculation.subtotal)} ₽ · Скидка: ${formatResultNumber(previewCalculation.discountAmount)} ₽`
+    ? previewStatus ||
+      `Подытог: ${formatResultNumber(previewCalculation.subtotal)} ₽ · Скидка: ${formatResultNumber(previewCalculation.discountAmount)} ₽`
     : 'Результат и кнопка действия будут показаны здесь.';
   const autoSaveTimeoutRef = useRef<number | null>(null);
   const hasMountedRef = useRef(false);
+
+  const validatePreviewFields = (nextValues: CalculatorValues = previewValues) => {
+    const nextErrors: Record<string, string> = {};
+
+    template.fields.forEach((field) => {
+      const error = validatePreviewFieldValue(field, nextValues[field.key] ?? getPreviewFieldValue(field));
+      if (error) {
+        nextErrors[field.key] = error;
+      }
+    });
+
+    setPreviewErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handlePreviewButtonAction = (action: ButtonActionType) => {
+    setIsPreviewValidationTriggered(true);
+
+    if (!validatePreviewFields()) {
+      setPreviewStatus('Заполните обязательные поля');
+      return;
+    }
+
+    if (action === 'submit') {
+      setPreviewStatus('Все обязательные поля заполнены. Предпросмотр готов к отправке заявки.');
+      return;
+    }
+
+    setPreviewStatus(`Итог: ${formatResultNumber(previewCalculation.total)} ₽`);
+  };
 
   useEffect(() => {
     setPreviewValues((current) =>
@@ -1976,6 +2061,12 @@ export const BuilderPage = ({
       }, {}),
     );
   }, [template.fields]);
+
+  useEffect(() => {
+    setPreviewErrors({});
+    setPreviewStatus('');
+    setIsPreviewValidationTriggered(false);
+  }, [template.id]);
 
   useEffect(() => {
     setFormulaDrafts({
@@ -2208,7 +2299,11 @@ export const BuilderPage = ({
             </div>
             {template.requestForm.enabled ? (
               <div className="result-card__actions">
-                <button className="calculator-request__submit result-card__submit" type="button">
+                <button
+                  className="calculator-request__submit result-card__submit"
+                  type="button"
+                  onClick={() => handlePreviewButtonAction('submit')}
+                >
                   {template.requestForm.submitButtonText}
                 </button>
               </div>
@@ -3373,14 +3468,33 @@ export const BuilderPage = ({
                                 <CalculatorFieldInput
                                   field={field}
                                   value={previewValues[field.key] ?? getPreviewFieldValue(field)}
+                                  error={isPreviewValidationTriggered ? previewErrors[field.key] : ''}
+                                  isFormValid={isPreviewFormValid}
                                   template={template}
                                   allValues={previewValues}
                                   isCalculationTriggered
+                                  onButtonAction={(action) => handlePreviewButtonAction(action)}
                                   onChange={(value) =>
-                                    setPreviewValues((current) => ({
-                                      ...current,
-                                      [field.key]: value,
-                                    }))
+                                    setPreviewValues((current) => {
+                                      const nextValues = {
+                                        ...current,
+                                        [field.key]: value,
+                                      };
+
+                                      if (isPreviewValidationTriggered) {
+                                        const nextErrors = { ...previewErrors };
+                                        const nextError = validatePreviewFieldValue(field, value);
+                                        if (nextError) {
+                                          nextErrors[field.key] = nextError;
+                                        } else {
+                                          delete nextErrors[field.key];
+                                        }
+                                        setPreviewErrors(nextErrors);
+                                      }
+
+                                      setPreviewStatus('');
+                                      return nextValues;
+                                    })
                                   }
                                 />
                               </div>
