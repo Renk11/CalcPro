@@ -5669,6 +5669,8 @@ body,
 
 .template-card {
   display: block;
+  position: relative;
+  z-index: 0;
   box-sizing: border-box;
   min-height: 348px;
   padding: 20px;
@@ -5681,6 +5683,10 @@ body,
     box-shadow 0.22s ease,
     border-color 0.22s ease;
   transform-origin: center;
+}
+
+.template-card_menu-open {
+  z-index: 20;
 }
 
 .template-card:hover {

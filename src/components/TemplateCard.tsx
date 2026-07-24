@@ -87,7 +87,7 @@ export const TemplateCard = ({
   }, [isMenuOpen]);
 
   return (
-    <article className="template-card">
+    <article className={`template-card ${isMenuOpen ? 'template-card_menu-open' : ''}`}>
       <div className="template-card__content">
         <div className="template-card__header">
           <div className="template-card__head-row">
