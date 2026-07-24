@@ -114,6 +114,7 @@ function escapeMysqlIdentifier(identifier) {
 async function requestMysqlSelect(table, { select = '*', filter = '', limit = 1 } = {}) {
   const pool = getMysqlPool();
   const parsedFilter = parseFilter(filter);
+  const normalizedLimit = Number(limit);
   const selectedColumns =
     select === '*'
       ? '*'
@@ -129,12 +130,11 @@ async function requestMysqlSelect(table, { select = '*', filter = '', limit = 1 
     params.push(...parsedFilter.params);
   }
 
-  if (limit) {
-    clauses.push('LIMIT ?');
-    params.push(Number(limit));
+  if (Number.isInteger(normalizedLimit) && normalizedLimit > 0) {
+    clauses.push(`LIMIT ${normalizedLimit}`);
   }
 
-  const [rows] = await pool.execute(clauses.join(' '), params);
+  const [rows] = await pool.query(clauses.join(' '), params);
   return rows.map(normalizeMysqlRow);
 }
 
@@ -171,7 +171,7 @@ async function requestMysqlUpsert(table, rows, { onConflict } = {}) {
     .filter(Boolean)
     .join(' ');
 
-  await pool.execute(sql, values);
+  await pool.query(sql, values);
 
   if (!onConflict) {
     return rows;
@@ -185,7 +185,7 @@ async function requestMysqlUpsert(table, rows, { onConflict } = {}) {
   }
 
   const inPlaceholders = uniqueValues.map(() => '?').join(', ');
-  const [selectedRows] = await pool.execute(
+  const [selectedRows] = await pool.query(
     `SELECT * FROM ${escapeMysqlIdentifier(table)} WHERE ${escapeMysqlIdentifier(filterColumn)} IN (${inPlaceholders})`,
     uniqueValues,
   );
@@ -215,7 +215,7 @@ async function requestMysqlUpdate(table, filter, patch) {
     key === 'value' && value && typeof value === 'object' ? JSON.stringify(value) : value ?? null,
   );
 
-  await pool.execute(sql, [...patchValues, ...parsedFilter.params]);
+  await pool.query(sql, [...patchValues, ...parsedFilter.params]);
   return requestMysqlSelect(table, { filter, limit: 1000 });
 }
 
@@ -228,7 +228,7 @@ async function requestMysqlDelete(table, filter) {
   }
 
   const rows = await requestMysqlSelect(table, { filter, limit: 5000 });
-  await pool.execute(
+  await pool.query(
     `DELETE FROM ${escapeMysqlIdentifier(table)} WHERE ${parsedFilter.sql}`,
     parsedFilter.params,
   );
