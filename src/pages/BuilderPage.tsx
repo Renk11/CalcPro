@@ -1820,6 +1820,7 @@ export const BuilderPage = ({
       }
     };
   }, [activeLegalDoc]);
+
   const [formulaDrafts, setFormulaDrafts] = useState(() => ({
     basePrice: String((initialTemplate ?? createEmptyTemplate()).basePrice),
     discount: String((initialTemplate ?? createEmptyTemplate()).discount),
@@ -1857,6 +1858,32 @@ export const BuilderPage = ({
   );
   const previewResultCardTitle = template.resultCardTitle ?? 'Итог расчета';
   const previewCalculation = useMemo(() => calculateTemplate(template, previewValues), [previewValues, template]);
+
+  useEffect(() => {
+    if (!isOverlayViewport || mode === 'formula' || isLivePreview || (!isLibraryOpen && !isInspectorVisible)) {
+      return;
+    }
+
+    const body = document.body;
+    const root = document.getElementById('root');
+    const previousBodyOverflow = body.style.overflow;
+    const previousRootOverflow = root?.style.overflow ?? '';
+
+    body.style.overflow = 'hidden';
+
+    if (root) {
+      root.style.overflow = 'hidden';
+    }
+
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+
+      if (root) {
+        root.style.overflow = previousRootOverflow;
+      }
+    };
+  }, [isInspectorVisible, isLibraryOpen, isLivePreview, isOverlayViewport, mode]);
+
   const previewFormulaState = useMemo(() => {
     const activeFormulaExpression =
       template.formulaEditorMode === 'visual' ? visualFormulaExpression : template.customFormula;
