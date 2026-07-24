@@ -529,6 +529,17 @@ const getInputSubtype = (field: CalculatorField): InputFieldSubtype | null => {
 };
 
 const isInputField = (field: CalculatorField) => getInputSubtype(field) !== null;
+const isNumericFormulaField = (field: CalculatorField) =>
+  field.type === 'number' ||
+  field.type === 'slider' ||
+  (field.type === 'input' && field.inputSubtype === 'number');
+const isFormulaEligibleField = (field: CalculatorField) =>
+  (isNumericFormulaField(field) ||
+    field.type === 'checkbox' ||
+    field.type === 'select' ||
+    field.type === 'radio' ||
+    field.type === 'booking') &&
+  field.useValueInFormula !== false;
 
 const clampTextFontSize = (value: number) => Math.min(72, Math.max(10, value));
 const clampTextFontWeight = (value: number) => Math.min(800, Math.max(300, value));
@@ -3705,7 +3716,7 @@ export const BuilderPage = ({
                               </button>
                             ))}
                             {template.fields
-                              .filter((field) => field.type !== 'button' && field.type !== 'html')
+                              .filter(isFormulaEligibleField)
                               .map((field) => (
                                 <button
                                   key={field.id}
@@ -3942,7 +3953,7 @@ export const BuilderPage = ({
                             >
                               Общий коэффициент
                             </button>
-                            {template.fields.map((field) => (
+                            {template.fields.filter(isFormulaEligibleField).map((field) => (
                               <button
                                 key={field.id}
                                 className="builder-formula__chip"
