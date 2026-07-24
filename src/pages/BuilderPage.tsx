@@ -2147,6 +2147,12 @@ export const BuilderPage = ({
   }, [selectedFieldId]);
 
   useEffect(() => {
+    if (selectedFieldId && isInspectorOpen && mode === 'design') {
+      (document.activeElement as HTMLElement | null)?.blur();
+    }
+  }, [selectedFieldId, isInspectorOpen, mode]);
+
+  useEffect(() => {
     if (isLivePreview) {
       setIsInspectorOpen(false);
     }
@@ -4420,21 +4426,29 @@ export const BuilderPage = ({
                           </button>
                         </div>
                       </div>
-                      <CalculatorFieldInput
-                        field={field}
-                        value={previewValues[field.key] ?? getPreviewFieldValue(field)}
-                        isDesignMode
-                        onBookingFieldChange={(patch) => updateField(field.id, patch)}
-                        template={template}
-                        allValues={previewValues}
-                        isCalculationTriggered
-                        onChange={(value) =>
-                          setPreviewValues((current) => ({
-                            ...current,
-                            [field.key]: value,
-                          }))
+                      <div
+                        style={
+                          selectedFieldId === field.id && isInspectorOpen
+                            ? { pointerEvents: 'none' }
+                            : undefined
                         }
-                      />
+                      >
+                        <CalculatorFieldInput
+                          field={field}
+                          value={previewValues[field.key] ?? getPreviewFieldValue(field)}
+                          isDesignMode
+                          onBookingFieldChange={(patch) => updateField(field.id, patch)}
+                          template={template}
+                          allValues={previewValues}
+                          isCalculationTriggered
+                          onChange={(value) =>
+                            setPreviewValues((current) => ({
+                              ...current,
+                              [field.key]: value,
+                            }))
+                          }
+                        />
+                      </div>
                       <div className="builder-field-card__top">
                         <span className="builder-field-card__type">{fieldTypeLabels[field.type]}</span>
                         <span className="builder-field-card__key">
