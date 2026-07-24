@@ -6139,30 +6139,31 @@ body,
 .builder-editor > .builder-library__toggle.builder-floating-toggle_legacy,
 .builder-editor > .builder-inspector__toggle.builder-floating-toggle_legacy {
   position: fixed;
-  top: var(--builder-floating-toggle-top, 100px);
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex !important;
   pointer-events: auto;
   z-index: 30;
-  will-change: top, left, right;
+  will-change: left, right;
   transition: left 0.28s ease, right 0.28s ease, background-color 0.2s ease;
 }
 
 .builder-editor > .builder-library__toggle.builder-floating-toggle_legacy {
-  left: 24px;
+  left: 12px;
 }
 
 .builder-editor
   > .builder-library__toggle.builder-floating-toggle_legacy.builder-library__toggle_open {
-  left: 305px;
+  left: 293px;
 }
 
 .builder-editor > .builder-inspector__toggle.builder-floating-toggle_legacy {
-  right: 24px;
+  right: 12px;
 }
 
 .builder-editor
   > .builder-inspector__toggle.builder-floating-toggle_legacy.builder-inspector__toggle_open {
-  right: 297px;
+  right: 285px;
 }
 
 .builder-editor_formula > .builder-library__toggle.builder-floating-toggle_legacy,
