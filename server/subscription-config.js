@@ -1,6 +1,18 @@
 export const SUBSCRIPTION_DURATION_DAYS = 30;
 export const DEFAULT_SUBSCRIPTION_PLAN = 'free';
 export const BILLING_REMINDER_SCHEDULE_DAYS = [7, 3, 1, 0];
+
+const SHARED_BASIC_FEATURES = {
+  analytics: false,
+  templates: false,
+  requestStatuses: false,
+  advancedFormulas: false,
+  notifications: false,
+  hideBranding: false,
+  folders: false,
+  booking: false,
+};
+
 const MOSCOW_UTC_OFFSET = '+03:00';
 const MOSCOW_YMD_FORMATTER = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/Moscow',
@@ -17,7 +29,10 @@ export const SUBSCRIPTION_PLANS = {
     communityLimit: 1,
     calculatorLimit: 1,
     monthlyRequestLimit: 20,
-    paymentTitle: 'Бесплатный тариф CalcPro',
+    paymentTitle: '\u0411\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0439 \u0442\u0430\u0440\u0438\u0444 CalcPro',
+    features: {
+      ...SHARED_BASIC_FEATURES,
+    },
   },
   start: {
     id: 'start',
@@ -26,7 +41,13 @@ export const SUBSCRIPTION_PLANS = {
     communityLimit: 3,
     calculatorLimit: 3,
     monthlyRequestLimit: 100,
-    paymentTitle: 'Тариф Start на 30 дней для сообщества',
+    paymentTitle: '\u0422\u0430\u0440\u0438\u0444 Start \u043d\u0430 30 \u0434\u043d\u0435\u0439 \u0434\u043b\u044f \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u0430',
+    features: {
+      ...SHARED_BASIC_FEATURES,
+      templates: true,
+      requestStatuses: true,
+      folders: true,
+    },
   },
   pro: {
     id: 'pro',
@@ -35,7 +56,17 @@ export const SUBSCRIPTION_PLANS = {
     communityLimit: null,
     calculatorLimit: null,
     monthlyRequestLimit: null,
-    paymentTitle: 'Тариф Pro на 30 дней для сообщества',
+    paymentTitle: '\u0422\u0430\u0440\u0438\u0444 Pro \u043d\u0430 30 \u0434\u043d\u0435\u0439 \u0434\u043b\u044f \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u0430',
+    features: {
+      analytics: true,
+      templates: true,
+      requestStatuses: true,
+      advancedFormulas: true,
+      notifications: true,
+      hideBranding: true,
+      folders: true,
+      booking: true,
+    },
   },
 };
 
