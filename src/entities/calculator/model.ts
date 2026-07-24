@@ -840,7 +840,7 @@ export const createEmptyTemplate = (folderId?: string): CalculatorTemplate => {
     publishedAt: undefined,
     lastModifiedBy: 'Администратор',
     title: 'Новый калькулятор',
-    description: 'Кратко опишите назначение калькулятора.',
+    description: '',
     type: 'services',
     basePrice: 0,
     discount: 0,
