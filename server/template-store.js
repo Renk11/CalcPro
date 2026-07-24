@@ -1,7 +1,6 @@
 import { supabaseSelect, supabaseUpsert } from './supabase.js';
 import { getServerAdminSettings } from './settings-store.js';
 import { getEffectiveSubscriptionPlan, getSubscriptionPlanConfig } from './subscription-config.js';
-import { normalizeTemplateRecord } from '../src/shared/storage/localStorage.js';
 
 const TEMPLATES_KEY = 'calcpro:templates';
 const GROUP_TEMPLATES_KEY_PREFIX = 'calcpro:templates:group:';
@@ -18,9 +17,7 @@ function getTemplatesKey(groupId) {
 
 function normalizeTemplates(templates = []) {
   return Array.isArray(templates)
-    ? templates
-        .filter((template) => template && typeof template === 'object')
-        .map((template) => normalizeTemplateRecord(template))
+    ? templates.filter((template) => template && typeof template === 'object')
     : [];
 }
 
@@ -51,7 +48,7 @@ function restrictTemplateByPlan(template, planConfig) {
 
   delete nextTemplate.hideBranding;
 
-  return normalizeTemplateRecord(nextTemplate);
+  return nextTemplate;
 }
 
 function normalizeTemplatesForPlan(templates, planConfig) {
