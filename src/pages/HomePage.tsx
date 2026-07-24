@@ -2434,6 +2434,13 @@ export const HomePage = ({
     () => visibleFaqTopics.find((topic) => topic.id === selectedFaqTopicId) ?? visibleFaqTopics[0],
     [selectedFaqTopicId, visibleFaqTopics],
   );
+  const faqViewRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (currentSection === 'faq') {
+      faqViewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [currentSection, selectedFaqTopicId]);
   const requestAssignees = useMemo(
     () =>
       [...new Set(requests.map((request) => (request.assignedTo ?? '').trim()).filter(Boolean))].sort(
@@ -5536,7 +5543,7 @@ export const HomePage = ({
           </div>
         </aside>
 
-        <article className="faq-view">
+        <article className="faq-view" ref={faqViewRef}>
           <div className="faq-view__eyebrow">Подробнее</div>
           <h2 className="faq-view__title">{selectedFaqTopic?.title}</h2>
           <p className="faq-view__intro">{selectedFaqTopic?.intro}</p>
