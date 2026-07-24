@@ -4,6 +4,10 @@ const SUPPORT_TICKETS_KEY = 'calcpro:support-tickets';
 const GROUP_SUPPORT_TICKETS_KEY_PREFIX = 'calcpro:support-tickets:group:';
 const SUPPORT_TICKET_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
+function createSupportTicketId() {
+  return `support-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function normalizeGroupId(groupId) {
   const numericGroupId = Number(groupId);
   return Number.isInteger(numericGroupId) && numericGroupId > 0 ? String(numericGroupId) : '';
@@ -23,7 +27,7 @@ function isSupportTicketExpired(ticket) {
 
 function normalizeSupportTicket(ticket = {}) {
   return {
-    id: String(ticket.id || `support-${Date.now()}`),
+    id: String(ticket.id || createSupportTicketId()),
     type:
       ticket.type === 'bug' || ticket.type === 'suggestion' || ticket.type === 'message'
         ? ticket.type

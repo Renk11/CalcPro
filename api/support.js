@@ -21,6 +21,10 @@ function normalizeSupportStatus(status) {
     : 'pending';
 }
 
+function isSupportOperator(auth) {
+  return Number.isInteger(auth?.viewerId) && String(auth.viewerId) === SUPPORT_RECIPIENT_ID;
+}
+
 function formatSupportType(type) {
   if (type === 'bug') {
     return 'Баг';
@@ -151,6 +155,13 @@ export default async function handler(request, response) {
     const action = String(request.query?.action || request.body?.action || '').toLowerCase();
 
     if (action === 'status') {
+      if (!isSupportOperator(auth)) {
+        return sendJson(response, 403, {
+          ok: false,
+          error: 'Only the support operator can update ticket status',
+        });
+      }
+
       const ticketId = String(request.body?.ticketId || '').trim();
       const status = normalizeSupportStatus(request.body?.status);
 
@@ -163,6 +174,13 @@ export default async function handler(request, response) {
     }
 
     if (action === 'comment') {
+      if (!isSupportOperator(auth)) {
+        return sendJson(response, 403, {
+          ok: false,
+          error: 'Only the support operator can update the support comment',
+        });
+      }
+
       const ticketId = String(request.body?.ticketId || '').trim();
       const managerComment = String(request.body?.managerComment || '');
 
@@ -175,9 +193,14 @@ export default async function handler(request, response) {
     }
 
     const trustedAuthor = await resolveTrustedAuthor(auth);
+    const createdAt = new Date().toISOString();
     const ticket = {
-      ...(request.body || {}),
-      status: normalizeSupportStatus(request.body?.status),
+      type: request.body?.type,
+      subject: request.body?.subject,
+      message: request.body?.message,
+      status: 'pending',
+      managerComment: '',
+      createdAt,
       authorLabel: trustedAuthor.authorLabel,
       authorVkId: trustedAuthor.authorVkId,
     };
