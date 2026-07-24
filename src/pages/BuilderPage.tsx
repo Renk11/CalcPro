@@ -2437,7 +2437,7 @@ export const BuilderPage = ({
     const updateFloatingToggleTop = () => {
       frameId = 0;
       const topbarBottom = topbarRef.current?.getBoundingClientRect().bottom ?? 88;
-      setFloatingToggleTop(Math.max(12, Math.round(topbarBottom + 10)));
+      setFloatingToggleTop(Math.max(12, Math.round(topbarBottom + 44)));
     };
 
     const scheduleUpdate = () => {
