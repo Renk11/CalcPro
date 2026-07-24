@@ -9,6 +9,8 @@ import {
 import { getVkUserInfo, hasVkGroupToken, sendVkMessageWithOptions } from '../server/vk.js';
 
 const SUPPORT_RECIPIENT_ID = '139346496';
+const SUPPORT_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const SUPPORT_RATE_LIMIT_MAX_TICKETS = 3;
 
 function parseGroupId(rawValue) {
   const groupId = Number(rawValue);
@@ -106,6 +108,31 @@ function buildMessage(ticket, groupId) {
   ].join('\n');
 }
 
+function getRateLimitAuthorId(auth, trustedAuthor) {
+  if (Number.isInteger(trustedAuthor?.authorVkId) && trustedAuthor.authorVkId > 0) {
+    return trustedAuthor.authorVkId;
+  }
+
+  return Number.isInteger(auth?.viewerId) && auth.viewerId > 0 ? auth.viewerId : 0;
+}
+
+function getRecentSupportTicketCount(tickets, authorVkId) {
+  if (!Number.isInteger(authorVkId) || authorVkId <= 0) {
+    return 0;
+  }
+
+  const windowStart = Date.now() - SUPPORT_RATE_LIMIT_WINDOW_MS;
+
+  return tickets.filter((ticket) => {
+    const createdAt = Date.parse(String(ticket?.createdAt || ''));
+    return (
+      Number.isFinite(createdAt) &&
+      createdAt >= windowStart &&
+      Number(ticket?.authorVkId) === authorVkId
+    );
+  }).length;
+}
+
 async function resolveTrustedAuthor(auth) {
   const fallbackLabel =
     Number.isInteger(auth?.viewerId) && auth.viewerId > 0
@@ -193,6 +220,17 @@ export default async function handler(request, response) {
     }
 
     const trustedAuthor = await resolveTrustedAuthor(auth);
+    const existingTickets = await getServerSupportTickets(groupId);
+    const rateLimitAuthorId = getRateLimitAuthorId(auth, trustedAuthor);
+    const recentTicketCount = getRecentSupportTicketCount(existingTickets, rateLimitAuthorId);
+
+    if (recentTicketCount >= SUPPORT_RATE_LIMIT_MAX_TICKETS) {
+      return sendJson(response, 429, {
+        ok: false,
+        error: `Слишком много обращений. Можно отправить не более ${SUPPORT_RATE_LIMIT_MAX_TICKETS} сообщений в минуту.`,
+      });
+    }
+
     const createdAt = new Date().toISOString();
     const ticket = {
       type: request.body?.type,

@@ -4288,6 +4288,13 @@ export const HomePage = ({
         setSupportStatus(payload.message || 'Обращение отправлено в саппорт.');
         return;
       }
+
+      if (payload?.error) {
+        const revertedTickets = nextTickets.filter((item) => item.id !== ticket.id);
+        setSupportTickets(replaceSupportTickets(revertedTickets));
+        setSupportStatus(payload.error);
+        return;
+      }
     } catch {
       // Keep the local ticket as a fallback if VK delivery is unavailable.
     }
