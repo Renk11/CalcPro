@@ -1,6 +1,7 @@
 import { supabaseSelect, supabaseUpsert } from './supabase.js';
 import { getServerAdminSettings } from './settings-store.js';
 import { getSubscriptionPlanConfig } from './subscription-config.js';
+import { normalizeTemplateRecord } from '../src/shared/storage/localStorage.js';
 
 const TEMPLATES_KEY = 'calcpro:templates';
 const GROUP_TEMPLATES_KEY_PREFIX = 'calcpro:templates:group:';
@@ -16,7 +17,11 @@ function getTemplatesKey(groupId) {
 }
 
 function normalizeTemplates(templates = []) {
-  return Array.isArray(templates) ? templates : [];
+  return Array.isArray(templates)
+    ? templates
+        .filter((template) => template && typeof template === 'object')
+        .map((template) => normalizeTemplateRecord(template))
+    : [];
 }
 
 function findPublishedTemplateInCollection(templates, publicId) {
