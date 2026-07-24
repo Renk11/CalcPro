@@ -2446,6 +2446,13 @@ const App = () => {
     }
 
     const storedTemplate = templatesRef.current.find((item) => item.id === template.id);
+
+    if (!storedTemplate && !canCreateMoreTemplates) {
+      setHomeSection('payments');
+      setActiveView('home');
+      return;
+    }
+
     const normalizedTemplate = normalizeTemplateRecord({
       ...storedTemplate,
       ...template,
