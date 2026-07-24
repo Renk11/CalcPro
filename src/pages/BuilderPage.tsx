@@ -1735,6 +1735,11 @@ export const BuilderPage = ({
   const previousRequestFormEnabledRef = useRef(template.requestForm.enabled);
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocKey | null>(null);
   const [previewConsentChecked, setPreviewConsentChecked] = useState(false);
+  const [previewRequestFormValues, setPreviewRequestFormValues] = useState({
+    name: '',
+    phone: '',
+    comment: '',
+  });
   const [previewValues, setPreviewValues] = useState<CalculatorValues>(() =>
     normalizeTemplateContent(initialTemplate ?? createEmptyTemplate()).fields.reduce<CalculatorValues>((acc, field) => {
       acc[field.key] = getPreviewFieldValue(field);
@@ -2198,6 +2203,17 @@ export const BuilderPage = ({
       }
     };
   }, [isAutoSaveEnabled, onSave, template]);
+
+  useEffect(() => {
+    if (!isTestMode) {
+      setPreviewRequestFormValues({
+        name: '',
+        phone: '',
+        comment: '',
+      });
+      setPreviewConsentChecked(false);
+    }
+  }, [isTestMode]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -3327,31 +3343,49 @@ export const BuilderPage = ({
                                   <span className="calc-field__label">{template.requestForm.nameLabel}</span>
                                   <input
                                     className="calc-field__control"
-                                    value=""
+                                    value={previewRequestFormValues.name}
                                     placeholder={template.requestForm.namePlaceholder}
-                                    readOnly
+                                    readOnly={!isTestMode}
+                                    onChange={(event) =>
+                                      setPreviewRequestFormValues((current) => ({
+                                        ...current,
+                                        name: event.target.value,
+                                      }))
+                                    }
                                   />
                                 </label>
                                 <label className="calc-field">
                                   <span className="calc-field__label">{template.requestForm.phoneLabel}</span>
                                   <input
                                     className="calc-field__control"
-                                    value=""
+                                    value={previewRequestFormValues.phone}
                                     placeholder={template.requestForm.phonePlaceholder}
-                                    readOnly
+                                    readOnly={!isTestMode}
+                                    onChange={(event) =>
+                                      setPreviewRequestFormValues((current) => ({
+                                        ...current,
+                                        phone: event.target.value,
+                                      }))
+                                    }
                                   />
                                 </label>
                               <label className="calc-field">
                                 <span className="calc-field__label">{template.requestForm.commentLabel}</span>
                                 <textarea
                                   className="calc-field__control calc-field__control_textarea"
-                                  value=""
+                                  value={previewRequestFormValues.comment}
                                   maxLength={250}
                                   placeholder={template.requestForm.commentPlaceholder}
-                                  readOnly
+                                  readOnly={!isTestMode}
+                                  onChange={(event) =>
+                                    setPreviewRequestFormValues((current) => ({
+                                      ...current,
+                                      comment: event.target.value,
+                                    }))
+                                  }
                                 />
                                 <span className="calc-field__hint">
-                                  0 / 250
+                                  {previewRequestFormValues.comment.length} / 250
                                 </span>
                               </label>
                               <label className="calculator-request__consent">
@@ -4229,31 +4263,49 @@ export const BuilderPage = ({
                             <span className="calc-field__label">{template.requestForm.nameLabel}</span>
                             <input
                               className="calc-field__control"
-                              value=""
+                              value={previewRequestFormValues.name}
                               placeholder={template.requestForm.namePlaceholder}
-                              readOnly
+                              readOnly={!isTestMode}
+                              onChange={(event) =>
+                                setPreviewRequestFormValues((current) => ({
+                                  ...current,
+                                  name: event.target.value,
+                                }))
+                              }
                             />
                           </label>
                           <label className="calc-field">
                             <span className="calc-field__label">{template.requestForm.phoneLabel}</span>
                             <input
                               className="calc-field__control"
-                              value=""
+                              value={previewRequestFormValues.phone}
                               placeholder={template.requestForm.phonePlaceholder}
-                              readOnly
+                              readOnly={!isTestMode}
+                              onChange={(event) =>
+                                setPreviewRequestFormValues((current) => ({
+                                  ...current,
+                                  phone: event.target.value,
+                                }))
+                              }
                             />
                           </label>
                           <label className="calc-field">
                             <span className="calc-field__label">{template.requestForm.commentLabel}</span>
                             <textarea
                               className="calc-field__control calc-field__control_textarea"
-                              value=""
+                              value={previewRequestFormValues.comment}
                               maxLength={250}
                               placeholder={template.requestForm.commentPlaceholder}
-                              readOnly
+                              readOnly={!isTestMode}
+                              onChange={(event) =>
+                                setPreviewRequestFormValues((current) => ({
+                                  ...current,
+                                  comment: event.target.value,
+                                }))
+                              }
                             />
                             <span className="calc-field__hint">
-                              0 / 250
+                              {previewRequestFormValues.comment.length} / 250
                             </span>
                           </label>
                           <label className="calculator-request__consent">
@@ -4261,8 +4313,9 @@ export const BuilderPage = ({
                               <input
                                 className="calculator-request__consent-checkbox"
                                 type="checkbox"
-                                checked={false}
-                                readOnly
+                                checked={previewConsentChecked}
+                                readOnly={!isTestMode}
+                                onChange={(event) => setPreviewConsentChecked(event.target.checked)}
                               />
                               <span className="calculator-request__consent-text">
                                 Я принимаю{' '}
