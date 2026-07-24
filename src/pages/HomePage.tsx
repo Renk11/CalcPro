@@ -1985,14 +1985,13 @@ export const HomePage = ({
   const [canGoBackSection, setCanGoBackSection] = useState(false);
 
   const navigateToSection = (section: AdminSection) => {
-    const nextSection = isSectionLocked(section) && canManageMonetization ? 'payments' : section;
-    if (nextSection === currentSection) {
+    if (section === currentSection) {
       return;
     }
 
     sectionHistoryRef.current = [...sectionHistoryRef.current, currentSection];
     setCanGoBackSection(sectionHistoryRef.current.length > 0);
-    onSectionChange(nextSection);
+    onSectionChange(section);
   };
 
   const handleSectionSelect = (section: AdminSection) => {
