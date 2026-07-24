@@ -163,6 +163,28 @@ const getCalculationParameterCorrectionMessage = (
   nextValue: number,
 ) => `${getCalculationParameterHint(key)}. Значение скорректировано до ${String(nextValue)}.`;
 
+const sanitizeCalculationParameterInput = (rawValue: string) => {
+  const normalizedValue = rawValue.replace(',', '.');
+  let hasDecimalSeparator = false;
+
+  return normalizedValue
+    .split('')
+    .filter((char) => {
+      if (/\d/.test(char)) {
+        return true;
+      }
+
+      if (char === '.' && !hasDecimalSeparator) {
+        hasDecimalSeparator = true;
+        return true;
+      }
+
+      return false;
+    })
+    .join('')
+    .slice(0, MAX_CALCULATION_FIELD_LENGTH);
+};
+
 const sanitizeFieldPatch = (
   patch: Partial<CalculatorField>,
   sourceField?: CalculatorField,
@@ -2276,7 +2298,7 @@ export const BuilderPage = ({
     key: 'basePrice' | 'discount' | 'minPrice' | 'globalCoefficient',
     rawValue: string,
   ) => {
-    const normalizedRawValue = rawValue.slice(0, MAX_CALCULATION_FIELD_LENGTH);
+    const normalizedRawValue = sanitizeCalculationParameterInput(rawValue);
 
     setFormulaDrafts((current) => ({
       ...current,
