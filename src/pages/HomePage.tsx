@@ -222,6 +222,19 @@ const formatAdminNavCommunityLabel = (community: CalculatorConnectedCommunity) =
   return `${truncateWithEllipsis(normalizedName, ADMIN_NAV_COMMUNITY_LABEL_MAX_LENGTH)} · ID ${community.groupId}`;
 };
 
+const getCommunityRoleLabel = (role?: string) => {
+  switch (role) {
+    case 'admin':
+      return 'админ';
+    case 'editor':
+      return 'редактор';
+    case 'moder':
+      return 'модер';
+    default:
+      return role || '';
+  }
+};
+
 const formatSubscriptionCountdown = (diffMs: number) => {
   if (diffMs <= 0) {
     return 'Срок не активен';
@@ -3004,7 +3017,7 @@ export const HomePage = ({
                       <div className="community-row__meta">
                         ID {community.groupId}
                         {community.screenName ? ` · @${community.screenName}` : ''}
-                        {community.role ? ` · роль: ${community.role}` : ''}
+                        {community.role ? ` · роль: ${getCommunityRoleLabel(community.role)}` : ''}
                       </div>
                     </div>
                     <div className="community-row__side">
