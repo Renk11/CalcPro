@@ -662,15 +662,6 @@ export const CalculatorPage = ({
           setStatus(`Итог: ${result.total} ₽`);
         }
         break;
-      case 'calculate':
-      default:
-        if (!validate()) {
-          setStatus('Заполните обязательные поля');
-        } else {
-          setIsCalculationTriggered(true);
-          setStatus(`Итог: ${result.total} ₽`);
-        }
-        break;
     }
   };
 
