@@ -4581,6 +4581,34 @@ export const BuilderPage = ({
                   <p className="builder-canvas__text">
                     {'\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0443 \u0441\u043b\u0435\u0432\u0430 \u0438 \u0434\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u044d\u043b\u0435\u043c\u0435\u043d\u0442 \u043d\u0430 \u043f\u043e\u043b\u043e\u0442\u043d\u043e.'}
                   </p>
+                  <div className="builder-canvas__dropzone-actions">
+                    {template.requestForm && template.requestForm.enabled === false ? (
+                      <button
+                        type="button"
+                        className="builder-canvas__open-request-settings"
+                        onClick={() => {
+                          setSelectedFieldId(REQUEST_FORM_SELECTION_ID);
+                          setIsInspectorOpen(true);
+                          setMode('design');
+                        }}
+                      >
+                        Открыть настройки блока заявки
+                      </button>
+                    ) : null}
+                    {template.resultCardShow === false ? (
+                      <button
+                        type="button"
+                        className="builder-canvas__open-result-settings"
+                        onClick={() => {
+                          setSelectedFieldId(RESULT_CARD_SELECTION_ID);
+                          setIsInspectorOpen(true);
+                          setMode('design');
+                        }}
+                      >
+                        Открыть настройки блока «Итог расчёта»
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               )}
             </div>
