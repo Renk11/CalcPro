@@ -5203,9 +5203,12 @@ export const HomePage = ({
               className="settings-form__input"
               type="text"
               inputMode="numeric"
+              maxLength={17}
               placeholder="Например: 123456789"
               value={managerVkId}
-              onChange={(event) => setManagerVkId(event.target.value.replace(/[^\d]/g, ''))}
+              onChange={(event) =>
+                setManagerVkId(event.target.value.replace(/[^\d]/g, '').slice(0, 17))
+              }
             />
           </label>
 
