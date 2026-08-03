@@ -1,5 +1,21 @@
+ssh root@46.173.29.33
+
 cd /var/www/calcpro
 git pull
 npm run build
 pm2 restart calcpro
 nano .env
+
+cd /var/www/calcpro && npm run build && pm2 restart calcpro && pm2 logs calcpro --lines 100
+
+
+
+Да. После каждого следующего фикса я буду сразу добавлять и команду деплоя.
+Используй вот этот безопасный шаблон:
+cd /var/www/calcpro
+git fetch origin
+git checkout origin/main -- .
+npm run build
+pm2 restart calcpro
+pm2 flush
+pm2 logs calcpro --lines 30

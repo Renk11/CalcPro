@@ -37,6 +37,7 @@ interface CalculatorFieldInputProps {
   template?: { basePrice: number; globalCoefficient: number; fields: CalculatorField[] };
   allValues?: Record<string, CalculatorFieldValue>;
   isCalculationTriggered?: boolean;
+  isLoading?: boolean;
 }
 
 interface LocalizedDateTimeInputProps {
@@ -389,6 +390,7 @@ export const CalculatorFieldInput = ({
   template,
   allValues,
   isCalculationTriggered = true,
+  isLoading: isLoadingProp = false,
 }: CalculatorFieldInputProps) => {
   const inputSubtype = getInputSubtype(field);
   const [selectedBookingDate, setSelectedBookingDate] = useState(() =>
@@ -685,7 +687,8 @@ export const CalculatorFieldInput = ({
     const buttonSize = field.buttonSize ?? 'medium';
     const buttonWidth = field.buttonWidth ?? 'auto';
     const buttonRadius = Math.min(32, Math.max(0, field.buttonRadius ?? 18));
-    const isLoading = field.buttonLoading === true;
+      // runtime loading state comes from parent via prop; keep builder/design toggle
+      const isLoading = isDesignMode ? field.buttonLoading === true : (isLoadingProp ?? false);
 
     return (
       <div className={`calc-action-button-wrap calc-action-button-wrap_${buttonWidth}`}>

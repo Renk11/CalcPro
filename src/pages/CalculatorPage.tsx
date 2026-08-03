@@ -356,6 +356,7 @@ export const CalculatorPage = ({
   const [comment, setComment] = useState('');
   const [status, setStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingByFieldId, setLoadingByFieldId] = useState<Record<string, boolean>>({});
   const [isCalculationTriggered, setIsCalculationTriggered] = useState(false);
   const [isConsentChecked, setIsConsentChecked] = useState(false);
   const [consentError, setConsentError] = useState('');
@@ -620,9 +621,17 @@ export const CalculatorPage = ({
     action: NonNullable<CalculatorField['buttonAction']>,
     field: CalculatorField,
   ) => {
+    const setFieldLoading = (value: boolean) =>
+      setLoadingByFieldId((current) => ({ ...current, [field.id]: value }));
+
     switch (action) {
       case 'submit':
-        await handleSubmit();
+        setFieldLoading(true);
+        try {
+          await handleSubmit();
+        } finally {
+          setFieldLoading(false);
+        }
         break;
       case 'reset':
         resetCalculator();
@@ -642,6 +651,15 @@ export const CalculatorPage = ({
           setStatus('Результат скопирован');
         } catch {
           setStatus('Не удалось скопировать результат');
+        }
+        break;
+      case 'calculate':
+      default:
+        if (!validate()) {
+          setStatus('Заполните обязательные поля');
+        } else {
+          setIsCalculationTriggered(true);
+          setStatus(`Итог: ${result.total} ₽`);
         }
         break;
       case 'calculate':
@@ -710,6 +728,7 @@ export const CalculatorPage = ({
                       value={values[field.key] ?? getInitialFieldValue(field)}
                       error={errors[field.key]}
                       isFormValid={isTemplateValid}
+                      isLoading={loadingByFieldId[field.id] === true}
                       template={template}
                       allValues={values}
                       isCalculationTriggered={isCalculationTriggered}

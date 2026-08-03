@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m ' *)",
+      "Bash(grep -n \"syncTemplatesToServer\\\\|fetch\\(createApiUrl\\(\\\\`/api/templates\" \"src/App.tsx\")",
+      "Bash(node --check server/folder-store.js)",
+      "Bash(node --check api/folders.js)",
+      "Bash(node --check server/index.js)",
+      "Bash(npm run *)",
+      "Bash(awk 'NR<=6145 && /@media/{line=NR; rule=$0} END{print line\": \"rule}' \"src/styles.css\")",
+      "Bash(awk -F: '$1<6200')",
+      "Bash(node --check api/requests.js)"
+    ]
+  }
+}
