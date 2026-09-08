@@ -35,7 +35,12 @@ import {
   updateSupportTicketStatus,
 } from '../shared/storage/localStorage';
 import type { SubscriptionPlanConfig } from '../shared/subscription';
-import { SUBSCRIPTION_PLANS, formatSubscriptionDate, parseSubscriptionDate } from '../shared/subscription';
+import {
+  SUBSCRIPTION_PLANS,
+  formatSubscriptionDate,
+  getSubscriptionPlanPriceRub,
+  parseSubscriptionDate,
+} from '../shared/subscription';
 import type {
   CalculatorAdminSettings,
   CalculatorAnalyticsEvent,
@@ -4091,6 +4096,11 @@ export const HomePage = ({
               {tariffOverview.map((plan) => {
                 const planConfig = SUBSCRIPTION_PLANS[plan.planId];
                 const isActivePlan = currentPlan.id === plan.planId;
+                const currentPrice = getSubscriptionPlanPriceRub(planConfig);
+                const promotionIsActive = currentPrice !== planConfig.monthlyPriceRub;
+                const promotionDiscount = Math.round(
+                  (1 - currentPrice / planConfig.monthlyPriceRub) * 100,
+                );
 
                 return (
                   <div
@@ -4100,8 +4110,25 @@ export const HomePage = ({
                     <div className="payments-plan-info__head">
                       <div className="payments-plan-info__name">{plan.title}</div>
                       <div className="payments-plan-info__price">
-                        {planConfig.monthlyPriceRub > 0
-                          ? `${formatCurrency(planConfig.monthlyPriceRub)}/мес`
+                        {currentPrice > 0
+                          ? (
+                              <span className="payments-plan-info__price-stack">
+                                {promotionIsActive ? (
+                                  <span className="payments-plan-info__old-price">
+                                    <s>{formatCurrency(planConfig.monthlyPriceRub)}</s>
+                                    <span>/мес</span>
+                                  </span>
+                                ) : null}
+                                <span className="payments-plan-info__current-price">
+                                  {formatCurrency(currentPrice)}<small>/мес</small>
+                                </span>
+                                {promotionIsActive ? (
+                                  <span className="payments-plan-info__promo">
+                                    −{promotionDiscount}% до 10.10
+                                  </span>
+                                ) : null}
+                              </span>
+                            )
                           : 'бесплатно'}
                       </div>
                     </div>
@@ -4119,6 +4146,8 @@ export const HomePage = ({
             {paidPlanOrder.map((planId) => {
               const plan = SUBSCRIPTION_PLANS[planId];
               const isCurrentConfiguredPlan = configuredPlan.id === plan.id;
+              const currentPrice = getSubscriptionPlanPriceRub(plan);
+              const promotionIsActive = currentPrice !== plan.monthlyPriceRub;
 
               return (
                 <button
@@ -4130,7 +4159,13 @@ export const HomePage = ({
                 >
                   {isProcessingPayment
                     ? 'Переходим к оплате...'
-                    : `${isCurrentConfiguredPlan && hasActiveSubscription ? 'Продлить' : 'Выбрать'} ${plan.name} за ${formatCurrency(plan.monthlyPriceRub)}`}
+                    : (
+                        <span className="payments-price-card__button-content">
+                          <span>{isCurrentConfiguredPlan && hasActiveSubscription ? 'Продлить' : 'Выбрать'} {plan.name}</span>
+                          {promotionIsActive ? <s>{formatCurrency(plan.monthlyPriceRub)}</s> : null}
+                          <strong>{formatCurrency(currentPrice)}<small>/мес</small></strong>
+                        </span>
+                      )}
                 </button>
               );
             })}

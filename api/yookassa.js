@@ -10,6 +10,7 @@ import {
   buildNextPaidUntil,
   DEFAULT_SUBSCRIPTION_PLAN,
   getSubscriptionPlanConfig,
+  getSubscriptionPlanPriceRub,
   isSubscriptionAmountValid,
   normalizeSubscriptionAmount,
 } from '../server/subscription-config.js';
@@ -51,7 +52,7 @@ async function createPayment(request, response) {
   const settings = await getServerAdminSettings(groupId);
   const plan = String(request.body?.plan || settings.subscription.plan || DEFAULT_SUBSCRIPTION_PLAN);
   const planConfig = getSubscriptionPlanConfig(plan);
-  const amountRub = normalizeSubscriptionAmount(planConfig.monthlyPriceRub, planConfig.id);
+  const amountRub = normalizeSubscriptionAmount(getSubscriptionPlanPriceRub(planConfig), planConfig.id);
   const idempotenceKey = `calcpro_${Date.now()}`;
   const returnUrl = buildReturnUrl(request);
 

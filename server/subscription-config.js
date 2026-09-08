@@ -38,6 +38,10 @@ export const SUBSCRIPTION_PLANS = {
     id: 'start',
     name: 'Start',
     monthlyPriceRub: 299,
+    promotion: {
+      priceRub: 199,
+      endsAt: '2026-10-10T23:59:59.999+03:00',
+    },
     communityLimit: 3,
     calculatorLimit: 3,
     monthlyRequestLimit: 100,
@@ -53,6 +57,10 @@ export const SUBSCRIPTION_PLANS = {
     id: 'pro',
     name: 'Pro',
     monthlyPriceRub: 699,
+    promotion: {
+      priceRub: 499,
+      endsAt: '2026-10-10T23:59:59.999+03:00',
+    },
     communityLimit: null,
     calculatorLimit: null,
     monthlyRequestLimit: null,
@@ -76,6 +84,15 @@ export function getSubscriptionPlanConfig(plan) {
   }
 
   return SUBSCRIPTION_PLANS[DEFAULT_SUBSCRIPTION_PLAN];
+}
+
+export function getSubscriptionPlanPriceRub(plan, now = new Date()) {
+  const config = typeof plan === 'object' ? plan : getSubscriptionPlanConfig(plan);
+  const promotion = config.promotion;
+
+  return promotion && Date.parse(promotion.endsAt) >= now.getTime()
+    ? promotion.priceRub
+    : config.monthlyPriceRub;
 }
 
 export function createDefaultSubscriptionSettings() {
@@ -198,7 +215,7 @@ export function buildNextPaidUntil(currentPaidUntil = '') {
 export function normalizeSubscriptionAmount(value, plan = DEFAULT_SUBSCRIPTION_PLAN) {
   const amountRub = Number(value);
   if (!Number.isFinite(amountRub) || amountRub <= 0) {
-    return getSubscriptionPlanConfig(plan).monthlyPriceRub;
+    return getSubscriptionPlanPriceRub(plan);
   }
 
   return amountRub;

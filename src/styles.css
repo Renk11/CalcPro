@@ -2153,6 +2153,53 @@ body,
   text-align: right;
 }
 
+.payments-plan-info__price-stack {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+}
+
+.payments-plan-info__old-price {
+  color: #9ea497;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.payments-plan-info__old-price s {
+  text-decoration-thickness: 1.5px;
+}
+
+.payments-plan-info__old-price span {
+  margin-left: 3px;
+}
+
+.payments-plan-info__current-price {
+  color: #ffd18f;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.payments-plan-info__current-price small {
+  margin-left: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.payments-plan-info__promo {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(255, 179, 107, 0.16);
+  color: #ffd9a8;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 .payments-plan-info__items {
   display: grid;
   gap: 6px;
@@ -2200,6 +2247,30 @@ body,
 
 .payments-price-card__button:active {
   transform: translateY(0);
+}
+
+.payments-price-card__button-content {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0 6px;
+}
+
+.payments-price-card__button-content s {
+  color: rgba(30, 35, 41, 0.62);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration-thickness: 1.5px;
+}
+
+.payments-price-card__button-content strong {
+  font-size: 16px;
+}
+
+.payments-price-card__button-content strong small {
+  margin-left: 2px;
+  font-size: 11px;
 }
 
 .payments-grid {

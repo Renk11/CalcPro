@@ -27,6 +27,10 @@ export type SubscriptionPlanConfig = {
   id: CalculatorSubscriptionPlan;
   name: string;
   monthlyPriceRub: number;
+  promotion?: {
+    priceRub: number;
+    endsAt: string;
+  };
   communityLimit: number | null;
   calculatorLimit: number | null;
   monthlyRequestLimit: number | null;
@@ -62,6 +66,10 @@ export const SUBSCRIPTION_PLANS: Record<CalculatorSubscriptionPlan, Subscription
     id: 'start',
     name: 'Start',
     monthlyPriceRub: 299,
+    promotion: {
+      priceRub: 199,
+      endsAt: '2026-10-10T23:59:59.999+03:00',
+    },
     communityLimit: 3,
     calculatorLimit: 3,
     monthlyRequestLimit: 100,
@@ -77,6 +85,10 @@ export const SUBSCRIPTION_PLANS: Record<CalculatorSubscriptionPlan, Subscription
     id: 'pro',
     name: 'Pro',
     monthlyPriceRub: 699,
+    promotion: {
+      priceRub: 499,
+      endsAt: '2026-10-10T23:59:59.999+03:00',
+    },
     communityLimit: null,
     calculatorLimit: null,
     monthlyRequestLimit: null,
@@ -105,6 +117,18 @@ export const getSubscriptionPlanConfig = (
   }
 
   return SUBSCRIPTION_PLANS[DEFAULT_SUBSCRIPTION_PLAN];
+};
+
+export const getSubscriptionPlanPriceRub = (
+  plan: SubscriptionPlanConfig | CalculatorSubscriptionPlan | string | undefined,
+  now = new Date(),
+) => {
+  const config = typeof plan === 'object' ? plan : getSubscriptionPlanConfig(plan);
+  const promotion = config.promotion;
+
+  return promotion && Date.parse(promotion.endsAt) >= now.getTime()
+    ? promotion.priceRub
+    : config.monthlyPriceRub;
 };
 
 export const createDefaultSubscriptionSettings = (): CalculatorAdminSettings['subscription'] => {
